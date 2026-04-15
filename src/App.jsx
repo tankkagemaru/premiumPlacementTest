@@ -1054,7 +1054,7 @@ function QuestionManager({ onRefresh }) {
                 <input type="range" min="1" max="10" value={formData.difficulty_score} onChange={(e) => setFormData({ ...formData, difficulty_score: parseFloat(e.target.value) })} style={{
                   width: '100%'
                 }} />
-                <span style={{ fontSize: '13px', color: COLORS.mediumGray' }}>{formData.difficulty_score.toFixed(1)}</span>
+                <span style={{ fontSize: '13px', color: COLORS.mediumGray }}>{formData.difficulty_score.toFixed(1)}</span>
               </div>
             </div>
 
