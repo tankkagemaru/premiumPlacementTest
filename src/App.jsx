@@ -120,21 +120,20 @@ class SupabaseClient {
     localStorage.setItem('user_id', data.user.id);
     localStorage.setItem('user_email', data.user.email);
     
-    // Fetch role from users table instead of metadata
+    // Fetch role from users table
+    let userRole = 'student'; // default fallback
     try {
       const userResponse = await this.request('GET', `/rest/v1/users?id=eq.${data.user.id}&select=role`);
       if (userResponse && userResponse.length > 0) {
-        localStorage.setItem('user_role', userResponse[0].role);
-      } else {
-        // Fallback to metadata if not found in table
-        localStorage.setItem('user_role', data.user.user_metadata?.role || 'student');
+        userRole = userResponse[0].role;
       }
     } catch (err) {
       console.error('Error fetching user role:', err);
-      localStorage.setItem('user_role', data.user.user_metadata?.role || 'student');
     }
     
-    return data;
+    localStorage.setItem('user_role', userRole);
+    
+    return { ...data, user: { ...data.user, role: userRole } };
   }
 
   async logout() {
@@ -400,8 +399,9 @@ function AuthView({ setCurrentUser }) {
         setError('Account created! Please login.');
       } else {
         const result = await supabase.login(email, password);
-        const userRole = localStorage.getItem('user_role');
-        setCurrentUser({ id: result.user.id, role: userRole, email: result.user.email });
+        // Use role from login response, which fetches from database
+        const actualRole = result.user.role || localStorage.getItem('user_role') || 'student';
+        setCurrentUser({ id: result.user.id, role: actualRole, email: result.user.email });
       }
     } catch (err) {
       setError(err.message);
