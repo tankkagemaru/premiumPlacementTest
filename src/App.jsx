@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
@@ -928,7 +928,7 @@ function QuestionManager({ onRefresh }) {
     difficulty_score: 5
   });
 
-  const loadQuestions = async () => {
+  const loadQuestions = useCallback(async () => {
     setLoading(true);
     try {
       let allQuestions = await supabase.getAllQuestions();
@@ -942,11 +942,11 @@ function QuestionManager({ onRefresh }) {
       console.error('Error loading questions:', err);
     }
     setLoading(false);
-  };
+  }, [filter]);
 
   useEffect(() => {
     loadQuestions();
-  }, [filter]);
+  }, [loadQuestions]);
 
   const handleAddQuestion = async (e) => {
     e.preventDefault();
