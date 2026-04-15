@@ -120,18 +120,30 @@ class SupabaseClient {
     localStorage.setItem('user_id', data.user.id);
     localStorage.setItem('user_email', data.user.email);
     
+    console.log('=== LOGIN DEBUG ===');
+    console.log('User ID:', data.user.id);
+    console.log('Email:', data.user.email);
+    
     // Fetch role from users table
     let userRole = 'student'; // default fallback
     try {
+      console.log('Attempting to fetch role from users table...');
       const userResponse = await this.request('GET', `/rest/v1/users?id=eq.${data.user.id}&select=role`);
+      console.log('Users table response:', userResponse);
+      
       if (userResponse && userResponse.length > 0) {
         userRole = userResponse[0].role;
+        console.log('Role from database:', userRole);
+      } else {
+        console.log('No user found in users table, using default: student');
       }
     } catch (err) {
       console.error('Error fetching user role:', err);
     }
     
     localStorage.setItem('user_role', userRole);
+    console.log('Final role set to localStorage:', userRole);
+    console.log('=== END DEBUG ===');
     
     return { ...data, user: { ...data.user, role: userRole } };
   }
