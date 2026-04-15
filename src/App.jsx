@@ -6,7 +6,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Color constants
 const COLORS = {
   primary: '#CC0000',      // Marlboro Red
-  white: '#FFFFFF',
+  white: '#FFFFFF',      // White
   lightGray: '#F5F5F5',
   mediumGray: '#888888',
   darkGray: '#333333',
