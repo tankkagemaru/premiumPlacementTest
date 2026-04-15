@@ -3,10 +3,9 @@ import React, { useState, useEffect } from 'react';
 const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
 
-// Color constants
 const COLORS = {
-  primary: '#CC0000',      // Marlboro Red
-  white: '#FFFFFF',      // White
+  primary: '#CC0000',
+  white: '#FFFFFF',
   lightGray: '#F5F5F5',
   mediumGray: '#888888',
   darkGray: '#333333',
@@ -68,7 +67,6 @@ class SupabaseClient {
       localStorage.setItem('user_role', role);
       localStorage.setItem('user_email', email);
       
-      // Create user profile
       await this.request('POST', '/rest/v1/users', {
         id: data.user.id,
         email,
@@ -172,20 +170,10 @@ class SupabaseClient {
   async getStudents() {
     return this.request('GET', "/rest/v1/users?role=eq.student&select=*");
   }
-
-  async sendEmailNotification(teacherEmail, studentEmail, cefrLevel, scores) {
-    return this.request('POST', '/rest/v1/email_logs', {
-      recipient_email: teacherEmail,
-      recipient_role: 'teacher',
-      subject: `Student Placement Test Complete: ${studentEmail}`,
-      status: 'sent'
-    });
-  }
 }
 
 const supabase = new SupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Main App Component
 export default function PlacementTestApp() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -587,7 +575,7 @@ function TeacherDashboard({ user }) {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 5000); // Poll every 5 seconds
+    const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -655,8 +643,8 @@ function TeacherDashboard({ user }) {
               letterSpacing: '0.5px',
               transition: 'all 0.2s'
             }}
-            onMouseEnter={(e) => !view === tab && (e.target.style.background = `${COLORS.primary}20`)}
-            onMouseLeave={(e) => !view === tab && (e.target.style.background = 'transparent')}>
+            onMouseEnter={(e) => view !== tab && (e.target.style.background = `${COLORS.primary}20`)}
+            onMouseLeave={(e) => view !== tab && (e.target.style.background = 'transparent')}>
             {tab === 'results' ? '📊 Results' : '❓ Question Bank'}
           </button>
         ))}
@@ -677,11 +665,6 @@ function ResultsDashboard({ results, students, onExport, loading }) {
   const avgScore = results.length > 0 
     ? (results.reduce((sum, r) => sum + r.overall_score, 0) / results.length * 100).toFixed(0)
     : 0;
-
-  const levelDistribution = {};
-  results.forEach(r => {
-    levelDistribution[r.determined_cefr_level] = (levelDistribution[r.determined_cefr_level] || 0) + 1;
-  });
 
   return (
     <div>
@@ -1051,9 +1034,7 @@ function QuestionManager({ onRefresh }) {
 
               <div>
                 <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '0.5rem', color: COLORS.darkGray, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Difficulty (1-10)</label>
-                <input type="range" min="1" max="10" value={formData.difficulty_score} onChange={(e) => setFormData({ ...formData, difficulty_score: parseFloat(e.target.value) })} style={{
-                  width: '100%'
-                }} />
+                <input type="range" min="1" max="10" value={formData.difficulty_score} onChange={(e) => setFormData({ ...formData, difficulty_score: parseFloat(e.target.value) })} style={{ width: '100%' }} />
                 <span style={{ fontSize: '13px', color: COLORS.mediumGray }}>{formData.difficulty_score.toFixed(1)}</span>
               </div>
             </div>
@@ -1189,7 +1170,6 @@ function QuestionManager({ onRefresh }) {
           </form>
         )}
 
-        {/* Filter Section */}
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <select value={filter.level} onChange={(e) => setFilter({ ...filter, level: e.target.value })} style={{
             padding: '0.75rem 1rem',
@@ -1228,7 +1208,6 @@ function QuestionManager({ onRefresh }) {
           </select>
         </div>
 
-        {/* Questions List */}
         <div style={{ display: 'grid', gap: '1rem' }}>
           {loading ? (
             <p style={{ color: COLORS.mediumGray, textAlign: 'center', padding: '2rem' }}>Loading questions...</p>
@@ -1371,7 +1350,6 @@ function StudentInterface({ user }) {
         determined_cefr_level: cefrLevel
       });
       
-      // Send email notification to teachers via Vercel function
       try {
         await fetch('/api/send-email', {
           method: 'POST',
@@ -1466,7 +1444,7 @@ function StudentInterface({ user }) {
             fontSize: '14px',
             color: COLORS.darkGray
           }}>
-            <div>✓ Grammar & Vocabulary</div>
+            <div>✓ Grammar &amp; Vocabulary</div>
             <div>✓ Listening Comprehension</div>
             <div>✓ Reading Comprehension</div>
             <div>✓ Adaptive Difficulty</div>
@@ -1530,7 +1508,6 @@ function TestEngine({ session, onComplete }) {
     try {
       const allQuestions = await supabase.getAllQuestions();
       
-      // Start with B1 level questions
       const startingQuestions = allQuestions
         .filter(q => q.cefr_level === 'B1')
         .sort(() => Math.random() - 0.5)
@@ -1567,14 +1544,12 @@ function TestEngine({ session, onComplete }) {
       console.error('Error saving response:', err);
     }
 
-    // Update difficulty based on performance
     if (isCorrect) {
       setCurrentDifficulty(Math.min(10, currentDifficulty + 0.8));
     } else {
       setCurrentDifficulty(Math.max(1, currentDifficulty - 0.6));
     }
 
-    // Move to next or complete
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setQuestionStartTime(Date.now());
@@ -1617,9 +1592,7 @@ function TestEngine({ session, onComplete }) {
       confidence_level: Math.min(Math.max(correctCount / questions.length, 0.2), 0.95)
     };
 
-    // Determine CEFR level based on overall score and question difficulty
     let level = 'A1';
-    const avgDifficulty = questions.reduce((sum, q) => sum + q.difficulty_score, 0) / questions.length;
     
     if (scores.overall_score >= 0.85) level = 'C2';
     else if (scores.overall_score >= 0.75) level = 'C1';
@@ -1827,13 +1800,6 @@ function TestEngine({ session, onComplete }) {
           )}
         </div>
       </div>
-
-      <style>{`
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }
@@ -1908,7 +1874,6 @@ function ResultsView({ result, onRestart }) {
             fontSize: '56px',
             fontWeight: 'bold',
             color: COLORS.primary,
-            marginBottom: '1rem',
             margin: '1rem 0'
           }}>
             {result.determined_cefr_level}
