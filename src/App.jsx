@@ -118,8 +118,21 @@ class SupabaseClient {
     this.token = data.access_token;
     localStorage.setItem('auth_token', data.access_token);
     localStorage.setItem('user_id', data.user.id);
-    localStorage.setItem('user_role', data.user.user_metadata?.role || 'student');
     localStorage.setItem('user_email', data.user.email);
+    
+    // Fetch role from users table instead of metadata
+    try {
+      const userResponse = await this.request('GET', `/rest/v1/users?id=eq.${data.user.id}&select=role`);
+      if (userResponse && userResponse.length > 0) {
+        localStorage.setItem('user_role', userResponse[0].role);
+      } else {
+        // Fallback to metadata if not found in table
+        localStorage.setItem('user_role', data.user.user_metadata?.role || 'student');
+      }
+    } catch (err) {
+      console.error('Error fetching user role:', err);
+      localStorage.setItem('user_role', data.user.user_metadata?.role || 'student');
+    }
     
     return data;
   }
