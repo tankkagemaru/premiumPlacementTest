@@ -214,15 +214,36 @@ export default function PlacementTestApp() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    const userId = localStorage.getItem('user_id');
-    const role = localStorage.getItem('user_role');
+    const initializeUser = async () => {
+      const token = localStorage.getItem('auth_token');
+      const userId = localStorage.getItem('user_id');
+      const email = localStorage.getItem('user_email');
+      
+      if (token && userId) {
+        supabase.token = token;
+        
+        // Fetch actual role from database
+        try {
+          const userResponse = await supabase.request('GET', `/rest/v1/users?id=eq.${userId}&select=role`);
+          if (userResponse && userResponse.length > 0) {
+            const actualRole = userResponse[0].role;
+            localStorage.setItem('user_role', actualRole);
+            setCurrentUser({ id: userId, role: actualRole, email });
+          } else {
+            // Fallback to localStorage if not found
+            const fallbackRole = localStorage.getItem('user_role') || 'student';
+            setCurrentUser({ id: userId, role: fallbackRole, email });
+          }
+        } catch (err) {
+          console.error('Error fetching user role:', err);
+          const fallbackRole = localStorage.getItem('user_role') || 'student';
+          setCurrentUser({ id: userId, role: fallbackRole, email });
+        }
+      }
+      setLoading(false);
+    };
     
-    if (token && userId) {
-      supabase.token = token;
-      setCurrentUser({ id: userId, role, email: localStorage.getItem('user_email') });
-    }
-    setLoading(false);
+    initializeUser();
   }, []);
 
   const handleLogout = () => {
