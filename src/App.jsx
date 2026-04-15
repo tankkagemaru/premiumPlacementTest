@@ -920,7 +920,8 @@ function QuestionManager({ onRefresh }) {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Delete this question? This cannot be undone.')) {
+    const userConfirmed = window.confirm('Delete this question? This cannot be undone.');
+   if (userConfirmed) {
       try {
         await supabase.deleteQuestion(id);
         loadQuestions();
