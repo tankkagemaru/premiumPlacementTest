@@ -59,10 +59,24 @@ class SupabaseClient {
       });
 
       const data = await response.json();
-      if (data.error) throw new Error(data.error.message);
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('Too many signup attempts. Please try again in a few minutes.');
+        }
+        if (data.error?.message === 'User already registered') {
+          throw new Error('This email is already registered. Try logging in instead.');
+        }
+        throw new Error(data.error?.message || 'Signup failed');
+      }
+      
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
       
       if (!data.user || !data.user.id) {
-        throw new Error('Failed to create user - no user ID returned');
+        console.error('Signup response:', data);
+        throw new Error('Signup successful but user ID not returned. Please log in.');
       }
       
       this.token = data.session?.access_token;
