@@ -1,2194 +1,875 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
 
-const COLORS = {
-  primary: '#CC0000',
-  white: '#FFFFFF',
-  lightGray: '#F5F5F5',
-  mediumGray: '#888888',
-  darkGray: '#333333',
-  success: '#4CAF50',
-  warning: '#FF9800',
-  error: '#F44336'
-};
-
-class SupabaseClient {
-  constructor(url, key) {
-    this.url = url;
-    this.key = key;
-    this.token = null;
+// Styles embedded in component
+const styles = `
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
 
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    background-color: #f5f5f5;
+  }
+
+  .app {
+    min-height: 100vh;
+    background-color: #f5f5f5;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #CC0000 0%, #990000 100%);
+    color: white;
+    padding: 40px 20px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .header h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+    opacity: 0.9;
+  }
+
+  .login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 120px);
+    padding: 20px;
+  }
+
+  .login-box {
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .login-box h1 {
+    color: #CC0000;
+    font-size: 24px;
+    margin-bottom: 10px;
+  }
+
+  .login-box input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+
+  .login-box input:focus {
+    outline: none;
+    border-color: #CC0000;
+    box-shadow: 0 0 5px rgba(204, 0, 0, 0.2);
+  }
+
+  .primary-button {
+    width: 100%;
+    padding: 12px;
+    background-color: #CC0000;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  .primary-button:hover {
+    background-color: #990000;
+  }
+
+  .primary-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .error-message {
+    background-color: #fee;
+    color: #c00;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 14px;
+  }
+
+  .toggle-auth {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 14px;
+  }
+
+  .link-button {
+    background: none;
+    border: none;
+    color: #CC0000;
+    cursor: pointer;
+    text-decoration: underline;
+    margin-left: 5px;
+  }
+
+  .test-screen {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  .test-intro {
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-align: center;
+  }
+
+  .test-intro h1 {
+    color: #CC0000;
+    margin-bottom: 20px;
+  }
+
+  .description {
+    color: #666;
+    margin-bottom: 30px;
+    line-height: 1.6;
+  }
+
+  .test-info {
+    background-color: #f9f9f9;
+    border: 2px dashed #CC0000;
+    padding: 20px;
+    margin-bottom: 30px;
+    border-radius: 4px;
+  }
+
+  .test-info h3 {
+    color: #CC0000;
+    margin-bottom: 15px;
+    text-align: left;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    text-align: left;
+  }
+
+  .info-grid div {
+    padding: 8px;
+    font-size: 14px;
+  }
+
+  .disclaimer {
+    color: #999;
+    font-size: 12px;
+    margin-top: 20px;
+  }
+
+  .test-progress {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #666;
+    font-size: 14px;
+  }
+
+  .question-box {
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  .question-box h3 {
+    margin-bottom: 20px;
+    color: #333;
+    line-height: 1.6;
+  }
+
+  .passage {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-left: 4px solid #CC0000;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .option-button {
+    padding: 12px;
+    border: 2px solid #ddd;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+  }
+
+  .option-button:hover {
+    border-color: #CC0000;
+    background-color: #fff5f5;
+  }
+
+  .results {
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-align: center;
+  }
+
+  .results h2 {
+    margin-bottom: 30px;
+    color: #333;
+  }
+
+  .result-box {
+    background-color: #f9f9f9;
+    padding: 30px;
+    border-radius: 4px;
+    margin-bottom: 30px;
+  }
+
+  .cefr-level {
+    font-size: 48px;
+    font-weight: bold;
+    color: #CC0000;
+    margin-bottom: 15px;
+  }
+
+  .result-box p {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 10px;
+  }
+
+  .questions-completed {
+    font-size: 14px;
+    color: #999;
+  }
+
+  .dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  .dashboard-header h1 {
+    color: #CC0000;
+    margin: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .logout-button {
+    padding: 10px 20px;
+    background-color: #CC0000;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .logout-button:hover {
+    background-color: #990000;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .tab {
+    padding: 10px 20px;
+    background: white;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s;
+  }
+
+  .tab.active {
+    background-color: #CC0000;
+    color: white;
+    border-color: #CC0000;
+  }
+
+  .tab-content {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  .results-actions {
+    margin-bottom: 20px;
+  }
+
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .results-table th {
+    background-color: #f5f5f5;
+    padding: 12px;
+    text-align: left;
+    font-weight: bold;
+    border-bottom: 2px solid #ddd;
+  }
+
+  .results-table td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .results-table tr:hover {
+    background-color: #f9f9f9;
+  }
+
+  .question-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+  }
+
+  .stat {
+    background-color: #f5f5f5;
+    padding: 15px;
+    border-radius: 4px;
+    text-align: center;
+  }
+
+  @media (max-width: 600px) {
+    .options {
+      grid-template-columns: 1fr;
+    }
+
+    .info-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .header h1 {
+      font-size: 24px;
+    }
+  }
+`;
+
+// API Helper
+const api = {
   async request(method, path, body = null) {
-    const options = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': this.key,
-        ...(this.token && { 'Authorization': `Bearer ${this.token}` })
-      }
+    const token = localStorage.getItem('sb-token');
+    const headers = {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
     };
 
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const options = { method, headers };
     if (body) options.body = JSON.stringify(body);
 
-    const response = await fetch(`${this.url}${path}`, options);
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'API Error');
-    }
-
-    return response.json();
-  }
-
-  async signup(email, password, role, fullName) {
     try {
-      const response = await fetch(`${this.url}/auth/v1/signup`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': this.key
-        },
-        body: JSON.stringify({ 
-          email, 
-          password,
-          data: { role, full_name: fullName }
-        })
-      });
-
-      const data = await response.json();
-      
+      const response = await fetch(`${SUPABASE_URL}${path}`, options);
       if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error('Too many signup attempts. Please try again in a few minutes.');
-        }
-        if (data.error?.message === 'User already registered') {
-          throw new Error('This email is already registered. Try logging in instead.');
-        }
-        throw new Error(data.error?.message || 'Signup failed');
+        throw new Error(`HTTP ${response.status}`);
       }
-      
-      if (data.error) {
-        throw new Error(data.error.message);
-      }
-      
-      if (!data.user || !data.user.id) {
-        console.error('Signup response:', data);
-        throw new Error('Signup successful but user ID not returned. Please log in.');
-      }
-      
-      this.token = data.session?.access_token;
-      localStorage.setItem('auth_token', data.session?.access_token || '');
-      localStorage.setItem('user_id', data.user.id);
-      localStorage.setItem('user_role', role);
-      localStorage.setItem('user_email', email);
-      
-      try {
-        await this.request('POST', '/rest/v1/users', {
-          id: data.user.id,
-          email,
-          role,
-          full_name: fullName
-        });
-      } catch (err) {
-        console.error('Error creating user profile:', err);
-      }
-
-      return data;
-    } catch (err) {
-      throw err;
+      const text = await response.text();
+      return text ? JSON.parse(text) : null;
+    } catch (error) {
+      console.error('API Error:', error);
+      throw error;
     }
-  }
+  },
 
-  async login(email, password) {
-    const response = await fetch(`${this.url}/auth/v1/token?grant_type=password`, {
-      method: 'POST',
+  signup(email, password) {
+    return this.request('POST', '/auth/v1/signup', { email, password });
+  },
+
+  login(email, password) {
+    return this.request('POST', '/auth/v1/token?grant_type=password', { email, password });
+  },
+
+  async getUserRole(userId) {
+    try {
+      const response = await fetch(
+        `${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=role`,
+        {
+          headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${localStorage.getItem('sb-token')}`
+          }
+        }
+      );
+      if (!response.ok) return 'student';
+      const data = await response.json();
+      return data?.[0]?.role || 'student';
+    } catch {
+      return 'student';
+    }
+  },
+
+  getAllQuestions() {
+    return fetch(`${SUPABASE_URL}/rest/v1/questions?select=*&limit=500`, {
       headers: {
-        'Content-Type': 'application/json',
-        'apikey': this.key
-      },
-      body: JSON.stringify({ email, password })
-    });
-
-    const data = await response.json();
-    if (data.error) throw new Error(data.error_description || data.error);
-    
-    this.token = data.access_token;
-    localStorage.setItem('auth_token', data.access_token);
-    localStorage.setItem('user_id', data.user.id);
-    localStorage.setItem('user_email', data.user.email);
-    
-    console.log('=== LOGIN DEBUG ===');
-    console.log('User ID:', data.user.id);
-    console.log('Email:', data.user.email);
-    
-    // Fetch role from users table
-    let userRole = 'student'; // default fallback
-    try {
-      console.log('Attempting to fetch role from users table...');
-      const userResponse = await this.request('GET', `/rest/v1/users?id=eq.${data.user.id}&select=role`);
-      console.log('Users table response:', userResponse);
-      
-      if (userResponse && userResponse.length > 0) {
-        userRole = userResponse[0].role;
-        console.log('Role from database:', userRole);
-      } else {
-        console.log('No user found in users table, using default: student');
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${localStorage.getItem('sb-token')}`
       }
-    } catch (err) {
-      console.error('Error fetching user role:', err);
-    }
-    
-    localStorage.setItem('user_role', userRole);
-    console.log('Final role set to localStorage:', userRole);
-    console.log('=== END DEBUG ===');
-    
-    return { ...data, user: { ...data.user, role: userRole } };
-  }
+    }).then(r => r.json()).catch(() => []);
+  },
 
-  async logout() {
-    this.token = null;
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user_id');
-    localStorage.removeItem('user_role');
-    localStorage.removeItem('user_email');
-  }
+  saveTestResult(result) {
+    return this.request('POST', '/rest/v1/test_results', result);
+  },
 
-  async createQuestion(question) {
-    return this.request('POST', '/rest/v1/questions', question);
-  }
-
-  async getQuestions(filters = {}) {
-    let query = '/rest/v1/questions?select=*';
-    if (filters.cefrLevel) query += `&cefr_level=eq.${filters.cefrLevel}`;
-    if (filters.skill) query += `&skill=eq.${filters.skill}`;
-    if (filters.type) query += `&question_type=eq.${filters.type}`;
-    return this.request('GET', query);
-  }
-
-  async getAllQuestions() {
-    try {
-      const response = await fetch(`${this.url}/rest/v1/questions?select=*`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': this.key,
-          ...(this.token && { 'Authorization': `Bearer ${this.token}` })
-        }
-      });
-
-      if (!response.ok) {
-        console.error('Questions API error:', response.status, response.statusText);
-        return [];
-      }
-
-      const data = await response.json();
-      console.log('Questions loaded:', data.length || 0);
-      return data || [];
-    } catch (err) {
-      console.error('Error loading questions:', err);
-      return [];
-    }
-  }
-
-  async updateQuestion(id, updates) {
-    return this.request('PATCH', `/rest/v1/questions?id=eq.${id}`, updates);
-  }
-
-  async deleteQuestion(id) {
-    return this.request('DELETE', `/rest/v1/questions?id=eq.${id}`);
-  }
-
-  async createTestSession(studentId) {
-    return this.request('POST', '/rest/v1/test_sessions', { student_id: studentId });
-  }
-
-  async updateTestSession(sessionId, updates) {
-    return this.request('PATCH', `/rest/v1/test_sessions?id=eq.${sessionId}`, updates);
-  }
-
-  async saveResponse(response) {
-    return this.request('POST', '/rest/v1/test_responses', response);
-  }
-
-  async completeSession(sessionId, testResults) {
-    await this.updateTestSession(sessionId, { 
-      status: 'completed',
-      completed_at: new Date().toISOString()
-    });
-
-    return this.request('POST', '/rest/v1/test_results', {
-      session_id: sessionId,
-      student_id: localStorage.getItem('user_id'),
-      ...testResults
-    });
-  }
-
-  async getStudentResults(studentId) {
-    return this.request('GET', `/rest/v1/test_results?student_id=eq.${studentId}&select=*`);
-  }
-
-  async getAllResults() {
+  getAllResults() {
     return this.request('GET', '/rest/v1/test_results?select=*');
+  },
+
+  getQuestionBank() {
+    return this.request('GET', '/rest/v1/questions?select=*');
+  }
+};
+
+// Adaptive algorithm
+function selectNextQuestion(questionsBank, currentDifficulty, userResponses) {
+  const minDiff = Math.max(1, currentDifficulty - 1.5);
+  const maxDiff = Math.min(10, currentDifficulty + 1.5);
+
+  const suitable = questionsBank.filter(q => {
+    const qDiff = q.difficulty_score || 5;
+    const alreadyAnswered = userResponses.some(r => r.question_id === q.id);
+    return qDiff >= minDiff && qDiff <= maxDiff && !alreadyAnswered;
+  });
+
+  if (suitable.length === 0) {
+    return questionsBank.find(q => !userResponses.some(r => r.question_id === q.id));
   }
 
-  async getStudents() {
-    return this.request('GET', "/rest/v1/users?role=eq.student&select=*");
+  return suitable[Math.floor(Math.random() * suitable.length)];
+}
+
+function calculateDifficulty(responses) {
+  if (responses.length === 0) return 5;
+  let difficulty = 5;
+  for (const r of responses) {
+    difficulty += r.is_correct ? 0.8 : -0.6;
   }
+  return Math.max(1, Math.min(10, difficulty));
 }
 
-const supabase = new SupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-export default function PlacementTestApp() {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const initializeUser = async () => {
-      const token = localStorage.getItem('auth_token');
-      const userId = localStorage.getItem('user_id');
-      const email = localStorage.getItem('user_email');
-      
-      if (token && userId) {
-        supabase.token = token;
-        
-        // Fetch actual role from database
-        try {
-          const userResponse = await supabase.request('GET', `/rest/v1/users?id=eq.${userId}&select=role`);
-          if (userResponse && userResponse.length > 0) {
-            const actualRole = userResponse[0].role;
-            localStorage.setItem('user_role', actualRole);
-            setCurrentUser({ id: userId, role: actualRole, email });
-          } else {
-            // Fallback to localStorage if not found
-            const fallbackRole = localStorage.getItem('user_role') || 'student';
-            setCurrentUser({ id: userId, role: fallbackRole, email });
-          }
-        } catch (err) {
-          console.error('Error fetching user role:', err);
-          const fallbackRole = localStorage.getItem('user_role') || 'student';
-          setCurrentUser({ id: userId, role: fallbackRole, email });
-        }
-      }
-      setLoading(false);
-    };
-    
-    initializeUser();
-  }, []);
-
-  const handleLogout = () => {
-    supabase.logout();
-    setCurrentUser(null);
-  };
-
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (!currentUser) {
-    return <AuthView setCurrentUser={setCurrentUser} />;
-  }
-
-  return (
-    <div style={{ minHeight: '100vh', background: COLORS.lightGray, fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
-      <Header user={currentUser} onLogout={handleLogout} />
-      
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem 1rem' }}>
-        {currentUser.role === 'teacher' && (
-          <TeacherDashboard user={currentUser} />
-        )}
-        
-        {currentUser.role === 'student' && (
-          <StudentInterface user={currentUser} />
-        )}
-      </div>
-    </div>
-  );
+function determineCEFRLevel(percentage) {
+  if (percentage >= 85) return 'C2';
+  if (percentage >= 75) return 'C1';
+  if (percentage >= 65) return 'B2';
+  if (percentage >= 55) return 'B1';
+  if (percentage >= 40) return 'A2';
+  return 'A1';
 }
 
-function LoadingScreen() {
-  return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: COLORS.lightGray
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{
-          fontSize: '48px',
-          fontWeight: 'bold',
-          color: COLORS.primary,
-          marginBottom: '1rem',
-          animation: 'pulse 2s infinite'
-        }}>
-          🎯
-        </div>
-        <p style={{ color: COLORS.mediumGray, fontSize: '18px' }}>Loading...</p>
-        <style>{`
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-          }
-        `}</style>
-      </div>
-    </div>
-  );
-}
-
-function Header({ user, onLogout }) {
-  const handleMouseEnter = (e) => {
-    e.target.style.background = COLORS.primary;
-    e.target.style.color = COLORS.white;
-    e.target.style.borderColor = COLORS.primary;
-  };
-
-  const handleMouseLeave = (e) => {
-    e.target.style.background = COLORS.lightGray;
-    e.target.style.color = COLORS.darkGray;
-    e.target.style.borderColor = COLORS.mediumGray;
-  };
-
-  return (
-    <div style={{
-      background: COLORS.white,
-      borderBottom: `3px solid ${COLORS.primary}`,
-      padding: '1.5rem 2rem',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-    }}>
-      <div>
-        <h1 style={{
-          margin: 0,
-          fontSize: '28px',
-          fontWeight: 'bold',
-          color: COLORS.primary,
-          letterSpacing: '-0.5px'
-        }}>
-          CEFR Placement
-        </h1>
-        <p style={{ margin: '0.25rem 0 0 0', fontSize: '13px', color: COLORS.mediumGray }}>
-          Premium Language Centre
-        </p>
-      </div>
-      <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ margin: 0, fontSize: '14px', color: COLORS.darkGray, fontWeight: '500' }}>
-            {user.email}
-          </p>
-          <p style={{ margin: '0.25rem 0 0 0', fontSize: '12px', color: COLORS.mediumGray }}>
-            {user.role === 'teacher' ? '👨‍🏫 Instructor' : '👨‍🎓 Student'}
-          </p>
-        </div>
-        <button 
-          onClick={onLogout} 
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-          style={{
-            padding: '0.75rem 1.5rem',
-            fontSize: '14px',
-            fontWeight: '500',
-            cursor: 'pointer',
-            background: COLORS.lightGray,
-            border: `1px solid ${COLORS.mediumGray}`,
-            borderRadius: '6px',
-            color: COLORS.darkGray,
-            transition: 'all 0.2s'
-          }}>
-          Sign Out
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function AuthView({ setCurrentUser }) {
+// Components
+function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('student');
   const [isSignup, setIsSignup] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setLoading(true);
 
     try {
-      if (isSignup) {
-        if (!fullName) throw new Error('Full name is required');
-        await supabase.signup(email, password, role, fullName);
-        setEmail('');
-        setPassword('');
-        setFullName('');
-        setIsSignup(false);
-        setError('Account created! Please login.');
-      } else {
-        const result = await supabase.login(email, password);
-        // Use role from login response, which fetches from database
-        const actualRole = result.user.role || localStorage.getItem('user_role') || 'student';
-        setCurrentUser({ id: result.user.id, role: actualRole, email: result.user.email });
+      const result = isSignup ? await api.signup(email, password) : await api.login(email, password);
+
+      if (!result?.access_token) {
+        setError('Login failed. Please try again.');
+        setLoading(false);
+        return;
       }
+
+      localStorage.setItem('sb-token', result.access_token);
+      const role = await api.getUserRole(result.user.id);
+      onLogin({ ...result.user, role });
     } catch (err) {
-      setError(err.message);
-    } finally {
+      setError(err.message || 'An error occurred');
       setLoading(false);
     }
   };
 
-  const handleButtonMouseEnter = (e) => {
-    if (!loading) {
-      e.target.style.transform = 'translateY(-2px)';
-      e.target.style.boxShadow = '0 8px 24px rgba(204, 0, 0, 0.3)';
-    }
-  };
-
-  const handleButtonMouseLeave = (e) => {
-    e.target.style.transform = 'translateY(0)';
-    e.target.style.boxShadow = 'none';
-  };
-
-  const handleSecondaryButtonEnter = (e) => {
-    e.target.style.background = `${COLORS.primary}10`;
-  };
-
-  const handleSecondaryButtonLeave = (e) => {
-    e.target.style.background = 'transparent';
-  };
-
-  const handleInputFocus = (e) => {
-    e.target.style.borderColor = COLORS.primary;
-  };
-
-  const handleInputBlur = (e) => {
-    e.target.style.borderColor = COLORS.lightGray;
-  };
-
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: `linear-gradient(135deg, ${COLORS.primary}15 0%, ${COLORS.white} 100%)`,
-      padding: '1rem'
-    }}>
-      <div style={{
-        width: '100%',
-        maxWidth: '420px',
-        background: COLORS.white,
-        borderRadius: '12px',
-        padding: '3rem 2rem',
-        boxShadow: '0 12px 48px rgba(204, 0, 0, 0.1)',
-        border: `1px solid ${COLORS.lightGray}`
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{
-            fontSize: '32px',
-            fontWeight: 'bold',
-            color: COLORS.primary,
-            margin: '0 0 0.5rem 0',
-            letterSpacing: '-0.5px'
-          }}>
-            {isSignup ? 'Get Started' : 'Welcome Back'}
-          </h1>
-          <p style={{ color: COLORS.mediumGray, fontSize: '14px', margin: 0 }}>
-            {isSignup ? 'Create your account' : 'Sign in to your account'}
-          </p>
-        </div>
+    <div className="login-container">
+      <div className="login-box">
+        <h1>CEFR Placement</h1>
+        <p className="subtitle">Premium Language Centre</p>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {isSignup && (
-            <div>
-              <label style={{
-                fontSize: '13px',
-                fontWeight: '600',
-                marginBottom: '0.5rem',
-                display: 'block',
-                color: COLORS.darkGray,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-                Full Name
-              </label>
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-                placeholder="John Doe"
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem',
-                  border: `1px solid ${COLORS.lightGray}`,
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                  transition: 'all 0.2s'
-                }}
-              />
-            </div>
-          )}
+        <form onSubmit={handleSubmit}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-          <div>
-            <label style={{
-              fontSize: '13px',
-              fontWeight: '600',
-              marginBottom: '0.5rem',
-              display: 'block',
-              color: COLORS.darkGray,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onFocus={handleInputFocus}
-              onBlur={handleInputBlur}
-              placeholder="you@example.com"
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                border: `1px solid ${COLORS.lightGray}`,
-                borderRadius: '6px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                transition: 'all 0.2s'
-              }}
-            />
-          </div>
+          {error && <div className="error-message">{error}</div>}
 
-          <div>
-            <label style={{
-              fontSize: '13px',
-              fontWeight: '600',
-              marginBottom: '0.5rem',
-              display: 'block',
-              color: COLORS.darkGray,
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onFocus={handleInputFocus}
-              onBlur={handleInputBlur}
-              placeholder="••••••••"
-              required
-              style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                border: `1px solid ${COLORS.lightGray}`,
-                borderRadius: '6px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                transition: 'all 0.2s'
-              }}
-            />
-          </div>
-
-          {isSignup && (
-            <div>
-              <label style={{
-                fontSize: '13px',
-                fontWeight: '600',
-                marginBottom: '0.5rem',
-                display: 'block',
-                color: COLORS.darkGray,
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-                Account Type
-              </label>
-              <select 
-                value={role} 
-                onChange={(e) => setRole(e.target.value)}
-                onFocus={handleInputFocus}
-                onBlur={handleInputBlur}
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem',
-                  border: `1px solid ${COLORS.lightGray}`,
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}>
-                <option value="student">Student</option>
-                <option value="teacher">Instructor</option>
-              </select>
-            </div>
-          )}
-
-          {error && (
-            <div style={{
-              padding: '1rem',
-              background: error.includes('created') ? `${COLORS.success}15` : `${COLORS.error}15`,
-              color: error.includes('created') ? COLORS.success : COLORS.error,
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: '500'
-            }}>
-              {error}
-            </div>
-          )}
-
-          <button 
-            type="submit" 
-            disabled={loading}
-            onMouseEnter={handleButtonMouseEnter}
-            onMouseLeave={handleButtonMouseLeave}
-            style={{
-              padding: '0.9rem 1.5rem',
-              background: COLORS.primary,
-              color: COLORS.white,
-              border: 'none',
-              borderRadius: '6px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontSize: '15px',
-              fontWeight: '600',
-              opacity: loading ? 0.7 : 1,
-              transition: 'all 0.2s',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-            {loading ? 'Loading...' : (isSignup ? 'Create Account' : 'Sign In')}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => { setIsSignup(!isSignup); setError(''); }}
-            onMouseEnter={handleSecondaryButtonEnter}
-            onMouseLeave={handleSecondaryButtonLeave}
-            style={{
-              padding: '0.9rem 1.5rem',
-              background: 'transparent',
-              border: `2px solid ${COLORS.primary}`,
-              color: COLORS.primary,
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '600',
-              transition: 'all 0.2s'
-            }}>
-            {isSignup ? '← Already have an account?' : 'Create new account →'}
+          <button type="submit" className="primary-button" disabled={loading}>
+            {loading ? 'Loading...' : isSignup ? 'Sign Up' : 'Login'}
           </button>
         </form>
+
+        <p className="toggle-auth">
+          {isSignup ? 'Have an account?' : "Don't have an account?"}
+          <button type="button" onClick={() => setIsSignup(!isSignup)} className="link-button">
+            {isSignup ? 'Login' : 'Sign Up'}
+          </button>
+        </p>
       </div>
     </div>
   );
 }
 
-function TeacherDashboard({ user }) {
-  const [view, setView] = useState('results');
-  const [students, setStudents] = useState([]);
-  const [results, setResults] = useState([]);
+function StudentTest({ user, onComplete }) {
+  const [testStarted, setTestStarted] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [questionsBank, setQuestionsBank] = useState([]);
+  const [userResponses, setUserResponses] = useState([]);
+  const [currentDifficulty, setCurrentDifficulty] = useState(5);
+  const [testResults, setTestResults] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const loadData = async () => {
+  useEffect(() => {
+    if (testStarted && questionsBank.length === 0) {
+      loadQuestions();
+    }
+  }, [testStarted, questionsBank.length]);
+
+  const loadQuestions = async () => {
     setLoading(true);
+    setError('');
     try {
-      const [studentsRes, resultsRes] = await Promise.all([
-        supabase.getStudents(),
-        supabase.getAllResults()
-      ]);
-      setStudents(studentsRes || []);
-      setResults(resultsRes || []);
+      const questions = await api.getAllQuestions();
+      if (!questions || questions.length === 0) {
+        setError('No questions available.');
+        setTestStarted(false);
+        setLoading(false);
+        return;
+      }
+      setQuestionsBank(questions);
+      const firstQ = questions.find(q => q.cefr_level === 'B1') || questions[0];
+      setCurrentQuestion(firstQ);
     } catch (err) {
-      console.error('Error loading data:', err);
+      setError('Error loading questions.');
+      setTestStarted(false);
     }
     setLoading(false);
   };
+
+  const handleAnswer = async (selectedAnswer) => {
+    if (!currentQuestion) return;
+
+    const isCorrect = currentQuestion.correct_answers?.includes(selectedAnswer);
+    const newResponses = [
+      ...userResponses,
+      {
+        question_id: currentQuestion.id,
+        student_answer: selectedAnswer,
+        is_correct: isCorrect,
+        time_spent_seconds: 0,
+        difficulty_at_time: currentDifficulty,
+        reaction_time_ms: 0
+      }
+    ];
+
+    setUserResponses(newResponses);
+
+    if (newResponses.length >= 30) {
+      completeTest(newResponses);
+    } else {
+      const newDifficulty = calculateDifficulty(newResponses);
+      setCurrentDifficulty(newDifficulty);
+      const nextQ = selectNextQuestion(questionsBank, newDifficulty, newResponses);
+      setCurrentQuestion(nextQ);
+    }
+  };
+
+  const completeTest = async (responses) => {
+    const correctCount = responses.filter(r => r.is_correct).length;
+    const score = (correctCount / responses.length) * 100;
+    const cefrLevel = determineCEFRLevel(score);
+
+    try {
+      await api.saveTestResult({
+        student_id: user.id,
+        overall_score: score,
+        determined_cefr_level: cefrLevel,
+        completed_at: new Date().toISOString(),
+        notes: `Completed 30 questions. Score: ${score.toFixed(1)}%`
+      });
+    } catch (err) {
+      console.error('Error saving results:', err);
+    }
+
+    setTestResults({ cefrLevel, score, totalQuestions: responses.length });
+  };
+
+  if (!testStarted) {
+    return (
+      <div className="test-screen">
+        <div className="test-intro">
+          <h1>English Level Assessment</h1>
+          <p className="description">
+            Discover your CEFR level with our adaptive placement test.
+            The test adjusts to your ability level and typically takes 15-20 minutes.
+          </p>
+
+          <div className="test-info">
+            <h3>What you'll be tested on:</h3>
+            <div className="info-grid">
+              <div>✓ Grammar & Vocabulary</div>
+              <div>✓ Listening Comprehension</div>
+              <div>✓ Reading Comprehension</div>
+              <div>✓ Adaptive Difficulty</div>
+            </div>
+          </div>
+
+          <button
+            className="primary-button"
+            onClick={() => setTestStarted(true)}
+            disabled={loading}
+          >
+            {loading ? 'Loading...' : 'BEGIN ASSESSMENT →'}
+          </button>
+
+          {error && <div className="error-message">{error}</div>}
+
+          <p className="disclaimer">You can't retake this assessment. Take your time and answer honestly.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (testResults) {
+    return (
+      <div className="test-screen">
+        <div className="results">
+          <h2>Your Results</h2>
+          <div className="result-box">
+            <div className="cefr-level">{testResults.cefrLevel}</div>
+            <p>Score: {testResults.score.toFixed(1)}%</p>
+            <p className="questions-completed">{testResults.totalQuestions} questions completed</p>
+          </div>
+          <button className="primary-button" onClick={() => onComplete()}>Exit</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentQuestion) {
+    return <div className="test-screen"><p>Loading question...</p></div>;
+  }
+
+  return (
+    <div className="test-screen">
+      <div className="test-progress">Question {userResponses.length + 1} of 30</div>
+      <div className="question-box">
+        <h3>{currentQuestion.question_text}</h3>
+        {currentQuestion.audio_url && (
+          <audio controls style={{ width: '100%', marginBottom: '20px' }}>
+            <source src={currentQuestion.audio_url} type="audio/mpeg" />
+          </audio>
+        )}
+        {currentQuestion.passage && <div className="passage"><p>{currentQuestion.passage}</p></div>}
+        <div className="options">
+          {currentQuestion.options?.map((option, idx) => (
+            <button key={idx} className="option-button" onClick={() => handleAnswer(option)}>
+              {option}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeacherDashboard({ user, onLogout }) {
+  const [results, setResults] = useState([]);
+  const [questions, setQuestions] = useState([]);
+  const [activeTab, setActiveTab] = useState('results');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
   }, []);
 
+  const loadData = async () => {
+    try {
+      const [res, q] = await Promise.all([api.getAllResults(), api.getQuestionBank()]);
+      setResults(res || []);
+      setQuestions(q || []);
+    } catch (err) {
+      console.error('Error loading:', err);
+    }
+    setLoading(false);
+  };
+
   const exportCSV = () => {
-    const headers = ['Student Email', 'Full Name', 'Test Date', 'Grammar %', 'Vocabulary %', 'Listening %', 'Reading %', 'Overall %', 'CEFR Level'];
+    if (results.length === 0) return;
+    const headers = ['Student', 'CEFR Level', 'Score', 'Date'];
     const rows = results.map(r => [
       r.student_id,
-      'Student',
-      new Date(r.completed_at).toLocaleDateString(),
-      (r.grammar_score * 100).toFixed(0),
-      (r.vocabulary_score * 100).toFixed(0),
-      (r.listening_score * 100).toFixed(0),
-      (r.reading_score * 100).toFixed(0),
-      (r.overall_score * 100).toFixed(0),
-      r.determined_cefr_level
+      r.determined_cefr_level,
+      `${r.overall_score?.toFixed(1)}%`,
+      new Date(r.completed_at).toLocaleDateString()
     ]);
-
-    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `placement_results_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = 'results.csv';
     a.click();
   };
 
-  return (
-    <div>
-      <div style={{
-        display: 'flex',
-        gap: '1rem',
-        marginBottom: '2rem',
-        borderBottom: `2px solid ${COLORS.lightGray}`,
-        paddingBottom: '1.5rem'
-      }}>
-        {['results', 'questions'].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setView(tab)}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: view === tab ? COLORS.primary : 'transparent',
-              color: view === tab ? COLORS.white : COLORS.darkGray,
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '600',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              transition: 'all 0.2s'
-            }}>
-            {tab === 'results' ? '📊 Results' : '❓ Question Bank'}
-          </button>
-        ))}
-      </div>
-
-      {view === 'results' && (
-        <ResultsDashboard results={results} students={students} onExport={exportCSV} loading={loading} />
-      )}
-
-      {view === 'questions' && (
-        <QuestionManager onRefresh={loadData} />
-      )}
-    </div>
-  );
-}
-
-function ResultsDashboard({ results, students, onExport, loading }) {
-  const avgScore = results.length > 0 
-    ? (results.reduce((sum, r) => sum + r.overall_score, 0) / results.length * 100).toFixed(0)
-    : 0;
-
-  const handleExportMouseEnter = (e) => {
-    e.target.style.transform = 'translateY(-2px)';
-    e.target.style.boxShadow = '0 8px 16px rgba(204, 0, 0, 0.2)';
-  };
-
-  const handleExportMouseLeave = (e) => {
-    e.target.style.transform = 'translateY(0)';
-    e.target.style.boxShadow = 'none';
-  };
-
-  const handleRowMouseEnter = (e) => {
-    e.currentTarget.style.background = COLORS.lightGray;
-  };
-
-  const handleRowMouseLeave = (e) => {
-    e.currentTarget.style.background = 'transparent';
-  };
+  if (loading) return <div className="dashboard"><p>Loading...</p></div>;
 
   return (
-    <div>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '1.5rem',
-        marginBottom: '2rem'
-      }}>
-        <MetricCard label="Total Tests" value={results.length} />
-        <MetricCard label="Average Score" value={`${avgScore}%`} />
-        <MetricCard label="Students" value={students.length} />
-        <MetricCard label="Completion Rate" value={`${results.length > 0 ? ((results.length / students.length) * 100).toFixed(0) : 0}%`} />
-      </div>
-
-      <div style={{
-        background: COLORS.white,
-        borderRadius: '12px',
-        padding: '2rem',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        border: `1px solid ${COLORS.lightGray}`
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '1.5rem'
-        }}>
-          <h3 style={{
-            margin: 0,
-            fontSize: '18px',
-            fontWeight: '600',
-            color: COLORS.darkGray
-          }}>
-            Student Results
-          </h3>
-          <button 
-            onClick={onExport}
-            onMouseEnter={handleExportMouseEnter}
-            onMouseLeave={handleExportMouseLeave}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: COLORS.primary,
-              color: COLORS.white,
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '13px',
-              fontWeight: '600',
-              transition: 'all 0.2s'
-            }}>
-            📥 Export CSV
-          </button>
-        </div>
-
-        {loading ? (
-          <p style={{ color: COLORS.mediumGray, textAlign: 'center', padding: '2rem' }}>Loading results...</p>
-        ) : results.length === 0 ? (
-          <p style={{ color: COLORS.mediumGray, textAlign: 'center', padding: '2rem' }}>No test results yet</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{
-              width: '100%',
-              fontSize: '14px',
-              borderCollapse: 'collapse'
-            }}>
-              <thead>
-                <tr style={{ borderBottom: `2px solid ${COLORS.lightGray}` }}>
-                  <th style={{ textAlign: 'left', padding: '1rem', fontWeight: '600', color: COLORS.darkGray, fontSize: '12px', textTransform: 'uppercase' }}>Student ID</th>
-                  <th style={{ textAlign: 'center', padding: '1rem', fontWeight: '600', color: COLORS.darkGray, fontSize: '12px', textTransform: 'uppercase' }}>Grammar</th>
-                  <th style={{ textAlign: 'center', padding: '1rem', fontWeight: '600', color: COLORS.darkGray, fontSize: '12px', textTransform: 'uppercase' }}>Vocabulary</th>
-                  <th style={{ textAlign: 'center', padding: '1rem', fontWeight: '600', color: COLORS.darkGray, fontSize: '12px', textTransform: 'uppercase' }}>Listening</th>
-                  <th style={{ textAlign: 'center', padding: '1rem', fontWeight: '600', color: COLORS.darkGray, fontSize: '12px', textTransform: 'uppercase' }}>Reading</th>
-                  <th style={{ textAlign: 'center', padding: '1rem', fontWeight: '600', color: COLORS.darkGray, fontSize: '12px', textTransform: 'uppercase' }}>Overall</th>
-                  <th style={{ textAlign: 'center', padding: '1rem', fontWeight: '600', color: COLORS.primary, fontSize: '12px', textTransform: 'uppercase' }}>CEFR Level</th>
-                  <th style={{ textAlign: 'center', padding: '1rem', fontWeight: '600', color: COLORS.darkGray, fontSize: '12px', textTransform: 'uppercase' }}>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {results.map((r, i) => (
-                  <tr 
-                    key={i}
-                    onMouseEnter={handleRowMouseEnter}
-                    onMouseLeave={handleRowMouseLeave}
-                    style={{
-                      borderBottom: `1px solid ${COLORS.lightGray}`,
-                      transition: 'background 0.2s'
-                    }}>
-                    <td style={{ padding: '1rem', fontSize: '13px', color: COLORS.mediumGray }}>{r.student_id.substring(0, 8)}...</td>
-                    <td style={{ textAlign: 'center', padding: '1rem' }}>
-                      <ScoreBar score={r.grammar_score} />
-                    </td>
-                    <td style={{ textAlign: 'center', padding: '1rem' }}>
-                      <ScoreBar score={r.vocabulary_score} />
-                    </td>
-                    <td style={{ textAlign: 'center', padding: '1rem' }}>
-                      <ScoreBar score={r.listening_score} />
-                    </td>
-                    <td style={{ textAlign: 'center', padding: '1rem' }}>
-                      <ScoreBar score={r.reading_score} />
-                    </td>
-                    <td style={{ textAlign: 'center', padding: '1rem', fontWeight: '600' }}>
-                      {(r.overall_score * 100).toFixed(0)}%
-                    </td>
-                    <td style={{ textAlign: 'center', padding: '1rem' }}>
-                      <span style={{
-                        background: COLORS.primary,
-                        color: COLORS.white,
-                        padding: '0.5rem 1rem',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                        display: 'inline-block'
-                      }}>
-                        {r.determined_cefr_level}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center', padding: '1rem', fontSize: '13px', color: COLORS.mediumGray }}>
-                      {new Date(r.completed_at).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ScoreBar({ score }) {
-  const percentage = Math.round(score * 100);
-  const color = percentage >= 70 ? COLORS.success : percentage >= 50 ? COLORS.warning : COLORS.error;
-  
-  return (
-    <div style={{
-      width: '100%',
-      maxWidth: '80px',
-      height: '6px',
-      background: COLORS.lightGray,
-      borderRadius: '3px',
-      overflow: 'hidden',
-      margin: '0 auto'
-    }}>
-      <div style={{
-        height: '100%',
-        width: `${percentage}%`,
-        background: color,
-        transition: 'width 0.3s'
-      }} />
-    </div>
-  );
-}
-
-function MetricCard({ label, value }) {
-  const handleMouseEnter = (e) => {
-    e.currentTarget.style.transform = 'translateY(-2px)';
-    e.currentTarget.style.boxShadow = '0 8px 24px rgba(204, 0, 0, 0.1)';
-  };
-
-  const handleMouseLeave = (e) => {
-    e.currentTarget.style.transform = 'translateY(0)';
-    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
-  };
-
-  return (
-    <div 
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      style={{
-        background: COLORS.white,
-        borderRadius: '12px',
-        padding: '1.5rem',
-        border: `1px solid ${COLORS.lightGray}`,
-        textAlign: 'center',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-        transition: 'all 0.2s'
-      }}>
-      <p style={{ margin: '0 0 0.75rem 0', fontSize: '13px', color: COLORS.mediumGray, textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
-        {label}
-      </p>
-      <p style={{ margin: 0, fontSize: '32px', fontWeight: 'bold', color: COLORS.primary }}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function QuestionManager({ onRefresh }) {
-  const [questions, setQuestions] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState({ level: '', type: '', skill: '' });
-  const [formData, setFormData] = useState({
-    question_text: '',
-    question_type: 'multiple_choice',
-    skill: 'grammar',
-    cefr_level: 'A1',
-    options: ['', '', '', ''],
-    correct_answers: [],
-    audio_url: '',
-    passage: '',
-    explanation: '',
-    difficulty_score: 5
-  });
-
-  const loadQuestions = useCallback(async () => {
-    setLoading(true);
-    try {
-      let allQuestions = await supabase.getAllQuestions();
-      
-      if (filter.level) allQuestions = allQuestions.filter(q => q.cefr_level === filter.level);
-      if (filter.type) allQuestions = allQuestions.filter(q => q.question_type === filter.type);
-      if (filter.skill) allQuestions = allQuestions.filter(q => q.skill === filter.skill);
-      
-      setQuestions(allQuestions || []);
-    } catch (err) {
-      console.error('Error loading questions:', err);
-    }
-    setLoading(false);
-  }, [filter]);
-
-  useEffect(() => {
-    loadQuestions();
-  }, [loadQuestions]);
-
-  const handleAddQuestion = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const questionData = {
-        ...formData,
-        created_by: localStorage.getItem('user_id'),
-        options: formData.question_type === 'multiple_choice' ? formData.options.filter(o => o) : null,
-        correct_answers: formData.question_type === 'multiple_choice' 
-          ? [formData.options[parseInt(formData.correct_answers[0])]] 
-          : formData.correct_answers
-      };
-
-      await supabase.createQuestion(questionData);
-      
-      setFormData({
-        question_text: '',
-        question_type: 'multiple_choice',
-        skill: 'grammar',
-        cefr_level: 'A1',
-        options: ['', '', '', ''],
-        correct_answers: [],
-        audio_url: '',
-        passage: '',
-        explanation: '',
-        difficulty_score: 5
-      });
-      setShowForm(false);
-      loadQuestions();
-      onRefresh();
-    } catch (err) {
-      console.error('Error adding question:', err);
-    }
-    setLoading(false);
-  };
-
-  const handleDelete = async (id) => {
-    const userConfirmed = window.confirm('Delete this question? This cannot be undone.');
-    if (userConfirmed) {
-      try {
-        await supabase.deleteQuestion(id);
-        loadQuestions();
-        onRefresh();
-      } catch (err) {
-        console.error('Error deleting question:', err);
-      }
-    }
-  };
-
-  const QUESTION_TYPES = {
-    multiple_choice: { label: 'Multiple Choice', icon: '🔘' },
-    true_false: { label: 'True/False', icon: '✓/✗' },
-    fill_blank: { label: 'Fill in the Blank', icon: '___' },
-    matching: { label: 'Matching', icon: '↔' },
-    ordering: { label: 'Drag & Drop', icon: '⇅' },
-    cloze: { label: 'Cloze Test', icon: '█' },
-    listening: { label: 'Listening', icon: '🎧' }
-  };
-
-  const SKILLS = ['grammar', 'vocabulary', 'listening', 'reading'];
-  const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
-
-  const handleAddButtonMouseEnter = (e) => {
-    e.target.style.transform = 'translateY(-2px)';
-    e.target.style.boxShadow = '0 8px 16px rgba(204, 0, 0, 0.2)';
-  };
-
-  const handleAddButtonMouseLeave = (e) => {
-    e.target.style.transform = 'translateY(0)';
-    e.target.style.boxShadow = 'none';
-  };
-
-  const handleSubmitMouseEnter = (e) => {
-    if (!loading) {
-      e.target.style.transform = 'translateY(-2px)';
-      e.target.style.boxShadow = '0 8px 16px rgba(204, 0, 0, 0.2)';
-    }
-  };
-
-  const handleSubmitMouseLeave = (e) => {
-    e.target.style.transform = 'translateY(0)';
-    e.target.style.boxShadow = 'none';
-  };
-
-  const handleDeleteMouseEnter = (e) => {
-    e.target.style.background = COLORS.error;
-    e.target.style.color = COLORS.white;
-  };
-
-  const handleDeleteMouseLeave = (e) => {
-    e.target.style.background = `${COLORS.error}20`;
-    e.target.style.color = COLORS.error;
-  };
-
-  const handleCardMouseEnter = (e) => {
-    e.currentTarget.style.boxShadow = '0 8px 24px rgba(204, 0, 0, 0.1)';
-    e.currentTarget.style.borderColor = COLORS.primary;
-  };
-
-  const handleCardMouseLeave = (e) => {
-    e.currentTarget.style.boxShadow = 'none';
-    e.currentTarget.style.borderColor = COLORS.lightGray;
-  };
-
-  return (
-    <div style={{ maxWidth: '1200px' }}>
-      <div style={{
-        background: COLORS.white,
-        borderRadius: '12px',
-        padding: '2rem',
-        border: `1px solid ${COLORS.lightGray}`,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-      }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '2rem'
-        }}>
-          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '600', color: COLORS.darkGray }}>
-            ❓ Question Bank ({questions.length})
-          </h2>
-          <button 
-            onClick={() => setShowForm(!showForm)}
-            onMouseEnter={handleAddButtonMouseEnter}
-            onMouseLeave={handleAddButtonMouseLeave}
-            style={{
-              padding: '0.75rem 1.5rem',
-              background: COLORS.primary,
-              color: COLORS.white,
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '600',
-              transition: 'all 0.2s'
-            }}>
-            {showForm ? '✕ Cancel' : '+ Add Question'}
-          </button>
-        </div>
-
-        {showForm && (
-          <form onSubmit={handleAddQuestion} style={{
-            background: COLORS.lightGray,
-            padding: '2rem',
-            borderRadius: '12px',
-            marginBottom: '2rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1.5rem'
-          }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '0.5rem', color: COLORS.darkGray, textTransform: 'uppercase', letterSpacing: '0.5px' }}>CEFR Level</label>
-                <select value={formData.cefr_level} onChange={(e) => setFormData({ ...formData, cefr_level: e.target.value })} style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: `1px solid ${COLORS.lightGray}`,
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  cursor: 'pointer'
-                }}>
-                  {CEFR_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '0.5rem', color: COLORS.darkGray, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Skill</label>
-                <select value={formData.skill} onChange={(e) => setFormData({ ...formData, skill: e.target.value })} style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: `1px solid ${COLORS.lightGray}`,
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  cursor: 'pointer'
-                }}>
-                  {SKILLS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '0.5rem', color: COLORS.darkGray, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Type</label>
-                <select value={formData.question_type} onChange={(e) => setFormData({ ...formData, question_type: e.target.value })} style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: `1px solid ${COLORS.lightGray}`,
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  cursor: 'pointer'
-                }}>
-                  {Object.entries(QUESTION_TYPES).map(([key, val]) => <option key={key} value={key}>{val.label}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '0.5rem', color: COLORS.darkGray, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Difficulty (1-10)</label>
-                <input type="range" min="1" max="10" value={formData.difficulty_score} onChange={(e) => setFormData({ ...formData, difficulty_score: parseFloat(e.target.value) })} style={{ width: '100%' }} />
-                <span style={{ fontSize: '13px', color: COLORS.mediumGray }}>{formData.difficulty_score.toFixed(1)}</span>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '0.5rem', color: COLORS.darkGray, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Question</label>
-              <textarea value={formData.question_text} onChange={(e) => setFormData({ ...formData, question_text: e.target.value })} placeholder="Enter your question here..." required style={{
-                width: '100%',
-                padding: '1rem',
-                border: `1px solid ${COLORS.lightGray}`,
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontFamily: 'inherit',
-                minHeight: '100px',
-                boxSizing: 'border-box',
-                resize: 'vertical'
-              }} />
-            </div>
-
-            {formData.question_type === 'listening' && (
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '0.5rem', color: COLORS.darkGray, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Audio URL (Google Drive link)</label>
-                <input type="url" value={formData.audio_url} onChange={(e) => setFormData({ ...formData, audio_url: e.target.value })} placeholder="https://drive.google.com/..." style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: `1px solid ${COLORS.lightGray}`,
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }} />
-              </div>
-            )}
-
-            {(formData.question_type === 'cloze' || formData.question_type === 'reading') && (
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '0.5rem', color: COLORS.darkGray, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Passage/Text</label>
-                <textarea value={formData.passage} onChange={(e) => setFormData({ ...formData, passage: e.target.value })} placeholder="Enter the full passage text here..." style={{
-                  width: '100%',
-                  padding: '1rem',
-                  border: `1px solid ${COLORS.lightGray}`,
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontFamily: 'inherit',
-                  minHeight: '120px',
-                  boxSizing: 'border-box',
-                  resize: 'vertical'
-                }} />
-              </div>
-            )}
-
-            {formData.question_type === 'multiple_choice' && (
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '0.75rem', color: COLORS.darkGray, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Options</label>
-                {formData.options.map((opt, i) => (
-                  <div key={i} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                    <input
-                      type="text"
-                      value={opt}
-                      onChange={(e) => {
-                        const newOpts = [...formData.options];
-                        newOpts[i] = e.target.value;
-                        setFormData({ ...formData, options: newOpts });
-                      }}
-                      placeholder={`Option ${i + 1}`}
-                      style={{
-                        flex: 1,
-                        padding: '0.75rem',
-                        border: `1px solid ${COLORS.lightGray}`,
-                        borderRadius: '6px',
-                        fontSize: '14px',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                    <input
-                      type="radio"
-                      name="correct_answer"
-                      checked={formData.correct_answers[0] === i.toString()}
-                      onChange={() => setFormData({ ...formData, correct_answers: [i.toString()] })}
-                      style={{ cursor: 'pointer', width: '20px' }}
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {formData.question_type !== 'multiple_choice' && (
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '0.5rem', color: COLORS.darkGray, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Correct Answer(s)</label>
-                <input type="text" value={formData.correct_answers[0] || ''} onChange={(e) => setFormData({ ...formData, correct_answers: [e.target.value] })} placeholder="Enter correct answer" required style={{
-                  width: '100%',
-                  padding: '0.75rem',
-                  border: `1px solid ${COLORS.lightGray}`,
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }} />
-              </div>
-            )}
-
-            <div>
-              <label style={{ fontSize: '12px', fontWeight: '600', display: 'block', marginBottom: '0.5rem', color: COLORS.darkGray, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Explanation (Optional)</label>
-              <textarea value={formData.explanation} onChange={(e) => setFormData({ ...formData, explanation: e.target.value })} placeholder="Why is this the correct answer?" style={{
-                width: '100%',
-                padding: '1rem',
-                border: `1px solid ${COLORS.lightGray}`,
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontFamily: 'inherit',
-                minHeight: '80px',
-                boxSizing: 'border-box',
-                resize: 'vertical'
-              }} />
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={loading}
-              onMouseEnter={handleSubmitMouseEnter}
-              onMouseLeave={handleSubmitMouseLeave}
-              style={{
-                padding: '1rem',
-                background: COLORS.primary,
-                color: COLORS.white,
-                border: 'none',
-                borderRadius: '6px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontWeight: '600',
-                fontSize: '14px',
-                opacity: loading ? 0.7 : 1,
-                transition: 'all 0.2s',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-              {loading ? 'Saving...' : '✓ Add Question'}
-            </button>
-          </form>
-        )}
-
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <select value={filter.level} onChange={(e) => setFilter({ ...filter, level: e.target.value })} style={{
-            padding: '0.75rem 1rem',
-            border: `1px solid ${COLORS.lightGray}`,
-            borderRadius: '6px',
-            fontSize: '13px',
-            cursor: 'pointer',
-            background: COLORS.white
-          }}>
-            <option value="">All Levels</option>
-            {CEFR_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
-
-          <select value={filter.skill} onChange={(e) => setFilter({ ...filter, skill: e.target.value })} style={{
-            padding: '0.75rem 1rem',
-            border: `1px solid ${COLORS.lightGray}`,
-            borderRadius: '6px',
-            fontSize: '13px',
-            cursor: 'pointer',
-            background: COLORS.white
-          }}>
-            <option value="">All Skills</option>
-            {SKILLS.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
-          </select>
-
-          <select value={filter.type} onChange={(e) => setFilter({ ...filter, type: e.target.value })} style={{
-            padding: '0.75rem 1rem',
-            border: `1px solid ${COLORS.lightGray}`,
-            borderRadius: '6px',
-            fontSize: '13px',
-            cursor: 'pointer',
-            background: COLORS.white
-          }}>
-            <option value="">All Types</option>
-            {Object.entries(QUESTION_TYPES).map(([key, val]) => <option key={key} value={key}>{val.label}</option>)}
-          </select>
-        </div>
-
-        <div style={{ display: 'grid', gap: '1rem' }}>
-          {loading ? (
-            <p style={{ color: COLORS.mediumGray, textAlign: 'center', padding: '2rem' }}>Loading questions...</p>
-          ) : questions.length === 0 ? (
-            <p style={{ color: COLORS.mediumGray, textAlign: 'center', padding: '2rem' }}>No questions found. Create one to get started!</p>
-          ) : (
-            questions.map((q, i) => (
-              <div 
-                key={i}
-                onMouseEnter={handleCardMouseEnter}
-                onMouseLeave={handleCardMouseLeave}
-                style={{
-                  background: COLORS.white,
-                  padding: '1.5rem',
-                  borderRadius: '12px',
-                  border: `2px solid ${COLORS.lightGray}`,
-                  borderLeft: `4px solid ${COLORS.primary}`,
-                  transition: 'all 0.2s'
-                }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
-                  <div>
-                    <div style={{
-                      display: 'flex',
-                      gap: '0.75rem',
-                      flexWrap: 'wrap',
-                      marginBottom: '0.75rem'
-                    }}>
-                      <span style={{
-                        background: COLORS.primary,
-                        color: COLORS.white,
-                        padding: '0.4rem 0.8rem',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        textTransform: 'uppercase'
-                      }}>
-                        {q.cefr_level}
-                      </span>
-                      <span style={{
-                        background: `${COLORS.primary}20`,
-                        color: COLORS.primary,
-                        padding: '0.4rem 0.8rem',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        textTransform: 'uppercase'
-                      }}>
-                        {q.skill}
-                      </span>
-                      <span style={{
-                        background: `${COLORS.mediumGray}20`,
-                        color: COLORS.mediumGray,
-                        padding: '0.4rem 0.8rem',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: '600'
-                      }}>
-                        {QUESTION_TYPES[q.question_type]?.label || q.question_type}
-                      </span>
-                      <span style={{
-                        background: `${COLORS.warning}20`,
-                        color: COLORS.warning,
-                        padding: '0.4rem 0.8rem',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: '600'
-                      }}>
-                        Difficulty: {q.difficulty_score.toFixed(1)}/10
-                      </span>
-                    </div>
-                    <p style={{
-                      margin: '0.75rem 0 0 0',
-                      fontSize: '15px',
-                      lineHeight: '1.5',
-                      color: COLORS.darkGray
-                    }}>
-                      {q.question_text}
-                    </p>
-                    {q.correct_answers && (
-                      <p style={{
-                        margin: '0.75rem 0 0 0',
-                        fontSize: '13px',
-                        color: COLORS.success
-                      }}>
-                        ✓ Correct: <strong>{Array.isArray(q.correct_answers) ? q.correct_answers.join(' / ') : q.correct_answers}</strong>
-                      </p>
-                    )}
-                  </div>
-                  <button 
-                    onClick={() => handleDelete(q.id)}
-                    onMouseEnter={handleDeleteMouseEnter}
-                    onMouseLeave={handleDeleteMouseLeave}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      background: `${COLORS.error}20`,
-                      color: COLORS.error,
-                      border: `1px solid ${COLORS.error}`,
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '12px',
-                      fontWeight: '600',
-                      transition: 'all 0.2s',
-                      marginLeft: '1rem',
-                      whiteSpace: 'nowrap'
-                    }}>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
+    <div className="dashboard">
+      <div className="dashboard-header">
+        <h1>Teacher Dashboard</h1>
+        <div className="header-actions">
+          <span>{user.email}</span>
+          <button className="logout-button" onClick={onLogout}>Sign Out</button>
         </div>
       </div>
-    </div>
-  );
-}
 
-function StudentInterface({ user }) {
-  const [view, setView] = useState('home');
-  const [testSession, setTestSession] = useState(null);
-  const [testResults, setTestResults] = useState(null);
-
-  const startTest = async () => {
-    try {
-      const session = await supabase.createTestSession(user.id);
-      setTestSession(session);
-      setView('testing');
-    } catch (err) {
-      console.error('Error starting test:', err);
-      alert('Error starting test. Please try again.');
-    }
-  };
-
-  const completeTest = async (scores, cefrLevel) => {
-    try {
-      const results = await supabase.completeSession(testSession.id, {
-        ...scores,
-        determined_cefr_level: cefrLevel
-      });
-      
-      try {
-        await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            studentEmail: user.email,
-            studentName: user.email.split('@')[0],
-            cefrLevel: cefrLevel,
-            grammarScore: scores.grammar_score,
-            vocabularyScore: scores.vocabulary_score,
-            listeningScore: scores.listening_score,
-            readingScore: scores.reading_score,
-            overallScore: scores.overall_score
-          })
-        });
-        console.log('✓ Email notification sent to instructor');
-      } catch (err) {
-        console.log('Email notification - will retry');
-      }
-
-      setTestResults(results);
-      setView('results');
-    } catch (err) {
-      console.error('Error completing test:', err);
-      alert('Error saving results. Please try again.');
-    }
-  };
-
-  if (view === 'testing' && testSession) {
-    return <TestEngine session={testSession} onComplete={completeTest} />;
-  }
-
-  if (view === 'results' && testResults) {
-    return <ResultsView result={testResults} onRestart={() => { setView('home'); setTestSession(null); setTestResults(null); }} />;
-  }
-
-  return (
-    <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-      <div style={{
-        background: COLORS.white,
-        borderRadius: '12px',
-        padding: '3rem 2rem',
-        boxShadow: '0 8px 32px rgba(204, 0, 0, 0.1)',
-        border: `1px solid ${COLORS.lightGray}`
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            fontSize: '64px',
-            marginBottom: '1rem',
-            animation: 'bounce 2s infinite'
-          }}>
-            🚀
-          </div>
-          <h2 style={{
-            fontSize: '28px',
-            fontWeight: 'bold',
-            color: COLORS.primary,
-            margin: '0 0 0.75rem 0'
-          }}>
-            English Level Assessment
-          </h2>
-          <p style={{
-            color: COLORS.mediumGray,
-            fontSize: '15px',
-            margin: 0,
-            lineHeight: '1.6'
-          }}>
-            Discover your CEFR level with our adaptive placement test. The test adjusts to your ability level and typically takes 15-20 minutes.
-          </p>
-        </div>
-
-        <div style={{
-          background: `${COLORS.primary}10`,
-          padding: '1.5rem',
-          borderRadius: '12px',
-          marginBottom: '2rem',
-          border: `2px dashed ${COLORS.primary}`
-        }}>
-          <h3 style={{
-            marginTop: 0,
-            fontSize: '15px',
-            fontWeight: '600',
-            color: COLORS.primary,
-            marginBottom: '1rem'
-          }}>
-            What you'll be tested on:
-          </h3>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '1rem',
-            fontSize: '14px',
-            color: COLORS.darkGray
-          }}>
-            <div>✓ Grammar &amp; Vocabulary</div>
-            <div>✓ Listening Comprehension</div>
-            <div>✓ Reading Comprehension</div>
-            <div>✓ Adaptive Difficulty</div>
-          </div>
-        </div>
-
-        <button 
-          onClick={startTest}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-3px)';
-            e.target.style.boxShadow = '0 12px 32px rgba(204, 0, 0, 0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)';
-            e.target.style.boxShadow = 'none';
-          }}
-          style={{
-            width: '100%',
-            padding: '1.25rem',
-            background: COLORS.primary,
-            color: COLORS.white,
-            border: 'none',
-            borderRadius: '8px',
-            fontSize: '16px',
-            fontWeight: '700',
-            cursor: 'pointer',
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            transition: 'all 0.3s',
-            marginBottom: '1rem'
-          }}>
-          Begin Assessment →
+      <div className="tabs">
+        <button className={`tab ${activeTab === 'results' ? 'active' : ''}`} onClick={() => setActiveTab('results')}>
+          Results
         </button>
-
-        <p style={{
-          textAlign: 'center',
-          fontSize: '12px',
-          color: COLORS.mediumGray,
-          margin: 0
-        }}>
-          You can't retake this assessment. Take your time and answer honestly.
-        </p>
-
-        <style>{`
-          @keyframes bounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
-          }
-        `}</style>
+        <button className={`tab ${activeTab === 'questions' ? 'active' : ''}`} onClick={() => setActiveTab('questions')}>
+          Question Bank
+        </button>
       </div>
+
+      {activeTab === 'results' && (
+        <div className="tab-content">
+          <div className="results-actions">
+            <button className="primary-button" onClick={exportCSV}>Export CSV</button>
+          </div>
+          <table className="results-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>CEFR Level</th>
+                <th>Score</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.map(r => (
+                <tr key={r.id}>
+                  <td>{r.student_id}</td>
+                  <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
+                  <td>{r.overall_score?.toFixed(1)}%</td>
+                  <td>{new Date(r.completed_at).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'questions' && (
+        <div className="tab-content">
+          <p>Total Questions: {questions.length}</p>
+          <div className="question-stats">
+            {['A1', 'A2', 'B1', 'B2'].map(level => (
+              <div key={level} className="stat">
+                <span>{level}: {questions.filter(q => q.cefr_level === level).length}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function TestEngine({ session, onComplete }) {
-  const [questions, setQuestions] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState({});
-  const [currentDifficulty, setCurrentDifficulty] = useState(5);
-  const [loading, setLoading] = useState(true);
-  const [questionStartTime, setQuestionStartTime] = useState(Date.now());
+// Main App
+export default function App() {
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
-    loadInitialQuestions();
+    const style = document.createElement('style');
+    style.textContent = styles;
+    document.head.appendChild(style);
   }, []);
 
-  const loadInitialQuestions = async () => {
-    try {
-      const allQuestions = await supabase.getAllQuestions();
-      
-      const startingQuestions = allQuestions
-        .filter(q => q.cefr_level === 'B1')
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 30);
-      
-      setQuestions(startingQuestions);
-      setLoading(false);
-      setQuestionStartTime(Date.now());
-    } catch (err) {
-      console.error('Error loading questions:', err);
-      setLoading(false);
-    }
-  };
-
-  const handleAnswer = async (answer) => {
-    const reactionTime = Date.now() - questionStartTime;
-    const newAnswers = { ...answers, [currentIndex]: answer };
-    setAnswers(newAnswers);
-
-    const currentQuestion = questions[currentIndex];
-    const isCorrect = checkAnswer(currentQuestion, answer);
-    
-    try {
-      await supabase.saveResponse({
-        session_id: session.id,
-        question_id: currentQuestion.id,
-        student_answer: answer,
-        is_correct: isCorrect,
-        time_spent_seconds: Math.round(reactionTime / 1000),
-        difficulty_at_time: currentQuestion.difficulty_score,
-        reaction_time_ms: reactionTime
-      });
-    } catch (err) {
-      console.error('Error saving response:', err);
-    }
-
-    if (isCorrect) {
-      setCurrentDifficulty(Math.min(10, currentDifficulty + 0.8));
-    } else {
-      setCurrentDifficulty(Math.max(1, currentDifficulty - 0.6));
-    }
-
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setQuestionStartTime(Date.now());
-    } else {
-      completeTest(newAnswers);
-    }
-  };
-
-  const checkAnswer = (question, answer) => {
-    if (!question.correct_answers) return false;
-    
-    const correctAnswers = Array.isArray(question.correct_answers)
-      ? question.correct_answers
-      : [question.correct_answers];
-    
-    return correctAnswers.some(ca => 
-      ca.toLowerCase().trim() === answer.toLowerCase().trim()
-    );
-  };
-
-  const completeTest = (finalAnswers) => {
-    let correctCount = 0;
-    const skillScores = { grammar: 0, vocabulary: 0, listening: 0, reading: 0 };
-    const skillCounts = { grammar: 0, vocabulary: 0, listening: 0, reading: 0 };
-
-    questions.forEach((q, i) => {
-      const isCorrect = checkAnswer(q, finalAnswers[i]);
-      if (isCorrect) correctCount++;
-      
-      skillCounts[q.skill] += 1;
-      if (isCorrect) skillScores[q.skill] += 1;
-    });
-
-    const scores = {
-      grammar_score: skillCounts.grammar > 0 ? skillScores.grammar / skillCounts.grammar : 0,
-      vocabulary_score: skillCounts.vocabulary > 0 ? skillScores.vocabulary / skillCounts.vocabulary : 0,
-      listening_score: skillCounts.listening > 0 ? skillScores.listening / skillCounts.listening : 0,
-      reading_score: skillCounts.reading > 0 ? skillScores.reading / skillCounts.reading : 0,
-      overall_score: correctCount / questions.length,
-      confidence_level: Math.min(Math.max(correctCount / questions.length, 0.2), 0.95)
-    };
-
-    let level = 'A1';
-    
-    if (scores.overall_score >= 0.85) level = 'C2';
-    else if (scores.overall_score >= 0.75) level = 'C1';
-    else if (scores.overall_score >= 0.65) level = 'B2';
-    else if (scores.overall_score >= 0.55) level = 'B1';
-    else if (scores.overall_score >= 0.40) level = 'A2';
-
-    onComplete(scores, level);
-  };
-
-  if (loading) {
-    return <LoadingScreen />;
-  }
-
-  if (questions.length === 0) {
-    return (
-      <div style={{
-        textAlign: 'center',
-        padding: '3rem',
-        background: COLORS.white,
-        borderRadius: '12px',
-        border: `1px solid ${COLORS.lightGray}`
-      }}>
-        <p style={{ fontSize: '18px', color: COLORS.error }}>
-          No questions available. Please contact your instructor.
-        </p>
-      </div>
-    );
-  }
-
-  const progress = ((currentIndex + 1) / questions.length) * 100;
-  const currentQuestion = questions[currentIndex];
-
   return (
-    <div style={{ maxWidth: '750px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '2rem' }}>
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          marginBottom: '0.75rem',
-          fontSize: '13px',
-          color: COLORS.mediumGray,
-          fontWeight: '600'
-        }}>
-          <span>Question {currentIndex + 1} of {questions.length}</span>
-          <span>Difficulty: {currentDifficulty.toFixed(1)}/10</span>
-          <span>{Math.round(progress)}%</span>
-        </div>
-        <div style={{
-          width: '100%',
-          height: '6px',
-          background: COLORS.lightGray,
-          borderRadius: '3px',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            width: `${progress}%`,
-            height: '100%',
-            background: COLORS.primary,
-            transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
-          }} />
-        </div>
+    <div className="app">
+      <div className="header">
+        <h1>CEFR Placement</h1>
+        <p className="subtitle">Premium Language Centre</p>
       </div>
 
-      <div style={{
-        background: COLORS.white,
-        borderRadius: '12px',
-        border: `1px solid ${COLORS.lightGray}`,
-        padding: '2.5rem',
-        boxShadow: '0 4px 16px rgba(0,0,0,0.08)'
-      }}>
-        <div style={{
-          display: 'flex',
-          gap: '0.75rem',
-          marginBottom: '1.5rem',
-          flexWrap: 'wrap'
-        }}>
-          <span style={{
-            background: COLORS.primary,
-            color: COLORS.white,
-            padding: '0.4rem 0.8rem',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: '700',
-            textTransform: 'uppercase'
-          }}>
-            {currentQuestion.cefr_level}
-          </span>
-          <span style={{
-            background: `${COLORS.primary}20`,
-            color: COLORS.primary,
-            padding: '0.4rem 0.8rem',
-            borderRadius: '4px',
-            fontSize: '11px',
-            fontWeight: '700',
-            textTransform: 'uppercase'
-          }}>
-            {currentQuestion.skill}
-          </span>
-        </div>
-
-        <h3 style={{
-          fontSize: '18px',
-          fontWeight: '600',
-          margin: '0 0 2rem 0',
-          lineHeight: '1.6',
-          color: COLORS.darkGray
-        }}>
-          {currentQuestion.question_text}
-        </h3>
-
-        {currentQuestion.audio_url && (
-          <div style={{ marginBottom: '2rem' }}>
-            <p style={{ fontSize: '13px', color: COLORS.mediumGray, marginBottom: '0.75rem', fontWeight: '600' }}>
-              🎧 Listen to the audio:
-            </p>
-            <audio controls style={{ width: '100%', borderRadius: '6px' }}>
-              <source src={currentQuestion.audio_url} type="audio/mpeg" />
-              Your browser does not support the audio element.
-            </audio>
-          </div>
-        )}
-
-        {currentQuestion.passage && (
-          <div style={{
-            background: COLORS.lightGray,
-            padding: '1.5rem',
-            borderRadius: '8px',
-            marginBottom: '2rem',
-            lineHeight: '1.7',
-            color: COLORS.darkGray,
-            fontSize: '14px'
-          }}>
-            {currentQuestion.passage}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {currentQuestion.options && currentQuestion.options.length > 0 ? (
-            currentQuestion.options.map((option, i) => (
-              <button
-                key={i}
-                onClick={() => handleAnswer(option)}
-                onMouseEnter={(e) => {
-                  e.target.style.borderColor = COLORS.primary;
-                  e.target.style.background = `${COLORS.primary}08`;
-                  e.target.style.transform = 'translateX(8px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.borderColor = COLORS.lightGray;
-                  e.target.style.background = COLORS.white;
-                  e.target.style.transform = 'translateX(0)';
-                }}
-                style={{
-                  padding: '1.25rem',
-                  textAlign: 'left',
-                  background: COLORS.white,
-                  border: `2px solid ${COLORS.lightGray}`,
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '15px',
-                  color: COLORS.darkGray,
-                  transition: 'all 0.2s',
-                  fontWeight: '500'
-                }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    border: `2px solid ${COLORS.lightGray}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    color: COLORS.mediumGray
-                  }}>
-                    {String.fromCharCode(65 + i)}
-                  </div>
-                  {option}
-                </div>
-              </button>
-            ))
-          ) : (
-            <input
-              type="text"
-              placeholder="Type your answer here..."
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  handleAnswer(e.target.value);
-                }
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = COLORS.primary;
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = COLORS.lightGray;
-              }}
-              style={{
-                padding: '1rem',
-                border: `2px solid ${COLORS.lightGray}`,
-                borderRadius: '8px',
-                fontSize: '15px',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box'
-              }}
-            />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ResultsView({ result, onRestart }) {
-  const scores = [
-    { label: 'Grammar', score: result.grammar_score, icon: '📝' },
-    { label: 'Vocabulary', score: result.vocabulary_score, icon: '📚' },
-    { label: 'Listening', score: result.listening_score, icon: '🎧' },
-    { label: 'Reading', score: result.reading_score, icon: '📖' }
-  ];
-
-  const cefrDescriptions = {
-    'A1': 'Beginner - Can understand and use familiar everyday expressions',
-    'A2': 'Elementary - Can communicate in simple and routine tasks',
-    'B1': 'Intermediate - Can produce clear texts on familiar topics',
-    'B2': 'Upper-Intermediate - Can interact with native speakers fluently',
-    'C1': 'Advanced - Can understand and use the language fluently',
-    'C2': 'Mastery - Can understand virtually everything and express ideas precisely'
-  };
-
-  return (
-    <div style={{ maxWidth: '700px', margin: '0 auto' }}>
-      <div style={{
-        background: COLORS.white,
-        borderRadius: '12px',
-        padding: '3rem 2rem',
-        boxShadow: '0 8px 32px rgba(204, 0, 0, 0.1)',
-        border: `1px solid ${COLORS.lightGray}`,
-        textAlign: 'center',
-        animation: 'slideUp 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
-      }}>
-        <div style={{ marginBottom: '2rem' }}>
-          <div style={{
-            fontSize: '56px',
-            marginBottom: '1rem',
-            animation: 'bounce 0.8s cubic-bezier(0.4, 0, 0.2, 1)'
-          }}>
-            ✨
-          </div>
-          <h2 style={{
-            fontSize: '28px',
-            fontWeight: 'bold',
-            color: COLORS.primary,
-            margin: '0 0 0.5rem 0'
-          }}>
-            Assessment Complete!
-          </h2>
-          <p style={{ color: COLORS.mediumGray, fontSize: '15px', margin: 0 }}>
-            Here's what your test revealed:
-          </p>
-        </div>
-
-        <div style={{
-          background: `${COLORS.primary}10`,
-          padding: '2rem',
-          borderRadius: '12px',
-          marginBottom: '2rem',
-          border: `3px solid ${COLORS.primary}`
-        }}>
-          <p style={{
-            margin: '0 0 0.75rem 0',
-            fontSize: '14px',
-            color: COLORS.mediumGray,
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            fontWeight: '600'
-          }}>
-            Your CEFR Level
-          </p>
-          <div style={{
-            fontSize: '56px',
-            fontWeight: 'bold',
-            color: COLORS.primary,
-            margin: '1rem 0'
-          }}>
-            {result.determined_cefr_level}
-          </div>
-          <p style={{
-            margin: 0,
-            fontSize: '15px',
-            color: COLORS.darkGray,
-            lineHeight: '1.5'
-          }}>
-            {cefrDescriptions[result.determined_cefr_level]}
-          </p>
-          <p style={{
-            marginTop: '1rem',
-            fontSize: '13px',
-            color: COLORS.mediumGray
-          }}>
-            Confidence: {Math.round(result.confidence_level * 100)}%
-          </p>
-        </div>
-
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '1rem',
-          marginBottom: '2rem'
-        }}>
-          {scores.map((item, i) => (
-            <div key={i} style={{
-              background: COLORS.lightGray,
-              padding: '1.5rem',
-              borderRadius: '12px',
-              transition: 'all 0.2s'
-            }}>
-              <div style={{ fontSize: '28px', marginBottom: '0.5rem' }}>
-                {item.icon}
-              </div>
-              <div style={{
-                fontSize: '13px',
-                color: COLORS.mediumGray,
-                marginBottom: '0.5rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                fontWeight: '600'
-              }}>
-                {item.label}
-              </div>
-              <div style={{
-                fontSize: '24px',
-                fontWeight: 'bold',
-                color: COLORS.primary
-              }}>
-                {Math.round(item.score * 100)}%
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p style={{
-          color: COLORS.mediumGray,
-          fontSize: '14px',
-          marginBottom: '2rem',
-          lineHeight: '1.6'
-        }}>
-          You've been placed in the <strong style={{ color: COLORS.primary }}>Level {result.determined_cefr_level}</strong> class. Your instructor will review your results and confirm your final placement.
-        </p>
-
-        <button 
-          onClick={onRestart}
-          onMouseEnter={(e) => {
-            e.target.style.background = COLORS.primary;
-            e.target.style.color = COLORS.white;
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background = 'transparent';
-            e.target.style.color = COLORS.primary;
-          }}
-          style={{
-            padding: '1rem 2rem',
-            background: 'transparent',
-            border: `2px solid ${COLORS.primary}`,
-            color: COLORS.primary,
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '15px',
-            fontWeight: '600',
-            transition: 'all 0.2s',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>
-          ← Return Home
-        </button>
-
-        <style>{`
-          @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-          }
-          @keyframes bounce {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-          }
-        `}</style>
-      </div>
+      {!user ? (
+        <LoginScreen onLogin={setUser} />
+      ) : user.role === 'teacher' ? (
+        <TeacherDashboard user={user} onLogout={() => setUser(null)} />
+      ) : (
+        <StudentTest user={user} onComplete={() => setUser(null)} />
+      )}
     </div>
   );
 }
