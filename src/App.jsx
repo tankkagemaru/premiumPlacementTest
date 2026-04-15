@@ -61,18 +61,26 @@ class SupabaseClient {
       const data = await response.json();
       if (data.error) throw new Error(data.error.message);
       
+      if (!data.user || !data.user.id) {
+        throw new Error('Failed to create user - no user ID returned');
+      }
+      
       this.token = data.session?.access_token;
-      localStorage.setItem('auth_token', data.session?.access_token);
+      localStorage.setItem('auth_token', data.session?.access_token || '');
       localStorage.setItem('user_id', data.user.id);
       localStorage.setItem('user_role', role);
       localStorage.setItem('user_email', email);
       
-      await this.request('POST', '/rest/v1/users', {
-        id: data.user.id,
-        email,
-        role,
-        full_name: fullName
-      });
+      try {
+        await this.request('POST', '/rest/v1/users', {
+          id: data.user.id,
+          email,
+          role,
+          full_name: fullName
+        });
+      } catch (err) {
+        console.error('Error creating user profile:', err);
+      }
 
       return data;
     } catch (err) {
