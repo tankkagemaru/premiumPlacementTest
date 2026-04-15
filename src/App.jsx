@@ -169,7 +169,28 @@ class SupabaseClient {
   }
 
   async getAllQuestions() {
-    return this.request('GET', '/rest/v1/questions?select=*');
+    try {
+      const response = await fetch(`${this.url}/rest/v1/questions?select=*`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': this.key,
+          ...(this.token && { 'Authorization': `Bearer ${this.token}` })
+        }
+      });
+
+      if (!response.ok) {
+        console.error('Questions API error:', response.status, response.statusText);
+        return [];
+      }
+
+      const data = await response.json();
+      console.log('Questions loaded:', data.length || 0);
+      return data || [];
+    } catch (err) {
+      console.error('Error loading questions:', err);
+      return [];
+    }
   }
 
   async updateQuestion(id, updates) {
