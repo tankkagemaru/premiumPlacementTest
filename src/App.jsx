@@ -252,6 +252,18 @@ function LoadingScreen() {
 }
 
 function Header({ user, onLogout }) {
+  const handleMouseEnter = (e) => {
+    e.target.style.background = COLORS.primary;
+    e.target.style.color = COLORS.white;
+    e.target.style.borderColor = COLORS.primary;
+  };
+
+  const handleMouseLeave = (e) => {
+    e.target.style.background = COLORS.lightGray;
+    e.target.style.color = COLORS.darkGray;
+    e.target.style.borderColor = COLORS.mediumGray;
+  };
+
   return (
     <div style={{
       background: COLORS.white,
@@ -285,27 +297,21 @@ function Header({ user, onLogout }) {
             {user.role === 'teacher' ? '👨‍🏫 Instructor' : '👨‍🎓 Student'}
           </p>
         </div>
-        <button onClick={onLogout} style={{
-          padding: '0.75rem 1.5rem',
-          fontSize: '14px',
-          fontWeight: '500',
-          cursor: 'pointer',
-          background: COLORS.lightGray,
-          border: `1px solid ${COLORS.mediumGray}`,
-          borderRadius: '6px',
-          color: COLORS.darkGray,
-          transition: 'all 0.2s'
-        }}
-        onMouseEnter={(e) => {
-          e.target.style.background = COLORS.primary;
-          e.target.style.color = COLORS.white;
-          e.target.style.borderColor = COLORS.primary;
-        }}
-        onMouseLeave={(e) => {
-          e.target.style.background = COLORS.lightGray;
-          e.target.style.color = COLORS.darkGray;
-          e.target.style.borderColor = COLORS.mediumGray;
-        }}>
+        <button 
+          onClick={onLogout} 
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          style={{
+            padding: '0.75rem 1.5rem',
+            fontSize: '14px',
+            fontWeight: '500',
+            cursor: 'pointer',
+            background: COLORS.lightGray,
+            border: `1px solid ${COLORS.mediumGray}`,
+            borderRadius: '6px',
+            color: COLORS.darkGray,
+            transition: 'all 0.2s'
+          }}>
           Sign Out
         </button>
       </div>
@@ -346,6 +352,34 @@ function AuthView({ setCurrentUser }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleButtonMouseEnter = (e) => {
+    if (!loading) {
+      e.target.style.transform = 'translateY(-2px)';
+      e.target.style.boxShadow = '0 8px 24px rgba(204, 0, 0, 0.3)';
+    }
+  };
+
+  const handleButtonMouseLeave = (e) => {
+    e.target.style.transform = 'translateY(0)';
+    e.target.style.boxShadow = 'none';
+  };
+
+  const handleSecondaryButtonEnter = (e) => {
+    e.target.style.background = `${COLORS.primary}10`;
+  };
+
+  const handleSecondaryButtonLeave = (e) => {
+    e.target.style.background = 'transparent';
+  };
+
+  const handleInputFocus = (e) => {
+    e.target.style.borderColor = COLORS.primary;
+  };
+
+  const handleInputBlur = (e) => {
+    e.target.style.borderColor = COLORS.lightGray;
   };
 
   return (
@@ -399,6 +433,8 @@ function AuthView({ setCurrentUser }) {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
                 placeholder="John Doe"
                 required
                 style={{
@@ -410,8 +446,6 @@ function AuthView({ setCurrentUser }) {
                   boxSizing: 'border-box',
                   transition: 'all 0.2s'
                 }}
-                onFocus={(e) => e.target.style.borderColor = COLORS.primary}
-                onBlur={(e) => e.target.style.borderColor = COLORS.lightGray}
               />
             </div>
           )}
@@ -432,6 +466,8 @@ function AuthView({ setCurrentUser }) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
               placeholder="you@example.com"
               required
               style={{
@@ -443,8 +479,6 @@ function AuthView({ setCurrentUser }) {
                 boxSizing: 'border-box',
                 transition: 'all 0.2s'
               }}
-              onFocus={(e) => e.target.style.borderColor = COLORS.primary}
-              onBlur={(e) => e.target.style.borderColor = COLORS.lightGray}
             />
           </div>
 
@@ -464,6 +498,8 @@ function AuthView({ setCurrentUser }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
               placeholder="••••••••"
               required
               style={{
@@ -475,8 +511,6 @@ function AuthView({ setCurrentUser }) {
                 boxSizing: 'border-box',
                 transition: 'all 0.2s'
               }}
-              onFocus={(e) => e.target.style.borderColor = COLORS.primary}
-              onBlur={(e) => e.target.style.borderColor = COLORS.lightGray}
             />
           </div>
 
@@ -493,18 +527,21 @@ function AuthView({ setCurrentUser }) {
               }}>
                 Account Type
               </label>
-              <select value={role} onChange={(e) => setRole(e.target.value)} style={{
-                width: '100%',
-                padding: '0.75rem 1rem',
-                border: `1px solid ${COLORS.lightGray}`,
-                borderRadius: '6px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onFocus={(e) => e.target.style.borderColor = COLORS.primary}
-              onBlur={(e) => e.target.style.borderColor = COLORS.lightGray}>
+              <select 
+                value={role} 
+                onChange={(e) => setRole(e.target.value)}
+                onFocus={handleInputFocus}
+                onBlur={handleInputBlur}
+                style={{
+                  width: '100%',
+                  padding: '0.75rem 1rem',
+                  border: `1px solid ${COLORS.lightGray}`,
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  boxSizing: 'border-box',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}>
                 <option value="student">Student</option>
                 <option value="teacher">Instructor</option>
               </select>
@@ -524,28 +561,33 @@ function AuthView({ setCurrentUser }) {
             </div>
           )}
 
-          <button type="submit" disabled={loading} style={{
-            padding: '0.9rem 1.5rem',
-            background: COLORS.primary,
-            color: COLORS.white,
-            border: 'none',
-            borderRadius: '6px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            fontSize: '15px',
-            fontWeight: '600',
-            opacity: loading ? 0.7 : 1,
-            transition: 'all 0.2s',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}
-          onMouseEnter={(e) => !loading && (e.target.style.transform = 'translateY(-2px)', e.target.style.boxShadow = '0 8px 24px rgba(204, 0, 0, 0.3)')}
-          onMouseLeave={(e) => (e.target.style.transform = 'translateY(0)', e.target.style.boxShadow = 'none')}>
+          <button 
+            type="submit" 
+            disabled={loading}
+            onMouseEnter={handleButtonMouseEnter}
+            onMouseLeave={handleButtonMouseLeave}
+            style={{
+              padding: '0.9rem 1.5rem',
+              background: COLORS.primary,
+              color: COLORS.white,
+              border: 'none',
+              borderRadius: '6px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: '15px',
+              fontWeight: '600',
+              opacity: loading ? 0.7 : 1,
+              transition: 'all 0.2s',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
             {loading ? 'Loading...' : (isSignup ? 'Create Account' : 'Sign In')}
           </button>
 
           <button
             type="button"
             onClick={() => { setIsSignup(!isSignup); setError(''); }}
+            onMouseEnter={handleSecondaryButtonEnter}
+            onMouseLeave={handleSecondaryButtonLeave}
             style={{
               padding: '0.9rem 1.5rem',
               background: 'transparent',
@@ -556,9 +598,7 @@ function AuthView({ setCurrentUser }) {
               fontSize: '14px',
               fontWeight: '600',
               transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => (e.target.style.background = `${COLORS.primary}10`)}
-            onMouseLeave={(e) => (e.target.style.background = 'transparent')}>
+            }}>
             {isSignup ? '← Already have an account?' : 'Create new account →'}
           </button>
         </form>
@@ -572,12 +612,6 @@ function TeacherDashboard({ user }) {
   const [students, setStudents] = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
-  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -593,6 +627,12 @@ function TeacherDashboard({ user }) {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadData();
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const exportCSV = () => {
     const headers = ['Student Email', 'Full Name', 'Test Date', 'Grammar %', 'Vocabulary %', 'Listening %', 'Reading %', 'Overall %', 'CEFR Level'];
@@ -642,9 +682,7 @@ function TeacherDashboard({ user }) {
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
               transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => view !== tab && (e.target.style.background = `${COLORS.primary}20`)}
-            onMouseLeave={(e) => view !== tab && (e.target.style.background = 'transparent')}>
+            }}>
             {tab === 'results' ? '📊 Results' : '❓ Question Bank'}
           </button>
         ))}
@@ -665,6 +703,24 @@ function ResultsDashboard({ results, students, onExport, loading }) {
   const avgScore = results.length > 0 
     ? (results.reduce((sum, r) => sum + r.overall_score, 0) / results.length * 100).toFixed(0)
     : 0;
+
+  const handleExportMouseEnter = (e) => {
+    e.target.style.transform = 'translateY(-2px)';
+    e.target.style.boxShadow = '0 8px 16px rgba(204, 0, 0, 0.2)';
+  };
+
+  const handleExportMouseLeave = (e) => {
+    e.target.style.transform = 'translateY(0)';
+    e.target.style.boxShadow = 'none';
+  };
+
+  const handleRowMouseEnter = (e) => {
+    e.currentTarget.style.background = COLORS.lightGray;
+  };
+
+  const handleRowMouseLeave = (e) => {
+    e.currentTarget.style.background = 'transparent';
+  };
 
   return (
     <div>
@@ -701,19 +757,21 @@ function ResultsDashboard({ results, students, onExport, loading }) {
           }}>
             Student Results
           </h3>
-          <button onClick={onExport} style={{
-            padding: '0.75rem 1.5rem',
-            background: COLORS.primary,
-            color: COLORS.white,
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: '600',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => (e.target.style.transform = 'translateY(-2px)', e.target.style.boxShadow = '0 8px 16px rgba(204, 0, 0, 0.2)')}
-          onMouseLeave={(e) => (e.target.style.transform = 'translateY(0)', e.target.style.boxShadow = 'none')}>
+          <button 
+            onClick={onExport}
+            onMouseEnter={handleExportMouseEnter}
+            onMouseLeave={handleExportMouseLeave}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: COLORS.primary,
+              color: COLORS.white,
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '600',
+              transition: 'all 0.2s'
+            }}>
             📥 Export CSV
           </button>
         </div>
@@ -743,12 +801,14 @@ function ResultsDashboard({ results, students, onExport, loading }) {
               </thead>
               <tbody>
                 {results.map((r, i) => (
-                  <tr key={i} style={{
-                    borderBottom: `1px solid ${COLORS.lightGray}`,
-                    transition: 'background 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = COLORS.lightGray}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                  <tr 
+                    key={i}
+                    onMouseEnter={handleRowMouseEnter}
+                    onMouseLeave={handleRowMouseLeave}
+                    style={{
+                      borderBottom: `1px solid ${COLORS.lightGray}`,
+                      transition: 'background 0.2s'
+                    }}>
                     <td style={{ padding: '1rem', fontSize: '13px', color: COLORS.mediumGray }}>{r.student_id.substring(0, 8)}...</td>
                     <td style={{ textAlign: 'center', padding: '1rem' }}>
                       <ScoreBar score={r.grammar_score} />
@@ -817,24 +877,29 @@ function ScoreBar({ score }) {
 }
 
 function MetricCard({ label, value }) {
+  const handleMouseEnter = (e) => {
+    e.currentTarget.style.transform = 'translateY(-2px)';
+    e.currentTarget.style.boxShadow = '0 8px 24px rgba(204, 0, 0, 0.1)';
+  };
+
+  const handleMouseLeave = (e) => {
+    e.currentTarget.style.transform = 'translateY(0)';
+    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
+  };
+
   return (
-    <div style={{
-      background: COLORS.white,
-      borderRadius: '12px',
-      padding: '1.5rem',
-      border: `1px solid ${COLORS.lightGray}`,
-      textAlign: 'center',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-      transition: 'all 0.2s'
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.transform = 'translateY(-2px)';
-      e.currentTarget.style.boxShadow = '0 8px 24px rgba(204, 0, 0, 0.1)';
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.transform = 'translateY(0)';
-      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)';
-    }}>
+    <div 
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        background: COLORS.white,
+        borderRadius: '12px',
+        padding: '1.5rem',
+        border: `1px solid ${COLORS.lightGray}`,
+        textAlign: 'center',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        transition: 'all 0.2s'
+      }}>
       <p style={{ margin: '0 0 0.75rem 0', fontSize: '13px', color: COLORS.mediumGray, textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>
         {label}
       </p>
@@ -863,10 +928,6 @@ function QuestionManager({ onRefresh }) {
     difficulty_score: 5
   });
 
-  useEffect(() => {
-    loadQuestions();
-  }, [filter]);
-
   const loadQuestions = async () => {
     setLoading(true);
     try {
@@ -882,6 +943,10 @@ function QuestionManager({ onRefresh }) {
     }
     setLoading(false);
   };
+
+  useEffect(() => {
+    loadQuestions();
+  }, [filter]);
 
   const handleAddQuestion = async (e) => {
     e.preventDefault();
@@ -921,7 +986,7 @@ function QuestionManager({ onRefresh }) {
 
   const handleDelete = async (id) => {
     const userConfirmed = window.confirm('Delete this question? This cannot be undone.');
-   if (userConfirmed) {
+    if (userConfirmed) {
       try {
         await supabase.deleteQuestion(id);
         loadQuestions();
@@ -945,6 +1010,48 @@ function QuestionManager({ onRefresh }) {
   const SKILLS = ['grammar', 'vocabulary', 'listening', 'reading'];
   const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
+  const handleAddButtonMouseEnter = (e) => {
+    e.target.style.transform = 'translateY(-2px)';
+    e.target.style.boxShadow = '0 8px 16px rgba(204, 0, 0, 0.2)';
+  };
+
+  const handleAddButtonMouseLeave = (e) => {
+    e.target.style.transform = 'translateY(0)';
+    e.target.style.boxShadow = 'none';
+  };
+
+  const handleSubmitMouseEnter = (e) => {
+    if (!loading) {
+      e.target.style.transform = 'translateY(-2px)';
+      e.target.style.boxShadow = '0 8px 16px rgba(204, 0, 0, 0.2)';
+    }
+  };
+
+  const handleSubmitMouseLeave = (e) => {
+    e.target.style.transform = 'translateY(0)';
+    e.target.style.boxShadow = 'none';
+  };
+
+  const handleDeleteMouseEnter = (e) => {
+    e.target.style.background = COLORS.error;
+    e.target.style.color = COLORS.white;
+  };
+
+  const handleDeleteMouseLeave = (e) => {
+    e.target.style.background = `${COLORS.error}20`;
+    e.target.style.color = COLORS.error;
+  };
+
+  const handleCardMouseEnter = (e) => {
+    e.currentTarget.style.boxShadow = '0 8px 24px rgba(204, 0, 0, 0.1)';
+    e.currentTarget.style.borderColor = COLORS.primary;
+  };
+
+  const handleCardMouseLeave = (e) => {
+    e.currentTarget.style.boxShadow = 'none';
+    e.currentTarget.style.borderColor = COLORS.lightGray;
+  };
+
   return (
     <div style={{ maxWidth: '1200px' }}>
       <div style={{
@@ -963,19 +1070,21 @@ function QuestionManager({ onRefresh }) {
           <h2 style={{ margin: 0, fontSize: '22px', fontWeight: '600', color: COLORS.darkGray }}>
             ❓ Question Bank ({questions.length})
           </h2>
-          <button onClick={() => setShowForm(!showForm)} style={{
-            padding: '0.75rem 1.5rem',
-            background: COLORS.primary,
-            color: COLORS.white,
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => (e.target.style.transform = 'translateY(-2px)', e.target.style.boxShadow = '0 8px 16px rgba(204, 0, 0, 0.2)')}
-          onMouseLeave={(e) => (e.target.style.transform = 'translateY(0)', e.target.style.boxShadow = 'none')}>
+          <button 
+            onClick={() => setShowForm(!showForm)}
+            onMouseEnter={handleAddButtonMouseEnter}
+            onMouseLeave={handleAddButtonMouseLeave}
+            style={{
+              padding: '0.75rem 1.5rem',
+              background: COLORS.primary,
+              color: COLORS.white,
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              transition: 'all 0.2s'
+            }}>
             {showForm ? '✕ Cancel' : '+ Add Question'}
           </button>
         </div>
@@ -1150,22 +1259,25 @@ function QuestionManager({ onRefresh }) {
               }} />
             </div>
 
-            <button type="submit" disabled={loading} style={{
-              padding: '1rem',
-              background: COLORS.primary,
-              color: COLORS.white,
-              border: 'none',
-              borderRadius: '6px',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              fontWeight: '600',
-              fontSize: '14px',
-              opacity: loading ? 0.7 : 1,
-              transition: 'all 0.2s',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}
-            onMouseEnter={(e) => !loading && (e.target.style.transform = 'translateY(-2px)', e.target.style.boxShadow = '0 8px 16px rgba(204, 0, 0, 0.2)')}
-            onMouseLeave={(e) => (e.target.style.transform = 'translateY(0)', e.target.style.boxShadow = 'none')}>
+            <button 
+              type="submit" 
+              disabled={loading}
+              onMouseEnter={handleSubmitMouseEnter}
+              onMouseLeave={handleSubmitMouseLeave}
+              style={{
+                padding: '1rem',
+                background: COLORS.primary,
+                color: COLORS.white,
+                border: 'none',
+                borderRadius: '6px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                fontWeight: '600',
+                fontSize: '14px',
+                opacity: loading ? 0.7 : 1,
+                transition: 'all 0.2s',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px'
+              }}>
               {loading ? 'Saving...' : '✓ Add Question'}
             </button>
           </form>
@@ -1216,22 +1328,18 @@ function QuestionManager({ onRefresh }) {
             <p style={{ color: COLORS.mediumGray, textAlign: 'center', padding: '2rem' }}>No questions found. Create one to get started!</p>
           ) : (
             questions.map((q, i) => (
-              <div key={i} style={{
-                background: COLORS.white,
-                padding: '1.5rem',
-                borderRadius: '12px',
-                border: `2px solid ${COLORS.lightGray}`,
-                borderLeft: `4px solid ${COLORS.primary}`,
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(204, 0, 0, 0.1)';
-                e.currentTarget.style.borderColor = COLORS.primary;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.boxShadow = 'none';
-                e.currentTarget.style.borderColor = COLORS.lightGray;
-              }}>
+              <div 
+                key={i}
+                onMouseEnter={handleCardMouseEnter}
+                onMouseLeave={handleCardMouseLeave}
+                style={{
+                  background: COLORS.white,
+                  padding: '1.5rem',
+                  borderRadius: '12px',
+                  border: `2px solid ${COLORS.lightGray}`,
+                  borderLeft: `4px solid ${COLORS.primary}`,
+                  transition: 'all 0.2s'
+                }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
                   <div>
                     <div style={{
@@ -1263,7 +1371,7 @@ function QuestionManager({ onRefresh }) {
                         {q.skill}
                       </span>
                       <span style={{
-                        background: COLORS.mediumGray + '20',
+                        background: `${COLORS.mediumGray}20`,
                         color: COLORS.mediumGray,
                         padding: '0.4rem 0.8rem',
                         borderRadius: '4px',
@@ -1273,7 +1381,7 @@ function QuestionManager({ onRefresh }) {
                         {QUESTION_TYPES[q.question_type]?.label || q.question_type}
                       </span>
                       <span style={{
-                        background: COLORS.warning + '20',
+                        background: `${COLORS.warning}20`,
                         color: COLORS.warning,
                         padding: '0.4rem 0.8rem',
                         borderRadius: '4px',
@@ -1301,21 +1409,23 @@ function QuestionManager({ onRefresh }) {
                       </p>
                     )}
                   </div>
-                  <button onClick={() => handleDelete(q.id)} style={{
-                    padding: '0.5rem 1rem',
-                    background: COLORS.error + '20',
-                    color: COLORS.error,
-                    border: `1px solid ${COLORS.error}`,
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    transition: 'all 0.2s',
-                    marginLeft: '1rem',
-                    whiteSpace: 'nowrap'
-                  }}
-                  onMouseEnter={(e) => (e.target.style.background = COLORS.error, e.target.style.color = COLORS.white)}
-                  onMouseLeave={(e) => (e.target.style.background = COLORS.error + '20', e.target.style.color = COLORS.error)}>
+                  <button 
+                    onClick={() => handleDelete(q.id)}
+                    onMouseEnter={handleDeleteMouseEnter}
+                    onMouseLeave={handleDeleteMouseLeave}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: `${COLORS.error}20`,
+                      color: COLORS.error,
+                      border: `1px solid ${COLORS.error}`,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      transition: 'all 0.2s',
+                      marginLeft: '1rem',
+                      whiteSpace: 'nowrap'
+                    }}>
                     Delete
                   </button>
                 </div>
@@ -1452,23 +1562,31 @@ function StudentInterface({ user }) {
           </div>
         </div>
 
-        <button onClick={startTest} style={{
-          width: '100%',
-          padding: '1.25rem',
-          background: COLORS.primary,
-          color: COLORS.white,
-          border: 'none',
-          borderRadius: '8px',
-          fontSize: '16px',
-          fontWeight: '700',
-          cursor: 'pointer',
-          textTransform: 'uppercase',
-          letterSpacing: '1px',
-          transition: 'all 0.3s',
-          marginBottom: '1rem'
-        }}
-        onMouseEnter={(e) => (e.target.style.transform = 'translateY(-3px)', e.target.style.boxShadow = '0 12px 32px rgba(204, 0, 0, 0.3)')}
-        onMouseLeave={(e) => (e.target.style.transform = 'translateY(0)', e.target.style.boxShadow = 'none')}>
+        <button 
+          onClick={startTest}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'translateY(-3px)';
+            e.target.style.boxShadow = '0 12px 32px rgba(204, 0, 0, 0.3)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = 'none';
+          }}
+          style={{
+            width: '100%',
+            padding: '1.25rem',
+            background: COLORS.primary,
+            color: COLORS.white,
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '16px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            transition: 'all 0.3s',
+            marginBottom: '1rem'
+          }}>
           Begin Assessment →
         </button>
 
@@ -1498,7 +1616,6 @@ function TestEngine({ session, onComplete }) {
   const [answers, setAnswers] = useState({});
   const [currentDifficulty, setCurrentDifficulty] = useState(5);
   const [loading, setLoading] = useState(true);
-  const [testStartTime] = useState(Date.now());
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
 
   useEffect(() => {
@@ -1580,8 +1697,8 @@ function TestEngine({ session, onComplete }) {
       const isCorrect = checkAnswer(q, finalAnswers[i]);
       if (isCorrect) correctCount++;
       
-      skillCounts[q.skill]++;
-      if (isCorrect) skillScores[q.skill]++;
+      skillCounts[q.skill] += 1;
+      if (isCorrect) skillScores[q.skill] += 1;
     });
 
     const scores = {
@@ -1737,6 +1854,16 @@ function TestEngine({ session, onComplete }) {
               <button
                 key={i}
                 onClick={() => handleAnswer(option)}
+                onMouseEnter={(e) => {
+                  e.target.style.borderColor = COLORS.primary;
+                  e.target.style.background = `${COLORS.primary}08`;
+                  e.target.style.transform = 'translateX(8px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.borderColor = COLORS.lightGray;
+                  e.target.style.background = COLORS.white;
+                  e.target.style.transform = 'translateX(0)';
+                }}
                 style={{
                   padding: '1.25rem',
                   textAlign: 'left',
@@ -1748,16 +1875,6 @@ function TestEngine({ session, onComplete }) {
                   color: COLORS.darkGray,
                   transition: 'all 0.2s',
                   fontWeight: '500'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.borderColor = COLORS.primary;
-                  e.target.style.background = `${COLORS.primary}08`;
-                  e.target.style.transform = 'translateX(8px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.borderColor = COLORS.lightGray;
-                  e.target.style.background = COLORS.white;
-                  e.target.style.transform = 'translateX(0)';
                 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <div style={{
@@ -1787,6 +1904,12 @@ function TestEngine({ session, onComplete }) {
                   handleAnswer(e.target.value);
                 }
               }}
+              onFocus={(e) => {
+                e.target.style.borderColor = COLORS.primary;
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = COLORS.lightGray;
+              }}
               style={{
                 padding: '1rem',
                 border: `2px solid ${COLORS.lightGray}`,
@@ -1795,8 +1918,6 @@ function TestEngine({ session, onComplete }) {
                 fontFamily: 'inherit',
                 boxSizing: 'border-box'
               }}
-              onFocus={(e) => e.target.style.borderColor = COLORS.primary}
-              onBlur={(e) => e.target.style.borderColor = COLORS.lightGray}
             />
           )}
         </div>
@@ -1942,21 +2063,29 @@ function ResultsView({ result, onRestart }) {
           You've been placed in the <strong style={{ color: COLORS.primary }}>Level {result.determined_cefr_level}</strong> class. Your instructor will review your results and confirm your final placement.
         </p>
 
-        <button onClick={onRestart} style={{
-          padding: '1rem 2rem',
-          background: 'transparent',
-          border: `2px solid ${COLORS.primary}`,
-          color: COLORS.primary,
-          borderRadius: '8px',
-          cursor: 'pointer',
-          fontSize: '15px',
-          fontWeight: '600',
-          transition: 'all 0.2s',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px'
-        }}
-        onMouseEnter={(e) => (e.target.style.background = COLORS.primary, e.target.style.color = COLORS.white)}
-        onMouseLeave={(e) => (e.target.style.background = 'transparent', e.target.style.color = COLORS.primary)}>
+        <button 
+          onClick={onRestart}
+          onMouseEnter={(e) => {
+            e.target.style.background = COLORS.primary;
+            e.target.style.color = COLORS.white;
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.background = 'transparent';
+            e.target.style.color = COLORS.primary;
+          }}
+          style={{
+            padding: '1rem 2rem',
+            background: 'transparent',
+            border: `2px solid ${COLORS.primary}`,
+            color: COLORS.primary,
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '15px',
+            fontWeight: '600',
+            transition: 'all 0.2s',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
           ← Return Home
         </button>
 
