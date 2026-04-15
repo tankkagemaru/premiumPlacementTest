@@ -22,11 +22,5 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "env": {
-    "REACT_APP_SUPABASE_URL": "@supabase_url",
-    "REACT_APP_SUPABASE_ANON_KEY": "@supabase_anon_key",
-    "RESEND_API_KEY": "@resend_api_key",
-    "TEACHER_EMAIL": "@teacher_email"
-  }
+  ]
 }
