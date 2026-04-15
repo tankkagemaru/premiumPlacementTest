@@ -1464,7 +1464,7 @@ function StudentInterface({ user }) {
             gridTemplateColumns: '1fr 1fr',
             gap: '1rem',
             fontSize: '14px',
-            color: COLORS.darkGray'
+            color: COLORS.darkGray
           }}>
             <div>✓ Grammar & Vocabulary</div>
             <div>✓ Listening Comprehension</div>
