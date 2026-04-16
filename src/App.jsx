@@ -425,7 +425,7 @@ function StudentTest({ user, onComplete }) {
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
           const resultData = {
-            student_id_ref: user.id,
+            student_id: user.id,
             student_name: user.email,
             student_passport: 'N/A',
             overall_score: score,
