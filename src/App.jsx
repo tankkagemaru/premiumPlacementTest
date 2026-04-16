@@ -492,19 +492,26 @@ const api = {
   }
 };
 
-// Adaptive algorithm
+// Adaptive algorithm - FIXED to prevent duplicates
 function selectNextQuestion(questionsBank, currentDifficulty, userResponses) {
+  // Get IDs of already answered questions
+  const answeredIds = new Set(userResponses.map(r => r.question_id));
+  
   const minDiff = Math.max(1, currentDifficulty - 1.5);
   const maxDiff = Math.min(10, currentDifficulty + 1.5);
 
+  // Filter: correct difficulty AND not already answered AND not null id
   const suitable = questionsBank.filter(q => {
+    if (!q.id || answeredIds.has(q.id)) return false; // Skip if no ID or already answered
     const qDiff = q.difficulty_score || 5;
-    const alreadyAnswered = userResponses.some(r => r.question_id === q.id);
-    return qDiff >= minDiff && qDiff <= maxDiff && !alreadyAnswered;
+    return qDiff >= minDiff && qDiff <= maxDiff;
   });
 
   if (suitable.length === 0) {
-    return questionsBank.find(q => !userResponses.some(r => r.question_id === q.id));
+    // Fallback: find any unanswered question
+    const remaining = questionsBank.filter(q => q.id && !answeredIds.has(q.id));
+    if (remaining.length === 0) return null;
+    return remaining[Math.floor(Math.random() * remaining.length)];
   }
 
   return suitable[Math.floor(Math.random() * suitable.length)];
@@ -544,8 +551,31 @@ function LoginScreen({ onLogin }) {
 
     try {
       // CHECK REGISTRATION CODE FOR SIGNUP
-      if (isSignup && registrationCode !== REGISTRATION_CODE) {
-        setError('Invalid registration code. Please check with your instructor.');
+      if (isSignup) {
+        if (!registrationCode || registrationCode.trim() === '') {
+          setError('Registration code is required to sign up.');
+          setLoading(false);
+          return;
+        }
+        
+        if (registrationCode.trim() !== REGISTRATION_CODE) {
+          setError(`Invalid registration code. Please check with your instructor.`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setError('Please enter a valid email address.');
+        setLoading(false);
+        return;
+      }
+
+      // Validate password length
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters long.');
         setLoading(false);
         return;
       }
@@ -555,7 +585,7 @@ function LoginScreen({ onLogin }) {
         : await api.login(email, password);
 
       if (!result?.access_token) {
-        setError('Login failed. Please try again.');
+        setError('Authentication failed. Please try again.');
         setLoading(false);
         return;
       }
@@ -564,7 +594,14 @@ function LoginScreen({ onLogin }) {
       const role = await api.getUserRole(result.user.id);
       onLogin({ ...result.user, role });
     } catch (err) {
-      setError(err.message || 'An error occurred');
+      const errorMsg = err.message || 'An error occurred';
+      if (errorMsg.includes('already registered')) {
+        setError('This email is already registered. Please log in instead.');
+      } else if (errorMsg.includes('Invalid login')) {
+        setError('Invalid email or password.');
+      } else {
+        setError(errorMsg);
+      }
       setLoading(false);
     }
   };
@@ -653,8 +690,16 @@ function StudentTest({ user, onComplete }) {
         return;
       }
       setQuestionsBank(questions);
-      const firstQ = questions.find(q => q.cefr_level === 'B1') || questions[0];
-      setCurrentQuestion(firstQ);
+      
+      // FIXED: Randomize starting question instead of always B1
+      // Pick a random question for starting point (varied by student)
+      const randomStart = questions[Math.floor(Math.random() * questions.length)];
+      setCurrentQuestion(randomStart);
+      
+      // Set initial difficulty based on starting question's level
+      const startingDifficulty = randomStart.difficulty_score || 5;
+      setCurrentDifficulty(startingDifficulty);
+      
       setTestState('testing');
     } catch (err) {
       setError('Error loading questions.');
@@ -688,6 +733,12 @@ function StudentTest({ user, onComplete }) {
       setCurrentDifficulty(newDifficulty);
       const nextQ = selectNextQuestion(questionsBank, newDifficulty, newResponses);
       setCurrentQuestion(nextQ);
+      
+      // FIXED: Clear touch highlight on mobile/tablet
+      // Remove active state by blurring and clearing focus
+      setTimeout(() => {
+        document.activeElement?.blur?.();
+      }, 50);
     }
   };
 
@@ -699,20 +750,40 @@ function StudentTest({ user, onComplete }) {
     setTestResults({ cefrLevel, score, totalQuestions: responses.length });
     setTestState('pending');
 
-    // SAVE RESULTS IN BACKGROUND
-    try {
-      await api.saveTestResult({
-        student_id: user.id,
-        overall_score: score,
-        determined_cefr_level: cefrLevel,
-        completed_at: new Date().toISOString(),
-        notes: `Completed 30 questions. Score: ${score.toFixed(1)}%`
-      });
-      console.log('✓ Results saved successfully');
-    } catch (err) {
-      console.error('⚠️  Error saving results:', err);
-      // Continue even if save fails - show pending message
-    }
+    // FIXED: Better error handling and retry for result saving
+    const saveTestResult = async (retries = 3) => {
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          const resultData = {
+            student_id: user.id,
+            overall_score: score,
+            determined_cefr_level: cefrLevel,
+            completed_at: new Date().toISOString(),
+            notes: `Completed 30 questions. Score: ${score.toFixed(1)}%`
+          };
+          
+          console.log(`[Attempt ${attempt}/${retries}] Saving test result:`, resultData);
+          
+          await api.saveTestResult(resultData);
+          
+          console.log('✓ Results saved successfully');
+          return true;
+        } catch (err) {
+          console.error(`[Attempt ${attempt}/${retries}] Error saving results:`, err);
+          
+          if (attempt < retries) {
+            // Wait before retrying (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          }
+        }
+      }
+      
+      console.error('✗ Failed to save results after all retries');
+      return false;
+    };
+
+    // Save in background
+    saveTestResult();
   };
 
   if (!testStarted) {
