@@ -758,8 +758,8 @@ function TeacherDashboard({ user, onLogout }) {
               onClick={() => {
                 const newQ = prompt('Enter question text:');
                 if (newQ) {
-                  const cefrLevel = prompt('CEFR Level (A1/A2/B1/B2):');
-                  const difficulty = prompt('Difficulty Score (1-10):');
+                  prompt('CEFR Level (A1/A2/B1/B2):');
+                  prompt('Difficulty Score (1-10):');
                   alert('Question added! You can manage questions in your database.');
                 }
               }}
