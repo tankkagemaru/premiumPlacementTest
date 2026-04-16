@@ -293,53 +293,82 @@ function LoginScreen({ onLogin }) {
   ];
 
   return (
-    <div className="login-container">
-      <div className="login-box">
-        <h1>CEFR Placement</h1>
-        <p className="subtitle">{COMPANY_NAME}</p>
-        <form onSubmit={handleSubmit}>
-          {isSignup && (
-            <>
-              <div className="form-section">
-                <div className="form-section-title">Personal Information</div>
-                <input type="text" placeholder="Full Name *" value={fullName} onChange={(e) => setFullName(e.target.value)} required={isSignup} />
-                <input type="text" placeholder="Passport/ID Number *" value={passportId} onChange={(e) => setPassportId(e.target.value)} required={isSignup} />
-                <select value={country} onChange={(e) => setCountry(e.target.value)} required={isSignup}>
-                  <option value="">Select Country *</option>
-                  {countries.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            </>
-          )}
-
-          <div className="form-section">
-            <div className="form-section-title">Login Information</div>
-            <input type="email" placeholder="Email Address *" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <input type="password" placeholder="Password (min 6 characters) *" value={password} onChange={(e) => setPassword(e.target.value)} required />
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+        <div style={{ textAlign: 'center', maxWidth: '500px', width: '100%' }}>
+          {/* Logo - Centered at top */}
+          <div style={{ marginBottom: '30px' }}>
+            <img 
+              src="https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/plc-logo.png" 
+              alt="Premium Language Centre" 
+              style={{ height: '80px', width: 'auto', marginBottom: '20px' }}
+            />
+            <h1 style={{ fontSize: '32px', color: '#CC0000', margin: '0 0 5px 0' }}>CEFR Placement Test</h1>
+            <p style={{ fontSize: '14px', color: '#666', margin: 0 }}>Premium Language Centre</p>
           </div>
 
-          {isSignup && (
-            <div className="form-section">
-              <div className="form-section-title">Registration Code</div>
-              <label className="code-label">Enter code provided by your instructor</label>
-              <input type="text" placeholder="Registration Code *" value={registrationCode} onChange={(e) => setRegistrationCode(e.target.value)} className="code-input" required={isSignup} />
-            </div>
-          )}
+          {/* Login Box */}
+          <div className="login-box" style={{ marginTop: '20px' }}>
+            <form onSubmit={handleSubmit}>
+              {isSignup && (
+                <>
+                  <div className="form-section">
+                    <div className="form-section-title">Personal Information</div>
+                    <input type="text" placeholder="Full Name *" value={fullName} onChange={(e) => setFullName(e.target.value)} required={isSignup} />
+                    <input type="text" placeholder="Passport/ID Number *" value={passportId} onChange={(e) => setPassportId(e.target.value)} required={isSignup} />
+                    <select value={country} onChange={(e) => setCountry(e.target.value)} required={isSignup}>
+                      <option value="">Select Country *</option>
+                      {countries.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </>
+              )}
 
-          {error && <div className="error-message">{error}</div>}
+              <div className="form-section">
+                <div className="form-section-title">{isSignup ? 'Create Account' : 'Login'}</div>
+                <input type="email" placeholder="Email Address *" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <input type="password" placeholder="Password (minimum 6 characters) *" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              </div>
 
-          <button type="submit" className="primary-button" disabled={loading}>
-            {loading ? 'Processing...' : isSignup ? 'Create Account' : 'Login'}
-          </button>
-        </form>
+              {isSignup && (
+                <div className="form-section">
+                  <div className="form-section-title">Registration Code</div>
+                  <label className="code-label">Enter the access code provided by your instructor</label>
+                  <input type="text" placeholder="Registration Code *" value={registrationCode} onChange={(e) => setRegistrationCode(e.target.value)} className="code-input" required={isSignup} />
+                </div>
+              )}
 
-        <p className="toggle-auth">
-          {isSignup ? 'Already have an account?' : "Don't have an account?"}
-          <button type="button" onClick={() => { setIsSignup(!isSignup); setError(''); }} className="link-button">
-            {isSignup ? 'Login' : 'Sign Up'}
-          </button>
-        </p>
+                  {error && <div className="error-message">{error}</div>}
+
+              <button type="submit" className="primary-button" disabled={loading}>
+                {loading ? 'Processing...' : isSignup ? 'Create Account' : 'Login'}
+              </button>
+            </form>
+
+            <p className="toggle-auth">
+              {isSignup ? 'Already have an account?' : "Don't have an account?"}
+              <button type="button" onClick={() => { setIsSignup(!isSignup); setError(''); }} className="link-button">
+                {isSignup ? 'Login' : 'Sign Up'}
+              </button>
+            </p>
+          </div>
+        </div>
       </div>
+
+      {/* Footer - Copyright & Disclaimer */}
+      <footer style={{ backgroundColor: '#f0f0f0', borderTop: '1px solid #ddd', padding: '20px', textAlign: 'center', fontSize: '12px', color: '#666', marginTop: '20px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <p style={{ margin: '10px 0' }}>
+            <strong>© 2024 Premium Language Centre. All rights reserved.</strong>
+          </p>
+          <p style={{ margin: '10px 0', lineHeight: '1.6' }}>
+            This CEFR Placement Test is designed to assess English language proficiency and determine appropriate course levels. Results are confidential and used solely for educational placement purposes. By using this platform, you agree to maintain the integrity of the assessment and not share test content with others.
+          </p>
+          <p style={{ margin: '10px 0', fontSize: '11px', color: '#999' }}>
+            For questions or technical support, please contact: <strong>support@premium.edu.my</strong>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -550,6 +579,10 @@ function TeacherDashboard({ user, onLogout }) {
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [comment, setComment] = useState('');
   const [approving, setApproving] = useState(false);
+  const [questionSearch, setQuestionSearch] = useState('');
+  const [questionSkillFilter, setQuestionSkillFilter] = useState('');
+  const [questionCefrFilter, setQuestionCefrFilter] = useState('');
+  const [questionSort, setQuestionSort] = useState('recent');
 
   useEffect(() => {
     loadData();
@@ -626,6 +659,28 @@ function TeacherDashboard({ user, onLogout }) {
 
   const pendingResults = results.filter(r => !r.is_approved);
   const approvedResults = results.filter(r => r.is_approved);
+  
+  // Filter and sort questions
+  const filteredQuestions = questions
+    .filter(q => {
+      const matchesSearch = q.question_text?.toLowerCase().includes(questionSearch.toLowerCase());
+      const matchesSkill = !questionSkillFilter || q.skill === questionSkillFilter;
+      const matchesCefr = !questionCefrFilter || q.cefr_level === questionCefrFilter;
+      return matchesSearch && matchesSkill && matchesCefr;
+    })
+    .sort((a, b) => {
+      if (questionSort === 'recent') {
+        return new Date(b.created_at) - new Date(a.created_at);
+      } else if (questionSort === 'difficulty') {
+        return (a.difficulty_score || 0) - (b.difficulty_score || 0);
+      } else if (questionSort === 'difficulty-desc') {
+        return (b.difficulty_score || 0) - (a.difficulty_score || 0);
+      } else if (questionSort === 'level') {
+        const levelOrder = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4 };
+        return (levelOrder[a.cefr_level] || 0) - (levelOrder[b.cefr_level] || 0);
+      }
+      return 0;
+    });
 
   return (
     <div className="dashboard">
@@ -779,7 +834,58 @@ function TeacherDashboard({ user, onLogout }) {
             </div>
           </div>
 
-          <h3>All Questions ({questions.length})</h3>
+          {/* Search and Filter Controls */}
+          <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '4px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '12px' }}>Search Questions:</label>
+              <input 
+                type="text"
+                placeholder="Search by question text..."
+                onChange={(e) => setQuestionSearch(e.target.value)}
+                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '12px' }}>Filter by Skill:</label>
+              <select 
+                onChange={(e) => setQuestionSkillFilter(e.target.value)}
+                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+              >
+                <option value="">All Skills</option>
+                <option value="grammar">Grammar</option>
+                <option value="vocabulary">Vocabulary</option>
+                <option value="reading">Reading</option>
+                <option value="listening">Listening</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '12px' }}>Filter by CEFR Level:</label>
+              <select 
+                onChange={(e) => setQuestionCefrFilter(e.target.value)}
+                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+              >
+                <option value="">All Levels</option>
+                <option value="A1">A1</option>
+                <option value="A2">A2</option>
+                <option value="B1">B1</option>
+                <option value="B2">B2</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '12px' }}>Sort By:</label>
+              <select 
+                onChange={(e) => setQuestionSort(e.target.value)}
+                style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+              >
+                <option value="recent">Most Recent</option>
+                <option value="difficulty">Difficulty (Low to High)</option>
+                <option value="difficulty-desc">Difficulty (High to Low)</option>
+                <option value="level">CEFR Level</option>
+              </select>
+            </div>
+          </div>
+
+          <h3>Questions ({filteredQuestions.length})</h3>
           <div style={{ maxHeight: '600px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
             <table className="results-table">
               <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f5f5f5' }}>
@@ -793,7 +899,7 @@ function TeacherDashboard({ user, onLogout }) {
                 </tr>
               </thead>
               <tbody>
-                {questions.map((q, idx) => (
+                {filteredQuestions.map((q, idx) => (
                   <tr key={idx}>
                     <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.question_text?.substring(0, 60) || 'N/A'}...</td>
                     <td style={{ fontSize: '12px' }}>{q.question_type || 'N/A'}</td>
