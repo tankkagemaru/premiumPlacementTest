@@ -503,7 +503,7 @@ function StudentTest({ user, onComplete }) {
   }
 
   return (
-    <div className="test-screen">
+    <div className="test-screen" onContextMenu={(e) => { e.preventDefault(); return false; }}>
       <div className="test-header">
         <div className="progress-tracker">
           <div className="progress-title">PROGRESS</div>
@@ -520,14 +520,14 @@ function StudentTest({ user, onComplete }) {
         </div>
       </div>
 
-      <div className="question-box">
-        <h3>{currentQuestion.question_text}</h3>
+      <div className="question-box" onCopy={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }} style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
+        <h3 style={{ pointerEvents: 'none' }}>{currentQuestion.question_text}</h3>
         {currentQuestion.audio_url && (
           <audio controls style={{ width: '100%', marginBottom: '20px' }}>
             <source src={currentQuestion.audio_url} type="audio/wav" />
           </audio>
         )}
-        {currentQuestion.passage && <div className="passage"><p>{currentQuestion.passage}</p></div>}
+        {currentQuestion.passage && <div className="passage" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none', pointerEvents: 'none' }}><p>{currentQuestion.passage}</p></div>}
         <div className="options">
           {currentQuestion.options?.map((option, idx) => (
             <button key={idx} className="option-button" onClick={() => handleAnswer(option)}>
@@ -896,8 +896,8 @@ function TeacherDashboard({ user, onLogout }) {
                 </div>
               )}
 
-              {/* Conditional: Show Passage for Reading */}
-              {(selectedQuestion.skill === 'reading' || !selectedQuestion.skill) && (
+              {/* Conditional: Show Passage for Reading ONLY */}
+              {selectedQuestion.skill === 'reading' && (
                 <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f3e5f5', borderRadius: '4px', border: '1px solid #ce93d8' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📖 Reading Passage:</label>
                   <textarea 
@@ -1024,6 +1024,12 @@ export default function App() {
     const style = document.createElement('style');
     style.textContent = styles;
     document.head.appendChild(style);
+
+    // Disable Chrome translation
+    const meta = document.createElement('meta');
+    meta.name = 'google';
+    meta.content = 'notranslate';
+    document.head.appendChild(meta);
   }, []);
 
   return (
