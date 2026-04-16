@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
 const REGISTRATION_CODE = 'PREMIUM2024';
-const EMAIL_FUNCTION_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email';
 const COMPANY_NAME = 'Premium Language Centre';
 const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/plc-logo.png';
 
@@ -579,28 +578,29 @@ function TeacherDashboard({ user, onLogout }) {
         approved_by: user.id
       });
 
-      // Email temporarily disabled - CORS issue with Edge Function
-      // System works perfectly without it - results save and teacher can approve
-      // Email will be enabled once Edge Function CORS headers are fixed
-      console.log('Email sending temporarily disabled (CORS issue). Results saved successfully.');
-      /*
-      fetch(EMAIL_FUNCTION_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentEmail: selectedResult.student_email || user.email,
-          cefrLevel: selectedResult.determined_cefr_level,
-          score: selectedResult.overall_score,
-          comment: comment,
-          responses: selectedResult.student_responses ? JSON.parse(selectedResult.student_responses) : [],
-          questions: questions
-        })
-      }).then(r => r.json()).then(result => {
-        console.log('Email sent:', result);
-      }).catch(err => {
-        console.error('Email error:', err);
-      });
-      */
+      // Send email via Edge Function (re-enabled)
+      const studentEmail = selectedResult.students?.email || selectedResult.student_email || user.email;
+      const sendEmail = async () => {
+        try {
+          const response = await fetch('https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              studentEmail: studentEmail,
+              cefrLevel: selectedResult.determined_cefr_level,
+              score: selectedResult.overall_score,
+              comment: comment,
+              responses: selectedResult.student_responses ? JSON.parse(selectedResult.student_responses) : [],
+              questions: questions
+            })
+          });
+          const result = await response.json();
+          console.log('Email sent successfully:', result);
+        } catch (err) {
+          console.error('Email error:', err);
+        }
+      };
+      sendEmail();
 
       setSelectedResult(null);
       setComment('');
@@ -700,10 +700,28 @@ function TeacherDashboard({ user, onLogout }) {
                     <td>
                       <button 
                         className="approve-button" 
-                        onClick={() => {
-                          console.log('Resend email for:', r.students?.full_name || r.student_name);
-                          // Email sending is temporarily disabled
-                          alert('Email functionality will be enabled soon!');
+                        onClick={async () => {
+                          try {
+                            const studentEmail = r.students?.email || r.student_email;
+                            const response = await fetch('https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                studentEmail: studentEmail,
+                                cefrLevel: r.determined_cefr_level,
+                                score: r.overall_score,
+                                comment: r.teacher_comment || '',
+                                responses: r.student_responses ? JSON.parse(r.student_responses) : [],
+                                questions: questions
+                              })
+                            });
+                            const result = await response.json();
+                            alert(`Email resent to ${studentEmail}`);
+                            console.log('Email sent:', result);
+                          } catch (err) {
+                            alert('Error sending email. Check console.');
+                            console.error('Email error:', err);
+                          }
                         }}
                         style={{ fontSize: '12px', padding: '6px 12px' }}
                       >
