@@ -816,7 +816,7 @@ function TeacherDashboard({ user, onLogout }) {
 
       {selectedQuestion && (
         <div className="modal-overlay" onClick={() => setSelectedQuestion(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button className="modal-close" onClick={() => setSelectedQuestion(null)}>×</button>
             <h2>{selectedQuestion.new ? 'Add New Question' : 'Edit Question'}</h2>
             
@@ -824,7 +824,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Question Text:</label>
                 <textarea 
-                  defaultValue={selectedQuestion.question_text || ''} 
+                  ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.question_text || ''}}
                   style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '100px', fontFamily: 'inherit' }}
                   placeholder="Enter question text..."
                 />
@@ -834,7 +834,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Question Type:</label>
                   <select 
-                    defaultValue={selectedQuestion.question_type || 'multiple_choice'}
+                    ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.question_type || 'multiple_choice'}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   >
                     <option>multiple_choice</option>
@@ -845,7 +845,8 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Skill:</label>
                   <select 
-                    defaultValue={selectedQuestion.skill || 'reading'}
+                    id="skill-select"
+                    ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.skill || 'reading'}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   >
                     <option>grammar</option>
@@ -860,7 +861,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>CEFR Level:</label>
                   <select 
-                    defaultValue={selectedQuestion.cefr_level || 'A1'}
+                    ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.cefr_level || 'A1'}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   >
                     <option>A1</option>
@@ -875,17 +876,43 @@ function TeacherDashboard({ user, onLogout }) {
                     type="number" 
                     min="1" 
                     max="10" 
-                    defaultValue={selectedQuestion.difficulty_score || 5}
+                    ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.difficulty_score || 5}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   />
                 </div>
               </div>
 
+              {/* Conditional: Show Audio URL for Listening */}
+              {selectedQuestion.skill === 'listening' && (
+                <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#e3f2fd', borderRadius: '4px', border: '1px solid #90caf9' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>🎵 Audio URL (Listening):</label>
+                  <input 
+                    type="text"
+                    ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.audio_url || ''}}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #90caf9', borderRadius: '4px' }}
+                    placeholder="https://example.com/audio.mp3"
+                  />
+                  <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>Link to the audio file for this listening question</p>
+                </div>
+              )}
+
+              {/* Conditional: Show Passage for Reading */}
+              {(selectedQuestion.skill === 'reading' || !selectedQuestion.skill) && (
+                <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f3e5f5', borderRadius: '4px', border: '1px solid #ce93d8' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📖 Reading Passage:</label>
+                  <textarea 
+                    ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.passage || ''}}
+                    style={{ width: '100%', padding: '10px', border: '1px solid #ce93d8', borderRadius: '4px', minHeight: '120px', fontFamily: 'inherit' }}
+                    placeholder="Paste the article or passage here for reading comprehension questions..."
+                  />
+                </div>
+              )}
+
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Answer Options (comma-separated):</label>
                 <input 
                   type="text"
-                  defaultValue={selectedQuestion.options?.join(', ') || ''}
+                  ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.options?.join(', ') || ''}}
                   style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   placeholder="Option 1, Option 2, Option 3, Option 4"
                 />
@@ -895,7 +922,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Correct Answer:</label>
                 <input 
                   type="text"
-                  defaultValue={selectedQuestion.correct_answers?.[0] || ''}
+                  ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.correct_answers?.[0] || ''}}
                   style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   placeholder="Enter correct answer"
                 />
@@ -904,7 +931,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Explanation:</label>
                 <textarea 
-                  defaultValue={selectedQuestion.explanation || ''}
+                  ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.explanation || ''}}
                   style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '80px', fontFamily: 'inherit' }}
                   placeholder="Explain why this is the correct answer..."
                 />
