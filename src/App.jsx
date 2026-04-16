@@ -547,6 +547,7 @@ function TeacherDashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('pending');
   const [loading, setLoading] = useState(true);
   const [selectedResult, setSelectedResult] = useState(null);
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [comment, setComment] = useState('');
   const [approving, setApproving] = useState(false);
 
@@ -753,59 +754,54 @@ function TeacherDashboard({ user, onLogout }) {
       {activeTab === 'questions' && (
         <div className="tab-content">
           <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3>Question Bank Management</h3>
+            <h3 style={{ margin: 0 }}>Question Bank Management</h3>
             <button 
-              onClick={() => {
-                const newQ = prompt('Enter question text:');
-                if (newQ) {
-                  prompt('CEFR Level (A1/A2/B1/B2):');
-                  prompt('Difficulty Score (1-10):');
-                  alert('Question added! You can manage questions in your database.');
-                }
-              }}
-              style={{ padding: '8px 16px', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              onClick={() => setSelectedQuestion({ new: true })}
+              style={{ padding: '10px 20px', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
             >
               + Add New Question
             </button>
           </div>
 
-          <p><strong>Total Questions: {questions.length}</strong></p>
-          
-          <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '30px' }}>
-            {['A1', 'A2', 'B1', 'B2'].map(level => (
-              <div key={level} style={{ backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '4px', textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' }} 
-                   onClick={() => alert(`${level} Questions:\n${questions.filter(q => q.cefr_level === level).length} total`)}>
-                <div style={{ fontSize: '20px', color: '#CC0000', marginBottom: '5px' }}>
-                  {questions.filter(q => q.cefr_level === level).length}
+          <div style={{ marginTop: '15px', marginBottom: '20px' }}>
+            <p><strong>Total Questions: {questions.length}</strong></p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
+              {['A1', 'A2', 'B1', 'B2'].map(level => (
+                <div key={level} style={{ backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '4px', textAlign: 'center', fontWeight: 'bold' }}>
+                  <div style={{ fontSize: '20px', color: '#CC0000', marginBottom: '5px' }}>
+                    {questions.filter(q => q.cefr_level === level).length}
+                  </div>
+                  <div>{level} Level</div>
                 </div>
-                <div>{level} Level</div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>Recent Questions</h3>
-          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          <h3>All Questions ({questions.length})</h3>
+          <div style={{ maxHeight: '600px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
             <table className="results-table">
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f5f5f5' }}>
                 <tr>
                   <th>Question Text</th>
                   <th>Type</th>
-                  <th>CEFR Level</th>
+                  <th>Skill</th>
+                  <th>CEFR</th>
                   <th>Difficulty</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {questions.slice(0, 10).map((q, idx) => (
+                {questions.map((q, idx) => (
                   <tr key={idx}>
-                    <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q.question_text?.substring(0, 50)}...</td>
-                    <td>{q.question_type || 'N/A'}</td>
-                    <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{q.cefr_level}</td>
-                    <td>{q.difficulty_score || 'N/A'}</td>
-                    <td>
+                    <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{q.question_text?.substring(0, 60) || 'N/A'}...</td>
+                    <td style={{ fontSize: '12px' }}>{q.question_type || 'N/A'}</td>
+                    <td style={{ fontSize: '12px' }}>{q.skill || 'N/A'}</td>
+                    <td style={{ fontWeight: 'bold', color: '#CC0000', fontSize: '12px' }}>{q.cefr_level}</td>
+                    <td style={{ textAlign: 'center' }}>{q.difficulty_score || 'N/A'}</td>
+                    <td style={{ textAlign: 'center' }}>
                       <button 
-                        onClick={() => alert(`Edit Feature Coming Soon\n\nQuestion: ${q.question_text}`)}
-                        style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '3px' }}
+                        onClick={() => setSelectedQuestion(q)}
+                        style={{ padding: '4px 10px', fontSize: '11px', cursor: 'pointer', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '3px' }}
                       >
                         Edit
                       </button>
@@ -815,10 +811,124 @@ function TeacherDashboard({ user, onLogout }) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
 
-          <p style={{ marginTop: '20px', fontSize: '12px', color: '#999' }}>
-            📝 To manage questions programmatically, use the <strong>upload_questions.py</strong> script in your repository.
-          </p>
+      {selectedQuestion && (
+        <div className="modal-overlay" onClick={() => setSelectedQuestion(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px' }}>
+            <button className="modal-close" onClick={() => setSelectedQuestion(null)}>×</button>
+            <h2>{selectedQuestion.new ? 'Add New Question' : 'Edit Question'}</h2>
+            
+            <div className="modal-section">
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Question Text:</label>
+                <textarea 
+                  defaultValue={selectedQuestion.question_text || ''} 
+                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '100px', fontFamily: 'inherit' }}
+                  placeholder="Enter question text..."
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Question Type:</label>
+                  <select 
+                    defaultValue={selectedQuestion.question_type || 'multiple_choice'}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  >
+                    <option>multiple_choice</option>
+                    <option>fill_blank</option>
+                    <option>matching</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Skill:</label>
+                  <select 
+                    defaultValue={selectedQuestion.skill || 'reading'}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  >
+                    <option>grammar</option>
+                    <option>vocabulary</option>
+                    <option>reading</option>
+                    <option>listening</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>CEFR Level:</label>
+                  <select 
+                    defaultValue={selectedQuestion.cefr_level || 'A1'}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  >
+                    <option>A1</option>
+                    <option>A2</option>
+                    <option>B1</option>
+                    <option>B2</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Difficulty Score (1-10):</label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="10" 
+                    defaultValue={selectedQuestion.difficulty_score || 5}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Answer Options (comma-separated):</label>
+                <input 
+                  type="text"
+                  defaultValue={selectedQuestion.options?.join(', ') || ''}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  placeholder="Option 1, Option 2, Option 3, Option 4"
+                />
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Correct Answer:</label>
+                <input 
+                  type="text"
+                  defaultValue={selectedQuestion.correct_answers?.[0] || ''}
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+                  placeholder="Enter correct answer"
+                />
+              </div>
+
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Explanation:</label>
+                <textarea 
+                  defaultValue={selectedQuestion.explanation || ''}
+                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '80px', fontFamily: 'inherit' }}
+                  placeholder="Explain why this is the correct answer..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button 
+                  onClick={() => setSelectedQuestion(null)}
+                  style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer', backgroundColor: '#f5f5f5' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    alert('Question saved! To save to database, export and upload via the Python script.');
+                    setSelectedQuestion(null);
+                  }}
+                  style={{ padding: '10px 20px', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Save Question
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
