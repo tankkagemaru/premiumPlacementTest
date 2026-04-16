@@ -10,11 +10,11 @@ const styles = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: #f5f5f5; }
   .app { min-height: 100vh; background-color: #f5f5f5; }
-  .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 15px 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 15px; }
-  .header-logo { height: 50px; width: auto; object-fit: contain; flex-shrink: 0; }
-  .header-content { flex: 1; text-align: center; }
-  .header h1 { font-size: 28px; margin-bottom: 2px; }
-  .subtitle { font-size: 13px; opacity: 0.95; margin: 0; }
+  .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 10px 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 70px; }
+  .header-logo { height: 40px; width: auto; object-fit: contain; flex-shrink: 0; margin-top: 0; }
+  .header-content { flex: 1; text-align: center; padding: 0; }
+  .header h1 { font-size: 26px; margin: 0; margin-bottom: 2px; }
+  .subtitle { font-size: 12px; opacity: 0.95; margin: 0; }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
   .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
   .login-box h1 { color: #CC0000; font-size: 24px; margin-bottom: 10px; }
@@ -752,10 +752,29 @@ function TeacherDashboard({ user, onLogout }) {
 
       {activeTab === 'questions' && (
         <div className="tab-content">
-          <p>Total Questions: {questions.length}</p>
-          <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
+          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3>Question Bank Management</h3>
+            <button 
+              onClick={() => {
+                const newQ = prompt('Enter question text:');
+                if (newQ) {
+                  const cefrLevel = prompt('CEFR Level (A1/A2/B1/B2):');
+                  const difficulty = prompt('Difficulty Score (1-10):');
+                  alert('Question added! You can manage questions in your database.');
+                }
+              }}
+              style={{ padding: '8px 16px', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+            >
+              + Add New Question
+            </button>
+          </div>
+
+          <p><strong>Total Questions: {questions.length}</strong></p>
+          
+          <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '30px' }}>
             {['A1', 'A2', 'B1', 'B2'].map(level => (
-              <div key={level} style={{ backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '4px', textAlign: 'center', fontWeight: 'bold' }}>
+              <div key={level} style={{ backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '4px', textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' }} 
+                   onClick={() => alert(`${level} Questions:\n${questions.filter(q => q.cefr_level === level).length} total`)}>
                 <div style={{ fontSize: '20px', color: '#CC0000', marginBottom: '5px' }}>
                   {questions.filter(q => q.cefr_level === level).length}
                 </div>
@@ -763,6 +782,43 @@ function TeacherDashboard({ user, onLogout }) {
               </div>
             ))}
           </div>
+
+          <h3 style={{ marginTop: '30px', marginBottom: '15px' }}>Recent Questions</h3>
+          <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            <table className="results-table">
+              <thead>
+                <tr>
+                  <th>Question Text</th>
+                  <th>Type</th>
+                  <th>CEFR Level</th>
+                  <th>Difficulty</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {questions.slice(0, 10).map((q, idx) => (
+                  <tr key={idx}>
+                    <td style={{ maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{q.question_text?.substring(0, 50)}...</td>
+                    <td>{q.question_type || 'N/A'}</td>
+                    <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{q.cefr_level}</td>
+                    <td>{q.difficulty_score || 'N/A'}</td>
+                    <td>
+                      <button 
+                        onClick={() => alert(`Edit Feature Coming Soon\n\nQuestion: ${q.question_text}`)}
+                        style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', backgroundColor: '#2196F3', color: 'white', border: 'none', borderRadius: '3px' }}
+                      >
+                        Edit
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p style={{ marginTop: '20px', fontSize: '12px', color: '#999' }}>
+            📝 To manage questions programmatically, use the <strong>upload_questions.py</strong> script in your repository.
+          </p>
         </div>
       )}
 
