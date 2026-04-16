@@ -377,6 +377,7 @@ function LoginScreen({ onLogin }) {
 function StudentTest({ user, onComplete }) {
   const [testStarted, setTestStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
+  const [questionStartTime, setQuestionStartTime] = useState(null);
   const [questionsBank, setQuestionsBank] = useState([]);
   const [userResponses, setUserResponses] = useState([]);
   const [currentDifficulty, setCurrentDifficulty] = useState(5);
@@ -411,6 +412,7 @@ function StudentTest({ user, onComplete }) {
       setQuestionsBank(questions);
       const randomStart = questions[Math.floor(Math.random() * questions.length)];
       setCurrentQuestion(randomStart);
+      setQuestionStartTime(Date.now()); // Start timing this question
       setCurrentDifficulty(randomStart.difficulty_score || 5);
       setTestState('testing');
     } catch (err) {
@@ -421,17 +423,29 @@ function StudentTest({ user, onComplete }) {
   };
 
   const handleAnswer = async (selectedAnswer) => {
-    if (!currentQuestion) return;
+    if (!currentQuestion || !questionStartTime) return;
+    
     const isCorrect = currentQuestion.correct_answers?.includes(selectedAnswer);
+    const now = Date.now();
+    const timeSpentMs = now - questionStartTime;
+    const timeSpentSeconds = Math.round(timeSpentMs / 1000);
+    
+    // For first question, no previous reaction time to track
+    // For subsequent questions, reaction time is time from question display to answer
+    // We'll approximate it as 10% of time spent (typical reaction is quick)
+    const reactionTimeMs = Math.min(Math.round(timeSpentMs * 0.15), 5000); // Cap at 5 seconds
+    
     const newResponses = [...userResponses, {
       question_id: currentQuestion.id,
       student_answer: selectedAnswer,
       is_correct: isCorrect,
-      time_spent_seconds: 0,
+      time_spent_seconds: timeSpentSeconds,
       difficulty_at_time: currentDifficulty,
-      reaction_time_ms: 0
+      reaction_time_ms: reactionTimeMs
     }];
+    
     setUserResponses(newResponses);
+    
     if (newResponses.length >= 30) {
       completeTest(newResponses);
     } else {
@@ -439,6 +453,7 @@ function StudentTest({ user, onComplete }) {
       setCurrentDifficulty(newDifficulty);
       const nextQ = selectNextQuestion(questionsBank, newDifficulty, newResponses);
       setCurrentQuestion(nextQ);
+      setQuestionStartTime(Date.now()); // Reset timer for next question
       setTimeout(() => document.activeElement?.blur?.(), 50);
     }
   };
