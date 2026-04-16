@@ -160,7 +160,7 @@ const api = {
     return this.request('PATCH', `/rest/v1/test_results?id=eq.${id}`, updates);
   },
   getAllResults() {
-    return this.request('GET', '/rest/v1/test_results?select=*,students(full_name,passport_id,country)&order=completed_at.desc');
+    return this.request('GET', '/rest/v1/test_results?select=*,students(id,email,full_name,passport_id,country)&order=completed_at.desc');
   },
   getQuestionBank() {
     return this.request('GET', '/rest/v1/questions?select=*');
@@ -579,32 +579,37 @@ function TeacherDashboard({ user, onLogout }) {
       });
 
       // Send email via Edge Function (re-enabled)
-      const studentEmail = selectedResult.students?.email || selectedResult.student_email || user.email;
-      const sendEmail = async () => {
-        try {
-          const token = localStorage.getItem('sb-token');
-          const response = await fetch('https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email', {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              studentEmail: studentEmail,
-              cefrLevel: selectedResult.determined_cefr_level,
-              score: selectedResult.overall_score,
-              comment: comment,
-              responses: selectedResult.student_responses ? JSON.parse(selectedResult.student_responses) : [],
-              questions: questions
-            })
-          });
-          const result = await response.json();
-          console.log('Email sent successfully:', result);
-        } catch (err) {
-          console.error('Email error:', err);
-        }
-      };
-      sendEmail();
+      const studentEmail = selectedResult.students?.email;
+      if (!studentEmail) {
+        console.error('Student email not found in results');
+      } else {
+        const sendEmail = async () => {
+          try {
+            const token = localStorage.getItem('sb-token');
+            const response = await fetch('https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0'
+              },
+              body: JSON.stringify({
+                studentEmail: studentEmail,
+                cefrLevel: selectedResult.determined_cefr_level,
+                score: selectedResult.overall_score,
+                comment: comment,
+                responses: selectedResult.student_responses ? JSON.parse(selectedResult.student_responses) : [],
+                questions: questions
+              })
+            });
+            const result = await response.json();
+            console.log('Email sent successfully:', result);
+          } catch (err) {
+            console.error('Email error:', err);
+          }
+        };
+        sendEmail();
+      }
 
       setSelectedResult(null);
       setComment('');
@@ -706,13 +711,19 @@ function TeacherDashboard({ user, onLogout }) {
                         className="approve-button" 
                         onClick={async () => {
                           try {
-                            const studentEmail = r.students?.email || r.student_email;
+                            // Use student email from joined students table
+                            const studentEmail = r.students?.email;
+                            if (!studentEmail) {
+                              alert('Student email not found');
+                              return;
+                            }
                             const token = localStorage.getItem('sb-token');
                             const response = await fetch('https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email', {
                               method: 'POST',
                               headers: { 
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
+                                'Authorization': `Bearer ${token}`,
+                                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0'
                               },
                               body: JSON.stringify({
                                 studentEmail: studentEmail,
