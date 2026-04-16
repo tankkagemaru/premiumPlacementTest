@@ -356,7 +356,6 @@ function StudentTest({ user, onComplete }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [studentInfo, setStudentInfo] = useState(null);
 
   useEffect(() => {
     if (testState !== 'testing') return;
@@ -779,7 +778,15 @@ export default function App() {
   return (
     <div className="app">
       <div className="header">
-        <img src={LOGO_URL} alt="PLC Logo" className="header-logo" onError={(e) => {e.target.style.display = 'none'}} />
+        <img 
+          src={LOGO_URL} 
+          alt="PLC Logo" 
+          className="header-logo" 
+          onError={(e) => {
+            e.target.style.display = 'none';
+            console.log('Logo failed to load from:', LOGO_URL);
+          }} 
+        />
         <div className="header-content">
           <h1>CEFR Placement</h1>
           <p className="subtitle">{COMPANY_NAME}</p>
