@@ -582,9 +582,13 @@ function TeacherDashboard({ user, onLogout }) {
       const studentEmail = selectedResult.students?.email || selectedResult.student_email || user.email;
       const sendEmail = async () => {
         try {
+          const token = localStorage.getItem('sb-token');
           const response = await fetch('https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({
               studentEmail: studentEmail,
               cefrLevel: selectedResult.determined_cefr_level,
@@ -703,9 +707,13 @@ function TeacherDashboard({ user, onLogout }) {
                         onClick={async () => {
                           try {
                             const studentEmail = r.students?.email || r.student_email;
+                            const token = localStorage.getItem('sb-token');
                             const response = await fetch('https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email', {
                               method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
+                              headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                              },
                               body: JSON.stringify({
                                 studentEmail: studentEmail,
                                 cefrLevel: r.determined_cefr_level,
