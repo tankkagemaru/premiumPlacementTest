@@ -585,13 +585,10 @@ function TeacherDashboard({ user, onLogout }) {
       } else {
         const sendEmail = async () => {
           try {
-            const token = localStorage.getItem('sb-token');
             const response = await fetch('https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email', {
               method: 'POST',
               headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0'
+                'Content-Type': 'application/json'
               },
               body: JSON.stringify({
                 studentEmail: studentEmail,
@@ -717,13 +714,10 @@ function TeacherDashboard({ user, onLogout }) {
                               alert('Student email not found');
                               return;
                             }
-                            const token = localStorage.getItem('sb-token');
                             const response = await fetch('https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email', {
                               method: 'POST',
                               headers: { 
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`,
-                                'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0'
+                                'Content-Type': 'application/json'
                               },
                               body: JSON.stringify({
                                 studentEmail: studentEmail,
