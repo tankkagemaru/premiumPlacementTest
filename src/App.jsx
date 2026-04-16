@@ -360,7 +360,7 @@ function StudentTest({ user, onComplete }) {
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
           const resultData = {
-            student_id: user.id,
+            student_id: user.email, // Store email instead of ID for display
             overall_score: score,
             determined_cefr_level: cefrLevel,
             completed_at: new Date().toISOString(),
