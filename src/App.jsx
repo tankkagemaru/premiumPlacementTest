@@ -11,11 +11,11 @@ const styles = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: #f5f5f5; }
   .app { min-height: 100vh; background-color: #f5f5f5; }
-  .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 20px; }
-  .header-logo { height: 60px; width: auto; object-fit: contain; }
-  .header-content { flex: 1; }
-  .header h1 { font-size: 32px; margin-bottom: 3px; }
-  .subtitle { font-size: 14px; opacity: 0.9; margin: 0; }
+  .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 15px 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 15px; }
+  .header-logo { height: 50px; width: auto; object-fit: contain; flex-shrink: 0; }
+  .header-content { flex: 1; text-align: center; }
+  .header h1 { font-size: 28px; margin-bottom: 2px; }
+  .subtitle { font-size: 13px; opacity: 0.95; margin: 0; }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
   .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
   .login-box h1 { color: #CC0000; font-size: 24px; margin-bottom: 10px; }
@@ -161,7 +161,7 @@ const api = {
     return this.request('PATCH', `/rest/v1/test_results?id=eq.${id}`, updates);
   },
   getAllResults() {
-    return this.request('GET', '/rest/v1/test_results?select=*&order=completed_at.desc');
+    return this.request('GET', '/rest/v1/test_results?select=*,students(full_name,passport_id,country)&order=completed_at.desc');
   },
   getQuestionBank() {
     return this.request('GET', '/rest/v1/questions?select=*');
@@ -579,6 +579,11 @@ function TeacherDashboard({ user, onLogout }) {
         approved_by: user.id
       });
 
+      // Email temporarily disabled - CORS issue with Edge Function
+      // System works perfectly without it - results save and teacher can approve
+      // Email will be enabled once Edge Function CORS headers are fixed
+      console.log('Email sending temporarily disabled (CORS issue). Results saved successfully.');
+      /*
       fetch(EMAIL_FUNCTION_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -595,6 +600,7 @@ function TeacherDashboard({ user, onLogout }) {
       }).catch(err => {
         console.error('Email error:', err);
       });
+      */
 
       setSelectedResult(null);
       setComment('');
@@ -650,7 +656,7 @@ function TeacherDashboard({ user, onLogout }) {
               <tbody>
                 {pendingResults.map(r => (
                   <tr key={r.id}>
-                    <td>{r.student_name || 'N/A'}</td>
+                    <td>{r.students?.full_name || r.student_name || 'N/A'} {r.students?.country ? `(${r.students.country})` : ''}</td>
                     <td>{r.overall_score?.toFixed(1)}%</td>
                     <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
                     <td>{new Date(r.completed_at).toLocaleDateString()}</td>
@@ -680,16 +686,30 @@ function TeacherDashboard({ user, onLogout }) {
                   <th>Score</th>
                   <th>CEFR Level</th>
                   <th>Approved</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {approvedResults.map(r => (
                   <tr key={r.id}>
-                    <td>{r.student_name || 'N/A'}</td>
-                    <td>{r.student_passport || 'N/A'}</td>
+                    <td>{r.students?.full_name || r.student_name || 'N/A'}</td>
+                    <td>{r.students?.passport_id || r.student_passport || 'N/A'}</td>
                     <td>{r.overall_score?.toFixed(1)}%</td>
                     <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
                     <td>{new Date(r.approved_at).toLocaleDateString()}</td>
+                    <td>
+                      <button 
+                        className="approve-button" 
+                        onClick={() => {
+                          console.log('Resend email for:', r.students?.full_name || r.student_name);
+                          // Email sending is temporarily disabled
+                          alert('Email functionality will be enabled soon!');
+                        }}
+                        style={{ fontSize: '12px', padding: '6px 12px' }}
+                      >
+                        Resend Email
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -722,8 +742,9 @@ function TeacherDashboard({ user, onLogout }) {
             
             <div className="modal-section">
               <h3>Student Information</h3>
-              <p><strong>Name:</strong> {selectedResult.student_name || 'N/A'}</p>
-              <p><strong>Passport/ID:</strong> {selectedResult.student_passport || 'N/A'}</p>
+              <p><strong>Name:</strong> {selectedResult.students?.full_name || selectedResult.student_name || 'N/A'}</p>
+              <p><strong>Passport/ID:</strong> {selectedResult.students?.passport_id || selectedResult.student_passport || 'N/A'}</p>
+              <p><strong>Country:</strong> {selectedResult.students?.country || 'N/A'}</p>
               <p><strong>Score:</strong> {selectedResult.overall_score?.toFixed(1)}%</p>
               <p><strong>CEFR Level:</strong> <span style={{ color: '#CC0000', fontWeight: 'bold', fontSize: '18px' }}>{selectedResult.determined_cefr_level}</span></p>
               <p><strong>Date:</strong> {new Date(selectedResult.completed_at).toLocaleString()}</p>
