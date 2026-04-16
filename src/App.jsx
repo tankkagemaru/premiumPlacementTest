@@ -108,7 +108,26 @@ const api = {
       throw error;
     }
   },
-  signup(email, password) { return this.request('POST', '/auth/v1/signup', { email, password }); },
+  async signup(email, password) {
+    const result = await this.request('POST', '/auth/v1/signup', { email, password });
+    
+    // Create user record in users table
+    if (result?.user?.id) {
+      try {
+        await this.request('POST', '/rest/v1/users', {
+          id: result.user.id,
+          email: email,
+          role: 'student',
+          full_name: email.split('@')[0]
+        });
+      } catch (err) {
+        console.error('Error creating user record:', err);
+        // Continue anyway - user might already exist
+      }
+    }
+    
+    return result;
+  },
   login(email, password) { return this.request('POST', '/auth/v1/token?grant_type=password', { email, password }); },
   async getUserRole(userId) {
     try {
@@ -475,20 +494,8 @@ function TeacherDashboard({ user, onLogout }) {
         approved_by: user.id
       });
       
-      // Send email with results
-      await fetch('/api/send-approval-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentEmail: selectedResult.student_id,
-          cefrLevel: selectedResult.determined_cefr_level,
-          score: selectedResult.overall_score,
-          comment: comment,
-          responses: selectedResult.student_responses ? JSON.parse(selectedResult.student_responses) : [],
-          questions: questions
-        })
-      });
-
+      console.log('✓ Results approved and updated');
+      
       setSelectedResult(null);
       setComment('');
       loadData();
@@ -671,7 +678,7 @@ function TeacherDashboard({ user, onLogout }) {
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button className="approve-button" onClick={handleApprove} disabled={approving}>
-                {approving ? 'Approving...' : 'Approve & Send Email'}
+                {approving ? 'Approving...' : 'Approve Result'}
               </button>
               <button className="reject-button" onClick={handleReject} disabled={approving}>
                 {approving ? 'Processing...' : 'Reject'}
