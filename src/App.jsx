@@ -426,8 +426,8 @@ function StudentTest({ user, onComplete }) {
         try {
           const resultData = {
             student_id_ref: user.id,
-            student_name: studentInfo?.fullName || user.email,
-            student_passport: studentInfo?.passportId || 'N/A',
+            student_name: user.email,
+            student_passport: 'N/A',
             overall_score: score,
             determined_cefr_level: cefrLevel,
             completed_at: new Date().toISOString(),
