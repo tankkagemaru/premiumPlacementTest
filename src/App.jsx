@@ -174,25 +174,6 @@ function determineCEFRLevel(percentage) {
   return 'A1';
 }
 
-function calculateSkillScores(questions, responses) {
-  const skills = { grammar: [], vocabulary: [], reading: [], listening: [] };
-  
-  responses.forEach(response => {
-    const question = questions.find(q => q.id === response.question_id);
-    if (question && skills[question.skill]) {
-      skills[question.skill].push(response.is_correct ? 1 : 0);
-    }
-  });
-  
-  const scores = {};
-  Object.keys(skills).forEach(skill => {
-    const answers = skills[skill];
-    scores[skill] = answers.length > 0 ? (answers.reduce((a, b) => a + b, 0) / answers.length) * 100 : 0;
-  });
-  
-  return scores;
-}
-
 // ============ LOGIN SCREEN ============
 function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState('');
