@@ -424,8 +424,12 @@ function StudentTest({ user, onComplete }) {
     const saveTestResult = async (retries = 3) => {
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
+          // Get the correct student_id from students table
+          const studentData = await api.request('GET', `/rest/v1/students?user_id=eq.${user.id}&select=id`);
+          const studentId = studentData?.[0]?.id || user.id;
+
           const resultData = {
-            student_id: user.id,
+            student_id: studentId,
             student_name: user.email,
             student_passport: 'N/A',
             overall_score: score,
@@ -438,6 +442,7 @@ function StudentTest({ user, onComplete }) {
           await api.saveTestResult(resultData);
           return true;
         } catch (err) {
+          console.error(`Attempt ${attempt} failed:`, err);
           if (attempt < retries) {
             await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
           }
