@@ -380,13 +380,14 @@ function StudentTest({ user, onComplete }) {
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
           const resultData = {
-            student_id: user.email,
+            student_id: user.id,  // Save UUID, not email
             overall_score: score,
             determined_cefr_level: cefrLevel,
             completed_at: new Date().toISOString(),
             notes: `Completed 30 questions. Score: ${score.toFixed(1)}%. Time: ${formatTime(elapsedTime)}`,
             is_approved: false,
-            student_responses: JSON.stringify(responses)
+            student_responses: JSON.stringify(responses),
+            student_email: user.email  // Store email separately
           };
           await api.saveTestResult(resultData);
           return true;
@@ -532,7 +533,7 @@ function TeacherDashboard({ user, onLogout }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          studentEmail: selectedResult.student_id,
+          studentEmail: selectedResult.student_email,  // Use student_email field
           cefrLevel: selectedResult.determined_cefr_level,
           score: selectedResult.overall_score,
           comment: comment,
@@ -599,7 +600,7 @@ function TeacherDashboard({ user, onLogout }) {
               <tbody>
                 {pendingResults.map(r => (
                   <tr key={r.id}>
-                    <td>{r.student_id}</td>
+                    <td>{r.student_email || r.student_id}</td>
                     <td>{r.overall_score?.toFixed(1)}%</td>
                     <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
                     <td>{new Date(r.completed_at).toLocaleDateString()}</td>
@@ -636,7 +637,7 @@ function TeacherDashboard({ user, onLogout }) {
               <tbody>
                 {approvedResults.map(r => (
                   <tr key={r.id}>
-                    <td>{r.student_id}</td>
+                    <td>{r.student_email || r.student_id}</td>
                     <td>{r.overall_score?.toFixed(1)}%</td>
                     <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
                     <td>{new Date(r.approved_at).toLocaleDateString()}</td>
@@ -671,7 +672,7 @@ function TeacherDashboard({ user, onLogout }) {
             <h2>Review Student Result</h2>
             
             <div className="modal-section">
-              <h3>Student: {selectedResult.student_id}</h3>
+              <h3>Student: {selectedResult.student_email || selectedResult.student_id}</h3>
               <p><strong>Score:</strong> {selectedResult.overall_score?.toFixed(1)}%</p>
               <p><strong>CEFR Level:</strong> <span style={{ color: '#CC0000', fontWeight: 'bold', fontSize: '18px' }}>{selectedResult.determined_cefr_level}</span></p>
               <p><strong>Date:</strong> {new Date(selectedResult.completed_at).toLocaleString()}</p>
