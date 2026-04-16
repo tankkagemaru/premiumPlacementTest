@@ -586,13 +586,17 @@ function TeacherDashboard({ user, onLogout }) {
       } else {
         const sendEmail = async () => {
           try {
+            // For testing: send to your own email instead
+            // Once Resend is verified, change back to studentEmail
+            const recipientEmail = 'shiro@premium.edu.my'; // Change this back to studentEmail later
+            
             const response = await fetch('/api/send-email', {
               method: 'POST',
               headers: { 
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                studentEmail: studentEmail,
+                studentEmail: recipientEmail,
                 cefrLevel: selectedResult.determined_cefr_level,
                 score: selectedResult.overall_score,
                 comment: comment,
@@ -709,11 +713,9 @@ function TeacherDashboard({ user, onLogout }) {
                         className="approve-button" 
                         onClick={async () => {
                           try {
-                            const studentEmail = r.students?.email;
-                            if (!studentEmail) {
-                              alert('Student email not found');
-                              return;
-                            }
+                            // For testing: send to your own email instead
+                            // Once Resend is verified, change back to student email
+                            const recipientEmail = 'shiro@premium.edu.my';
 
                             const response = await fetch('/api/send-email', {
                               method: 'POST',
@@ -721,7 +723,7 @@ function TeacherDashboard({ user, onLogout }) {
                                 'Content-Type': 'application/json'
                               },
                               body: JSON.stringify({
-                                studentEmail: studentEmail,
+                                studentEmail: recipientEmail,
                                 cefrLevel: r.determined_cefr_level,
                                 score: r.overall_score,
                                 comment: r.teacher_comment || '',
@@ -731,7 +733,7 @@ function TeacherDashboard({ user, onLogout }) {
                             });
 
                             const result = await response.json();
-                            alert(`Email resent to ${studentEmail}`);
+                            alert(`Email resent to ${recipientEmail}`);
                             console.log('Email sent:', result);
                           } catch (err) {
                             alert('Error sending email. Check console.');
@@ -846,13 +848,14 @@ function TeacherDashboard({ user, onLogout }) {
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Skill:</label>
                   <select 
                     id="skill-select"
-                    ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.skill || 'reading'}}
+                    value={selectedQuestion.skill || 'reading'}
+                    onChange={(e) => setSelectedQuestion({ ...selectedQuestion, skill: e.target.value })}
                     style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   >
-                    <option>grammar</option>
-                    <option>vocabulary</option>
-                    <option>reading</option>
-                    <option>listening</option>
+                    <option value="grammar">grammar</option>
+                    <option value="vocabulary">vocabulary</option>
+                    <option value="reading">reading</option>
+                    <option value="listening">listening</option>
                   </select>
                 </div>
               </div>
