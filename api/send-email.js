@@ -71,7 +71,7 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'CEFR Test <onboarding@resend.dev>',
+        from: 'CEFR Placement Test <test@premium.edu.my>',
         to: studentEmail,
         subject: `Your CEFR Placement Test Results - ${cefrLevel} Level`,
         html: emailBody,
