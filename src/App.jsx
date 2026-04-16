@@ -4,19 +4,15 @@ const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
 const REGISTRATION_CODE = 'PREMIUM2024';
 const EMAIL_FUNCTION_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email';
-const LOGO_URL = 'https://drive.google.com/uc?export=view&id=1WBSAezD_na8I7zDovVpaMRhnlE6rmMG_';
 const COMPANY_NAME = 'Premium Language Centre';
 
 const styles = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: #f5f5f5; }
   .app { min-height: 100vh; background-color: #f5f5f5; }
-  .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 15px; }
-  .header-logo { height: 50px; width: auto; }
-  .header h1 { font-size: 28px; margin: 0; }
-  .header-text { text-align: left; }
-  .header-text h1 { margin: 0; font-size: 24px; }
-  .header-text p { margin: 3px 0 0 0; font-size: 12px; opacity: 0.9; }
+  .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 30px 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  .header h1 { font-size: 32px; margin-bottom: 5px; }
+  .subtitle { font-size: 14px; opacity: 0.9; margin: 0; }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
   .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
   .login-box h1 { color: #CC0000; font-size: 24px; margin-bottom: 10px; }
@@ -735,11 +731,8 @@ export default function App() {
   return (
     <div className="app">
       <div className="header">
-        <img src={LOGO_URL} alt="Logo" className="header-logo" />
-        <div className="header-text">
-          <h1>CEFR Placement</h1>
-          <p>{COMPANY_NAME}</p>
-        </div>
+        <h1>CEFR Placement</h1>
+        <p className="subtitle">{COMPANY_NAME}</p>
       </div>
 
       {!user ? (
