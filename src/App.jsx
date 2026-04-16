@@ -3,14 +3,20 @@ import React, { useState, useEffect } from 'react';
 const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
 const REGISTRATION_CODE = 'PREMIUM2024';
+const EMAIL_FUNCTION_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email';
+const LOGO_URL = 'https://drive.google.com/uc?export=view&id=1WBSAezD_na8I7zDovVpaMRhnlE6rmMG_';
+const COMPANY_NAME = 'Premium Language Centre';
 
 const styles = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: #f5f5f5; }
   .app { min-height: 100vh; background-color: #f5f5f5; }
-  .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 40px 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-  .header h1 { font-size: 32px; margin-bottom: 10px; }
-  .subtitle { font-size: 14px; opacity: 0.9; }
+  .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 15px; }
+  .header-logo { height: 50px; width: auto; }
+  .header h1 { font-size: 28px; margin: 0; }
+  .header-text { text-align: left; }
+  .header-text h1 { margin: 0; font-size: 24px; }
+  .header-text p { margin: 3px 0 0 0; font-size: 12px; opacity: 0.9; }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
   .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
   .login-box h1 { color: #CC0000; font-size: 24px; margin-bottom: 10px; }
@@ -20,12 +26,20 @@ const styles = `
   .primary-button:hover { background-color: #990000; }
   .primary-button:disabled { opacity: 0.6; cursor: not-allowed; }
   .error-message { background-color: #fee; color: #c00; padding: 12px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
-  .success-message { background-color: #efe; color: #0a0; padding: 12px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
   .code-label { font-size: 12px; color: #ff9800; margin-bottom: 5px; display: block; }
   .code-input { background-color: #fff9e6 !important; border-color: #ffc107 !important; }
   .toggle-auth { text-align: center; margin-top: 20px; font-size: 14px; }
   .link-button { background: none; border: none; color: #CC0000; cursor: pointer; text-decoration: underline; margin-left: 5px; }
-  .test-screen { max-width: 800px; margin: 0 auto; padding: 20px; }
+  .test-screen { max-width: 900px; margin: 0 auto; padding: 20px; }
+  .test-header { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  .progress-tracker { flex: 1; }
+  .progress-title { font-size: 12px; color: #666; font-weight: bold; margin-bottom: 8px; }
+  .progress-bar { background-color: #e0e0e0; border-radius: 10px; height: 30px; overflow: hidden; margin-bottom: 5px; }
+  .progress-fill { background: linear-gradient(90deg, #4caf50 0%, #45a049 100%); height: 100%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold; }
+  .progress-text { font-size: 13px; color: #333; font-weight: bold; }
+  .timer-box { background-color: #fff9e6; border: 2px solid #ffc107; padding: 12px 20px; border-radius: 6px; text-align: center; }
+  .timer-label { font-size: 11px; color: #ff9800; font-weight: bold; margin-bottom: 3px; }
+  .timer-display { font-size: 24px; font-weight: bold; color: #cc6600; font-family: 'Courier New', monospace; }
   .test-intro { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
   .test-intro h1 { color: #CC0000; margin-bottom: 20px; }
   .description { color: #666; margin-bottom: 30px; line-height: 1.6; }
@@ -34,7 +48,6 @@ const styles = `
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
   .info-grid div { padding: 8px; font-size: 14px; }
   .disclaimer { color: #999; font-size: 12px; margin-top: 20px; }
-  .test-progress { text-align: center; margin-bottom: 20px; color: #666; font-size: 14px; }
   .question-box { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
   .question-box h3 { margin-bottom: 20px; color: #333; line-height: 1.6; }
   .passage { background-color: #f9f9f9; padding: 15px; border-left: 4px solid #CC0000; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
@@ -60,10 +73,8 @@ const styles = `
   .results-table th { background-color: #f5f5f5; padding: 12px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd; }
   .results-table td { padding: 12px; border-bottom: 1px solid #ddd; }
   .results-table tr:hover { background-color: #f9f9f9; }
-  .result-row { cursor: pointer; }
-  .result-row:hover { background-color: #fff5f5; }
   .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-  .modal { background: white; padding: 30px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+  .modal { background: white; padding: 30px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; }
   .modal h2 { color: #CC0000; margin-bottom: 20px; }
   .modal-section { margin-bottom: 20px; }
   .modal-section h3 { color: #333; margin-bottom: 10px; font-size: 16px; }
@@ -81,7 +92,8 @@ const styles = `
   @media (max-width: 600px) { 
     .options { grid-template-columns: 1fr; }
     .info-grid { grid-template-columns: 1fr; }
-    .header h1 { font-size: 24px; }
+    .header { flex-direction: column; }
+    .test-header { flex-direction: column; gap: 15px; }
     .dashboard-header { flex-direction: column; align-items: flex-start; gap: 15px; }
   }
 `;
@@ -110,8 +122,6 @@ const api = {
   },
   async signup(email, password) {
     const result = await this.request('POST', '/auth/v1/signup', { email, password });
-    
-    // Create user record in users table
     if (result?.user?.id) {
       try {
         await this.request('POST', '/rest/v1/users', {
@@ -122,10 +132,8 @@ const api = {
         });
       } catch (err) {
         console.error('Error creating user record:', err);
-        // Continue anyway - user might already exist
       }
     }
-    
     return result;
   },
   login(email, password) { return this.request('POST', '/auth/v1/token?grant_type=password', { email, password }); },
@@ -145,7 +153,6 @@ const api = {
     }).then(r => r.json()).catch(() => []);
   },
   saveTestResult(result) {
-    console.log('Saving test result:', result);
     return this.request('POST', '/rest/v1/test_results', result);
   },
   updateTestResult(id, updates) {
@@ -159,7 +166,7 @@ const api = {
   }
 };
 
-// ============ HELPER FUNCTIONS ============
+// Helper Functions
 function selectNextQuestion(questionsBank, currentDifficulty, userResponses) {
   const answeredIds = new Set(userResponses.map(r => r.question_id));
   const minDiff = Math.max(1, currentDifficulty - 1.5);
@@ -191,6 +198,14 @@ function determineCEFRLevel(percentage) {
   if (percentage >= 55) return 'B1';
   if (percentage >= 40) return 'A2';
   return 'A1';
+}
+
+function formatTime(seconds) {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  if (hrs > 0) return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 // ============ LOGIN SCREEN ============
@@ -262,7 +277,7 @@ function LoginScreen({ onLogin }) {
     <div className="login-container">
       <div className="login-box">
         <h1>CEFR Placement</h1>
-        <p className="subtitle">Premium Language Centre</p>
+        <p className="subtitle">{COMPANY_NAME}</p>
         <form onSubmit={handleSubmit}>
           <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
@@ -288,16 +303,26 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// ============ STUDENT TEST (NO RESULTS SHOWN) ============
+// ============ STUDENT TEST WITH TIMER & PROGRESS ============
 function StudentTest({ user, onComplete }) {
   const [testStarted, setTestStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [questionsBank, setQuestionsBank] = useState([]);
   const [userResponses, setUserResponses] = useState([]);
   const [currentDifficulty, setCurrentDifficulty] = useState(5);
-  const [testState, setTestState] = useState('intro'); // intro, testing, pending
+  const [testState, setTestState] = useState('intro');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  // Timer effect
+  useEffect(() => {
+    if (testState !== 'testing') return;
+    const interval = setInterval(() => {
+      setElapsedTime(t => t + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [testState]);
 
   useEffect(() => {
     if (testStarted && questionsBank.length === 0) loadQuestions();
@@ -355,36 +380,33 @@ function StudentTest({ user, onComplete }) {
     const cefrLevel = determineCEFRLevel(score);
     setTestState('pending');
 
-    // Save with retry mechanism
     const saveTestResult = async (retries = 3) => {
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
           const resultData = {
-            student_id: user.email, // Store email instead of ID for display
+            student_id: user.email,
             overall_score: score,
             determined_cefr_level: cefrLevel,
             completed_at: new Date().toISOString(),
-            notes: `Completed 30 questions. Score: ${score.toFixed(1)}%`,
+            notes: `Completed 30 questions. Score: ${score.toFixed(1)}%. Time: ${formatTime(elapsedTime)}`,
             is_approved: false,
             student_responses: JSON.stringify(responses)
           };
-          console.log(`[Attempt ${attempt}/${retries}] Saving test result`);
           await api.saveTestResult(resultData);
-          console.log('✓ Results saved successfully');
           return true;
         } catch (err) {
-          console.error(`[Attempt ${attempt}/${retries}] Error:`, err);
           if (attempt < retries) {
             await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
           }
         }
       }
-      console.error('✗ Failed to save results');
       return false;
     };
 
     saveTestResult();
   };
+
+  const progressPercentage = (userResponses.length / 30) * 100;
 
   if (!testStarted) {
     return (
@@ -435,7 +457,22 @@ function StudentTest({ user, onComplete }) {
 
   return (
     <div className="test-screen">
-      <div className="test-progress">Question {userResponses.length + 1} of 30</div>
+      <div className="test-header">
+        <div className="progress-tracker">
+          <div className="progress-title">PROGRESS</div>
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${progressPercentage}%` }}>
+              {progressPercentage > 5 && `${Math.round(progressPercentage)}%`}
+            </div>
+          </div>
+          <div className="progress-text">{userResponses.length} of 30 Questions</div>
+        </div>
+        <div className="timer-box">
+          <div className="timer-label">⏱ TIME ELAPSED</div>
+          <div className="timer-display">{formatTime(elapsedTime)}</div>
+        </div>
+      </div>
+
       <div className="question-box">
         <h3>{currentQuestion.question_text}</h3>
         {currentQuestion.audio_url && (
@@ -456,7 +493,7 @@ function StudentTest({ user, onComplete }) {
   );
 }
 
-// ============ TEACHER DASHBOARD WITH APPROVAL ============
+// ============ TEACHER DASHBOARD ============
 function TeacherDashboard({ user, onLogout }) {
   const [results, setResults] = useState([]);
   const [questions, setQuestions] = useState([]);
@@ -493,33 +530,30 @@ function TeacherDashboard({ user, onLogout }) {
         approved_at: new Date().toISOString(),
         approved_by: user.id
       });
-      
-      console.log('✓ Results approved and updated');
-      
+
+      // Send email via Edge Function
+      fetch(EMAIL_FUNCTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentEmail: selectedResult.student_id,
+          cefrLevel: selectedResult.determined_cefr_level,
+          score: selectedResult.overall_score,
+          comment: comment,
+          responses: selectedResult.student_responses ? JSON.parse(selectedResult.student_responses) : [],
+          questions: questions
+        })
+      }).then(r => r.json()).then(result => {
+        console.log('Email result:', result);
+      }).catch(err => {
+        console.error('Email error:', err);
+      });
+
       setSelectedResult(null);
       setComment('');
       loadData();
     } catch (err) {
       console.error('Error approving:', err);
-    }
-    setApproving(false);
-  };
-
-  const handleReject = async () => {
-    if (!selectedResult) return;
-    setApproving(true);
-    try {
-      await api.updateTestResult(selectedResult.id, {
-        is_approved: false,
-        teacher_comment: comment || 'Test rejected - please retake',
-        approved_at: new Date().toISOString(),
-        approved_by: user.id
-      });
-      setSelectedResult(null);
-      setComment('');
-      loadData();
-    } catch (err) {
-      console.error('Error rejecting:', err);
     }
     setApproving(false);
   };
@@ -678,10 +712,7 @@ function TeacherDashboard({ user, onLogout }) {
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <button className="approve-button" onClick={handleApprove} disabled={approving}>
-                {approving ? 'Approving...' : 'Approve Result'}
-              </button>
-              <button className="reject-button" onClick={handleReject} disabled={approving}>
-                {approving ? 'Processing...' : 'Reject'}
+                {approving ? 'Approving...' : 'Approve & Send Email'}
               </button>
             </div>
           </div>
@@ -704,8 +735,11 @@ export default function App() {
   return (
     <div className="app">
       <div className="header">
-        <h1>CEFR Placement</h1>
-        <p className="subtitle">Premium Language Centre</p>
+        <img src={LOGO_URL} alt="Logo" className="header-logo" />
+        <div className="header-text">
+          <h1>CEFR Placement</h1>
+          <p>{COMPANY_NAME}</p>
+        </div>
       </div>
 
       {!user ? (
