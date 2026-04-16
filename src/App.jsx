@@ -14,16 +14,18 @@ const styles = `
   .header h1 { font-size: 32px; margin-bottom: 5px; }
   .subtitle { font-size: 14px; opacity: 0.9; margin: 0; }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
-  .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+  .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
   .login-box h1 { color: #CC0000; font-size: 24px; margin-bottom: 10px; }
-  .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
-  .login-box input:focus { outline: none; border-color: #CC0000; box-shadow: 0 0 5px rgba(204, 0, 0, 0.2); }
+  .login-box input, .login-box select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+  .login-box input:focus, .login-box select:focus { outline: none; border-color: #CC0000; box-shadow: 0 0 5px rgba(204, 0, 0, 0.2); }
   .primary-button { width: 100%; padding: 12px; background-color: #CC0000; color: white; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
   .primary-button:hover { background-color: #990000; }
   .primary-button:disabled { opacity: 0.6; cursor: not-allowed; }
   .error-message { background-color: #fee; color: #c00; padding: 12px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
   .code-label { font-size: 12px; color: #ff9800; margin-bottom: 5px; display: block; }
   .code-input { background-color: #fff9e6 !important; border-color: #ffc107 !important; }
+  .form-section { margin-bottom: 20px; }
+  .form-section-title { font-size: 12px; color: #666; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
   .toggle-auth { text-align: center; margin-top: 20px; font-size: 14px; }
   .link-button { background: none; border: none; color: #CC0000; cursor: pointer; text-decoration: underline; margin-left: 5px; }
   .test-screen { max-width: 900px; margin: 0 auto; padding: 20px; }
@@ -82,13 +84,10 @@ const styles = `
   .wrong-badge { color: #f44336; font-weight: bold; }
   .approve-button { padding: 10px 20px; background-color: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
   .approve-button:hover { background-color: #45a049; }
-  .reject-button { padding: 10px 20px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; }
-  .reject-button:hover { background-color: #da190b; }
   .textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: inherit; min-height: 80px; }
   @media (max-width: 600px) { 
     .options { grid-template-columns: 1fr; }
     .info-grid { grid-template-columns: 1fr; }
-    .header { flex-direction: column; }
     .test-header { flex-direction: column; gap: 15px; }
     .dashboard-header { flex-direction: column; align-items: flex-start; gap: 15px; }
   }
@@ -116,20 +115,24 @@ const api = {
       throw error;
     }
   },
-  async signup(email, password) {
+  async signup(email, password, fullName, passportId, country) {
     const result = await this.request('POST', '/auth/v1/signup', { email, password });
+    
+    // Create student record
     if (result?.user?.id) {
       try {
-        await this.request('POST', '/rest/v1/users', {
-          id: result.user.id,
+        await this.request('POST', '/rest/v1/students', {
+          user_id: result.user.id,
           email: email,
-          role: 'student',
-          full_name: email.split('@')[0]
+          full_name: fullName,
+          passport_id: passportId,
+          country: country
         });
       } catch (err) {
-        console.error('Error creating user record:', err);
+        console.error('Error creating student record:', err);
       }
     }
+    
     return result;
   },
   login(email, password) { return this.request('POST', '/auth/v1/token?grant_type=password', { email, password }); },
@@ -204,10 +207,13 @@ function formatTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
-// ============ LOGIN SCREEN ============
+// ============ LOGIN SCREEN WITH FULL REGISTRATION ============
 function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [passportId, setPassportId] = useState('');
+  const [country, setCountry] = useState('');
   const [registrationCode, setRegistrationCode] = useState('');
   const [isSignup, setIsSignup] = useState(false);
   const [error, setError] = useState('');
@@ -221,12 +227,27 @@ function LoginScreen({ onLogin }) {
     try {
       if (isSignup) {
         if (!registrationCode || registrationCode.trim() === '') {
-          setError('Registration code is required to sign up.');
+          setError('Registration code is required.');
           setLoading(false);
           return;
         }
         if (registrationCode.trim() !== REGISTRATION_CODE) {
-          setError(`Invalid registration code. Please check with your instructor.`);
+          setError('Invalid registration code.');
+          setLoading(false);
+          return;
+        }
+        if (!fullName.trim()) {
+          setError('Full name is required.');
+          setLoading(false);
+          return;
+        }
+        if (!passportId.trim()) {
+          setError('Passport/ID number is required.');
+          setLoading(false);
+          return;
+        }
+        if (!country) {
+          setError('Country is required.');
           setLoading(false);
           return;
         }
@@ -240,15 +261,17 @@ function LoginScreen({ onLogin }) {
       }
 
       if (password.length < 6) {
-        setError('Password must be at least 6 characters long.');
+        setError('Password must be at least 6 characters.');
         setLoading(false);
         return;
       }
 
-      const result = isSignup ? await api.signup(email, password) : await api.login(email, password);
+      const result = isSignup 
+        ? await api.signup(email, password, fullName, passportId, country)
+        : await api.login(email, password);
 
       if (!result?.access_token) {
-        setError('Authentication failed. Please try again.');
+        setError('Authentication failed.');
         setLoading(false);
         return;
       }
@@ -257,17 +280,15 @@ function LoginScreen({ onLogin }) {
       const role = await api.getUserRole(result.user.id);
       onLogin({ ...result.user, role });
     } catch (err) {
-      const errorMsg = err.message || 'An error occurred';
-      if (errorMsg.includes('already registered')) {
-        setError('This email is already registered. Please log in instead.');
-      } else if (errorMsg.includes('Invalid login')) {
-        setError('Invalid email or password.');
-      } else {
-        setError(errorMsg);
-      }
+      setError(err.message || 'An error occurred');
       setLoading(false);
     }
   };
+
+  const countries = [
+    'Malaysia', 'Singapore', 'Thailand', 'Indonesia', 'Philippines', 'Vietnam', 'Cambodia', 'Laos', 'Myanmar', 'Brunei',
+    'China', 'Japan', 'South Korea', 'Taiwan', 'Hong Kong', 'Australia', 'New Zealand', 'USA', 'Canada', 'UK', 'Other'
+  ];
 
   return (
     <div className="login-container">
@@ -275,22 +296,44 @@ function LoginScreen({ onLogin }) {
         <h1>CEFR Placement</h1>
         <p className="subtitle">{COMPANY_NAME}</p>
         <form onSubmit={handleSubmit}>
-          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
           {isSignup && (
             <>
-              <label className="code-label">Registration Code (required to sign up)</label>
-              <input type="text" placeholder="Registration Code" value={registrationCode} onChange={(e) => setRegistrationCode(e.target.value)} className="code-input" required />
+              <div className="form-section">
+                <div className="form-section-title">Personal Information</div>
+                <input type="text" placeholder="Full Name *" value={fullName} onChange={(e) => setFullName(e.target.value)} required={isSignup} />
+                <input type="text" placeholder="Passport/ID Number *" value={passportId} onChange={(e) => setPassportId(e.target.value)} required={isSignup} />
+                <select value={country} onChange={(e) => setCountry(e.target.value)} required={isSignup}>
+                  <option value="">Select Country *</option>
+                  {countries.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
             </>
           )}
+
+          <div className="form-section">
+            <div className="form-section-title">Login Information</div>
+            <input type="email" placeholder="Email Address *" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input type="password" placeholder="Password (min 6 characters) *" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </div>
+
+          {isSignup && (
+            <div className="form-section">
+              <div className="form-section-title">Registration Code</div>
+              <label className="code-label">Enter code provided by your instructor</label>
+              <input type="text" placeholder="Registration Code *" value={registrationCode} onChange={(e) => setRegistrationCode(e.target.value)} className="code-input" required={isSignup} />
+            </div>
+          )}
+
           {error && <div className="error-message">{error}</div>}
+
           <button type="submit" className="primary-button" disabled={loading}>
-            {loading ? 'Loading...' : isSignup ? 'Sign Up' : 'Login'}
+            {loading ? 'Processing...' : isSignup ? 'Create Account' : 'Login'}
           </button>
         </form>
+
         <p className="toggle-auth">
-          {isSignup ? 'Have an account?' : "Don't have an account?"}
-          <button type="button" onClick={() => setIsSignup(!isSignup)} className="link-button">
+          {isSignup ? 'Already have an account?' : "Don't have an account?"}
+          <button type="button" onClick={() => { setIsSignup(!isSignup); setError(''); }} className="link-button">
             {isSignup ? 'Login' : 'Sign Up'}
           </button>
         </p>
@@ -299,7 +342,7 @@ function LoginScreen({ onLogin }) {
   );
 }
 
-// ============ STUDENT TEST WITH TIMER & PROGRESS ============
+// ============ STUDENT TEST ============
 function StudentTest({ user, onComplete }) {
   const [testStarted, setTestStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
@@ -310,8 +353,8 @@ function StudentTest({ user, onComplete }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [studentInfo, setStudentInfo] = useState(null);
 
-  // Timer effect
   useEffect(() => {
     if (testState !== 'testing') return;
     const interval = setInterval(() => {
@@ -380,14 +423,15 @@ function StudentTest({ user, onComplete }) {
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
           const resultData = {
-            student_id: user.id,  // Save UUID, not email
+            student_id_ref: user.id,
+            student_name: studentInfo?.fullName || user.email,
+            student_passport: studentInfo?.passportId || 'N/A',
             overall_score: score,
             determined_cefr_level: cefrLevel,
             completed_at: new Date().toISOString(),
             notes: `Completed 30 questions. Score: ${score.toFixed(1)}%. Time: ${formatTime(elapsedTime)}`,
             is_approved: false,
-            student_responses: JSON.stringify(responses),
-            student_email: user.email  // Store email separately
+            student_responses: JSON.stringify(responses)
           };
           await api.saveTestResult(resultData);
           return true;
@@ -528,12 +572,11 @@ function TeacherDashboard({ user, onLogout }) {
         approved_by: user.id
       });
 
-      // Send email via Edge Function
       fetch(EMAIL_FUNCTION_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          studentEmail: selectedResult.student_email,  // Use student_email field
+          studentEmail: selectedResult.student_email || user.email,
           cefrLevel: selectedResult.determined_cefr_level,
           score: selectedResult.overall_score,
           comment: comment,
@@ -541,7 +584,7 @@ function TeacherDashboard({ user, onLogout }) {
           questions: questions
         })
       }).then(r => r.json()).then(result => {
-        console.log('Email result:', result);
+        console.log('Email sent:', result);
       }).catch(err => {
         console.error('Email error:', err);
       });
@@ -572,13 +615,13 @@ function TeacherDashboard({ user, onLogout }) {
 
       <div className="tabs">
         <button className={`tab ${activeTab === 'pending' ? 'active' : ''}`} onClick={() => setActiveTab('pending')}>
-          Pending Approval ({pendingResults.length})
+          Pending ({pendingResults.length})
         </button>
         <button className={`tab ${activeTab === 'approved' ? 'active' : ''}`} onClick={() => setActiveTab('approved')}>
-          Approved Results ({approvedResults.length})
+          Approved ({approvedResults.length})
         </button>
         <button className={`tab ${activeTab === 'questions' ? 'active' : ''}`} onClick={() => setActiveTab('questions')}>
-          Question Bank
+          Questions
         </button>
       </div>
 
@@ -590,7 +633,7 @@ function TeacherDashboard({ user, onLogout }) {
             <table className="results-table">
               <thead>
                 <tr>
-                  <th>Student</th>
+                  <th>Student Name</th>
                   <th>Score</th>
                   <th>CEFR Level</th>
                   <th>Date</th>
@@ -600,15 +643,12 @@ function TeacherDashboard({ user, onLogout }) {
               <tbody>
                 {pendingResults.map(r => (
                   <tr key={r.id}>
-                    <td>{r.student_email || r.student_id}</td>
+                    <td>{r.student_name || 'N/A'}</td>
                     <td>{r.overall_score?.toFixed(1)}%</td>
                     <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
                     <td>{new Date(r.completed_at).toLocaleDateString()}</td>
                     <td>
-                      <button className="approve-button" onClick={() => {
-                        setSelectedResult(r);
-                        setComment('');
-                      }}>
+                      <button className="approve-button" onClick={() => { setSelectedResult(r); setComment(''); }}>
                         Review
                       </button>
                     </td>
@@ -628,7 +668,8 @@ function TeacherDashboard({ user, onLogout }) {
             <table className="results-table">
               <thead>
                 <tr>
-                  <th>Student</th>
+                  <th>Student Name</th>
+                  <th>Passport/ID</th>
                   <th>Score</th>
                   <th>CEFR Level</th>
                   <th>Approved</th>
@@ -637,7 +678,8 @@ function TeacherDashboard({ user, onLogout }) {
               <tbody>
                 {approvedResults.map(r => (
                   <tr key={r.id}>
-                    <td>{r.student_email || r.student_id}</td>
+                    <td>{r.student_name || 'N/A'}</td>
+                    <td>{r.student_passport || 'N/A'}</td>
                     <td>{r.overall_score?.toFixed(1)}%</td>
                     <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
                     <td>{new Date(r.approved_at).toLocaleDateString()}</td>
@@ -672,7 +714,9 @@ function TeacherDashboard({ user, onLogout }) {
             <h2>Review Student Result</h2>
             
             <div className="modal-section">
-              <h3>Student: {selectedResult.student_email || selectedResult.student_id}</h3>
+              <h3>Student Information</h3>
+              <p><strong>Name:</strong> {selectedResult.student_name || 'N/A'}</p>
+              <p><strong>Passport/ID:</strong> {selectedResult.student_passport || 'N/A'}</p>
               <p><strong>Score:</strong> {selectedResult.overall_score?.toFixed(1)}%</p>
               <p><strong>CEFR Level:</strong> <span style={{ color: '#CC0000', fontWeight: 'bold', fontSize: '18px' }}>{selectedResult.determined_cefr_level}</span></p>
               <p><strong>Date:</strong> {new Date(selectedResult.completed_at).toLocaleString()}</p>
@@ -689,8 +733,8 @@ function TeacherDashboard({ user, onLogout }) {
                       <p><span className={response.is_correct ? 'correct-badge' : 'wrong-badge'}>
                         {response.is_correct ? '✓ Correct' : '✗ Wrong'}
                       </span></p>
-                      <p><strong>Student answered:</strong> {response.student_answer}</p>
-                      <p><strong>Correct answer:</strong> {question?.correct_answers?.[0]}</p>
+                      <p><strong>Student:</strong> {response.student_answer}</p>
+                      <p><strong>Correct:</strong> {question?.correct_answers?.[0]}</p>
                     </div>
                   );
                 })}
@@ -698,10 +742,10 @@ function TeacherDashboard({ user, onLogout }) {
             )}
 
             <div className="modal-section">
-              <h3>Teacher Comment (optional)</h3>
+              <h3>Teacher Comment</h3>
               <textarea
                 className="textarea"
-                placeholder="Enter your comment to send to the student..."
+                placeholder="Enter comment to send to student..."
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
               />
