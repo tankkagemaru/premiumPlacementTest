@@ -5,13 +5,16 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const REGISTRATION_CODE = 'PREMIUM2024';
 const EMAIL_FUNCTION_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email';
 const COMPANY_NAME = 'Premium Language Centre';
+const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/PLC-(C)-Transparent%20(2).png';
 
 const styles = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: #f5f5f5; }
   .app { min-height: 100vh; background-color: #f5f5f5; }
-  .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 30px 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-  .header h1 { font-size: 32px; margin-bottom: 5px; }
+  .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 20px; }
+  .header-logo { height: 60px; width: auto; object-fit: contain; }
+  .header-content { flex: 1; }
+  .header h1 { font-size: 32px; margin-bottom: 3px; }
   .subtitle { font-size: 14px; opacity: 0.9; margin: 0; }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
   .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
@@ -776,8 +779,11 @@ export default function App() {
   return (
     <div className="app">
       <div className="header">
-        <h1>CEFR Placement</h1>
-        <p className="subtitle">{COMPANY_NAME}</p>
+        <img src={LOGO_URL} alt="PLC Logo" className="header-logo" onError={(e) => {e.target.style.display = 'none'}} />
+        <div className="header-content">
+          <h1>CEFR Placement</h1>
+          <p className="subtitle">{COMPANY_NAME}</p>
+        </div>
       </div>
 
       {!user ? (
