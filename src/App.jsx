@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
 
+// REGISTRATION CODE - Change this to control who can sign up
+const REGISTRATION_CODE = 'PREMIUM2024';
+
 // Styles embedded in component
 const styles = `
   * {
@@ -122,6 +125,18 @@ const styles = `
     cursor: pointer;
     text-decoration: underline;
     margin-left: 5px;
+  }
+
+  .code-input {
+    background-color: #fff9e6 !important;
+    border-color: #ffc107 !important;
+  }
+
+  .code-label {
+    font-size: 12px;
+    color: #ff9800;
+    margin-bottom: 5px;
+    display: block;
   }
 
   .test-screen {
@@ -244,29 +259,24 @@ const styles = `
     color: #333;
   }
 
-  .result-box {
-    background-color: #f9f9f9;
+  .pending-box {
+    background-color: #fff9e6;
+    border: 2px solid #ffc107;
     padding: 30px;
     border-radius: 4px;
     margin-bottom: 30px;
   }
 
-  .cefr-level {
-    font-size: 48px;
-    font-weight: bold;
-    color: #CC0000;
+  .pending-box h3 {
+    color: #ff9800;
     margin-bottom: 15px;
+    font-size: 20px;
   }
 
-  .result-box p {
-    font-size: 16px;
+  .pending-box p {
     color: #666;
     margin-bottom: 10px;
-  }
-
-  .questions-completed {
-    font-size: 14px;
-    color: #999;
+    line-height: 1.6;
   }
 
   .dashboard {
@@ -304,6 +314,7 @@ const styles = `
     border: none;
     border-radius: 4px;
     cursor: pointer;
+    font-weight: bold;
   }
 
   .logout-button:hover {
@@ -376,6 +387,7 @@ const styles = `
     padding: 15px;
     border-radius: 4px;
     text-align: center;
+    font-weight: bold;
   }
 
   @media (max-width: 600px) {
@@ -389,6 +401,12 @@ const styles = `
 
     .header h1 {
       font-size: 24px;
+    }
+
+    .dashboard-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 15px;
     }
   }
 `;
@@ -412,6 +430,8 @@ const api = {
     try {
       const response = await fetch(`${SUPABASE_URL}${path}`, options);
       if (!response.ok) {
+        const error = await response.text();
+        console.error('API Error:', response.status, error);
         throw new Error(`HTTP ${response.status}`);
       }
       const text = await response.text();
@@ -459,6 +479,7 @@ const api = {
   },
 
   saveTestResult(result) {
+    console.log('Saving test result:', result);
     return this.request('POST', '/rest/v1/test_results', result);
   },
 
@@ -507,10 +528,11 @@ function determineCEFRLevel(percentage) {
   return 'A1';
 }
 
-// Components
+// ============ LOGIN SCREEN WITH REGISTRATION CODE ============
 function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [registrationCode, setRegistrationCode] = useState('');
   const [isSignup, setIsSignup] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -521,7 +543,16 @@ function LoginScreen({ onLogin }) {
     setLoading(true);
 
     try {
-      const result = isSignup ? await api.signup(email, password) : await api.login(email, password);
+      // CHECK REGISTRATION CODE FOR SIGNUP
+      if (isSignup && registrationCode !== REGISTRATION_CODE) {
+        setError('Invalid registration code. Please check with your instructor.');
+        setLoading(false);
+        return;
+      }
+
+      const result = isSignup 
+        ? await api.signup(email, password) 
+        : await api.login(email, password);
 
       if (!result?.access_token) {
         setError('Login failed. Please try again.');
@@ -560,6 +591,20 @@ function LoginScreen({ onLogin }) {
             required
           />
 
+          {isSignup && (
+            <>
+              <label className="code-label">Registration Code (required to sign up)</label>
+              <input
+                type="text"
+                placeholder="Registration Code"
+                value={registrationCode}
+                onChange={(e) => setRegistrationCode(e.target.value)}
+                className="code-input"
+                required
+              />
+            </>
+          )}
+
           {error && <div className="error-message">{error}</div>}
 
           <button type="submit" className="primary-button" disabled={loading}>
@@ -578,12 +623,14 @@ function LoginScreen({ onLogin }) {
   );
 }
 
+// ============ STUDENT TEST ============
 function StudentTest({ user, onComplete }) {
   const [testStarted, setTestStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [questionsBank, setQuestionsBank] = useState([]);
   const [userResponses, setUserResponses] = useState([]);
   const [currentDifficulty, setCurrentDifficulty] = useState(5);
+  const [testState, setTestState] = useState('intro'); // 'intro', 'testing', 'pending'
   const [testResults, setTestResults] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -608,6 +655,7 @@ function StudentTest({ user, onComplete }) {
       setQuestionsBank(questions);
       const firstQ = questions.find(q => q.cefr_level === 'B1') || questions[0];
       setCurrentQuestion(firstQ);
+      setTestState('testing');
     } catch (err) {
       setError('Error loading questions.');
       setTestStarted(false);
@@ -648,6 +696,10 @@ function StudentTest({ user, onComplete }) {
     const score = (correctCount / responses.length) * 100;
     const cefrLevel = determineCEFRLevel(score);
 
+    setTestResults({ cefrLevel, score, totalQuestions: responses.length });
+    setTestState('pending');
+
+    // SAVE RESULTS IN BACKGROUND
     try {
       await api.saveTestResult({
         student_id: user.id,
@@ -656,11 +708,11 @@ function StudentTest({ user, onComplete }) {
         completed_at: new Date().toISOString(),
         notes: `Completed 30 questions. Score: ${score.toFixed(1)}%`
       });
+      console.log('✓ Results saved successfully');
     } catch (err) {
-      console.error('Error saving results:', err);
+      console.error('⚠️  Error saving results:', err);
+      // Continue even if save fails - show pending message
     }
-
-    setTestResults({ cefrLevel, score, totalQuestions: responses.length });
   };
 
   if (!testStarted) {
@@ -699,15 +751,23 @@ function StudentTest({ user, onComplete }) {
     );
   }
 
-  if (testResults) {
+  if (testState === 'pending') {
     return (
       <div className="test-screen">
         <div className="results">
-          <h2>Your Results</h2>
-          <div className="result-box">
-            <div className="cefr-level">{testResults.cefrLevel}</div>
-            <p>Score: {testResults.score.toFixed(1)}%</p>
-            <p className="questions-completed">{testResults.totalQuestions} questions completed</p>
+          <h2>Assessment Complete</h2>
+          <div className="pending-box">
+            <h3>⏳ Pending Teacher Approval</h3>
+            <p>Your results have been submitted and are pending approval from your instructor.</p>
+            <p style={{ marginTop: '20px', fontSize: '18px', fontWeight: 'bold' }}>
+              Assessed Level: <span style={{ color: '#CC0000' }}>{testResults.cefrLevel}</span>
+            </p>
+            <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+              Score: {testResults.score.toFixed(1)}%
+            </p>
+            <p style={{ marginTop: '20px', fontSize: '12px', color: '#999' }}>
+              Your instructor will review and approve your results shortly. You will be notified once approved.
+            </p>
           </div>
           <button className="primary-button" onClick={() => onComplete()}>Exit</button>
         </div>
@@ -726,7 +786,7 @@ function StudentTest({ user, onComplete }) {
         <h3>{currentQuestion.question_text}</h3>
         {currentQuestion.audio_url && (
           <audio controls style={{ width: '100%', marginBottom: '20px' }}>
-            <source src={currentQuestion.audio_url} type="audio/mpeg" />
+            <source src={currentQuestion.audio_url} type="audio/wav" />
           </audio>
         )}
         {currentQuestion.passage && <div className="passage"><p>{currentQuestion.passage}</p></div>}
@@ -742,6 +802,7 @@ function StudentTest({ user, onComplete }) {
   );
 }
 
+// ============ TEACHER DASHBOARD ============
 function TeacherDashboard({ user, onLogout }) {
   const [results, setResults] = useState([]);
   const [questions, setQuestions] = useState([]);
@@ -750,6 +811,9 @@ function TeacherDashboard({ user, onLogout }) {
 
   useEffect(() => {
     loadData();
+    // Refresh every 5 seconds to show new results
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadData = async () => {
@@ -795,10 +859,10 @@ function TeacherDashboard({ user, onLogout }) {
 
       <div className="tabs">
         <button className={`tab ${activeTab === 'results' ? 'active' : ''}`} onClick={() => setActiveTab('results')}>
-          Results
+          Results ({results.length})
         </button>
         <button className={`tab ${activeTab === 'questions' ? 'active' : ''}`} onClick={() => setActiveTab('questions')}>
-          Question Bank
+          Question Bank ({questions.length})
         </button>
       </div>
 
@@ -807,36 +871,46 @@ function TeacherDashboard({ user, onLogout }) {
           <div className="results-actions">
             <button className="primary-button" onClick={exportCSV}>Export CSV</button>
           </div>
-          <table className="results-table">
-            <thead>
-              <tr>
-                <th>Student</th>
-                <th>CEFR Level</th>
-                <th>Score</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map(r => (
-                <tr key={r.id}>
-                  <td>{r.student_id}</td>
-                  <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
-                  <td>{r.overall_score?.toFixed(1)}%</td>
-                  <td>{new Date(r.completed_at).toLocaleDateString()}</td>
+          {results.length === 0 ? (
+            <p>No results yet. Students will appear here after completing tests.</p>
+          ) : (
+            <table className="results-table">
+              <thead>
+                <tr>
+                  <th>Student Email</th>
+                  <th>CEFR Level</th>
+                  <th>Score</th>
+                  <th>Date</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {results.map(r => (
+                  <tr key={r.id}>
+                    <td>{r.student_id}</td>
+                    <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
+                    <td>{r.overall_score?.toFixed(1)}%</td>
+                    <td>{new Date(r.completed_at).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
       {activeTab === 'questions' && (
         <div className="tab-content">
-          <p>Total Questions: {questions.length}</p>
+          <p>Total Questions in Database: {questions.length}</p>
+          <p style={{ marginBottom: '20px', color: '#666' }}>
+            Ready for {questions.length > 0 ? '✓' : '✗'} student testing
+          </p>
           <div className="question-stats">
             {['A1', 'A2', 'B1', 'B2'].map(level => (
               <div key={level} className="stat">
-                <span>{level}: {questions.filter(q => q.cefr_level === level).length}</span>
+                <div style={{ fontSize: '20px', color: '#CC0000', marginBottom: '5px' }}>
+                  {questions.filter(q => q.cefr_level === level).length}
+                </div>
+                <div>{level} Level</div>
               </div>
             ))}
           </div>
@@ -846,7 +920,7 @@ function TeacherDashboard({ user, onLogout }) {
   );
 }
 
-// Main App
+// ============ MAIN APP ============
 export default function App() {
   const [user, setUser] = useState(null);
 
