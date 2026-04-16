@@ -5,7 +5,7 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const REGISTRATION_CODE = 'PREMIUM2024';
 const EMAIL_FUNCTION_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/functions/v1/send-approval-email';
 const COMPANY_NAME = 'Premium Language Centre';
-const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/PLC-(C)-Transparent%20(2).png';
+const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/plc-logo.png';
 
 const styles = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
