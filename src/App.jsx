@@ -578,81 +578,27 @@ function TeacherDashboard({ user, onLogout }) {
         approved_by: user.id
       });
 
-      // Send email directly via Resend API (no Edge Function needed!)
+      // Send email via Vercel API endpoint (no CORS issues!)
       const studentEmail = selectedResult.students?.email;
       if (!studentEmail) {
         console.error('Student email not found in results');
       } else {
         const sendEmail = async () => {
           try {
-            const resultHtml = (selectedResult.student_responses ? JSON.parse(selectedResult.student_responses) : [])
-              .map((r, idx) => {
-                const q = questions.find(q => q.id === r.question_id);
-                return `
-                  <tr style="border-bottom: 1px solid #ddd;">
-                    <td style="padding: 8px;">Q${idx + 1}</td>
-                    <td style="padding: 8px;">${r.is_correct ? '✓ Correct' : '✗ Wrong'}</td>
-                    <td style="padding: 8px; color: #666;">${r.student_answer}</td>
-                    <td style="padding: 8px; color: green;">${q?.correct_answers?.[0] || 'N/A'}</td>
-                  </tr>
-                `;
-              })
-              .join('');
-
-            const emailBody = `
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: Arial, sans-serif; color: #333; }
-    .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 20px; text-align: center; }
-    .content { padding: 20px; max-width: 600px; margin: 0 auto; }
-    .score { font-size: 24px; font-weight: bold; color: #CC0000; margin: 20px 0; }
-    .level { font-size: 32px; font-weight: bold; color: #CC0000; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-    th { background: #f5f5f5; padding: 10px; text-align: left; font-weight: bold; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>CEFR Placement Test Results</h1>
-    <p>Premium Language Centre</p>
-  </div>
-  <div class="content">
-    <h2>Your CEFR Level: <span class="level">${selectedResult.determined_cefr_level}</span></h2>
-    <p class="score">Score: ${selectedResult.overall_score.toFixed(1)}% (${Math.round(selectedResult.overall_score * 30 / 100)}/30 correct)</p>
-    ${comment ? `<div style="background: #fff9e6; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
-      <strong>Teacher's Comment:</strong><br>${comment}
-    </div>` : ''}
-    <h3>Question Breakdown</h3>
-    <table>
-      <tr style="background: #f5f5f5;">
-        <th>Question</th>
-        <th>Result</th>
-        <th>Your Answer</th>
-        <th>Correct Answer</th>
-      </tr>
-      ${resultHtml}
-    </table>
-  </div>
-</body>
-</html>
-            `;
-
-            const response = await fetch('https://api.resend.com/emails', {
+            const response = await fetch('/api/send-email', {
               method: 'POST',
-              headers: {
-                'Authorization': 'Bearer re_C62P4y1x_D3tFng4bZpkcpSBC5Mnwh7d7',
-                'Content-Type': 'application/json',
+              headers: { 
+                'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                from: 'noreply@resend.dev',
-                to: studentEmail,
-                subject: `Your CEFR Placement Test Results - ${selectedResult.determined_cefr_level} Level`,
-                html: emailBody,
-              }),
+                studentEmail: studentEmail,
+                cefrLevel: selectedResult.determined_cefr_level,
+                score: selectedResult.overall_score,
+                comment: comment,
+                responses: selectedResult.student_responses ? JSON.parse(selectedResult.student_responses) : [],
+                questions: questions
+              })
             });
-
             const result = await response.json();
             console.log('Email sent successfully:', result);
           } catch (err) {
@@ -768,72 +714,19 @@ function TeacherDashboard({ user, onLogout }) {
                               return;
                             }
 
-                            const resultHtml = (r.student_responses ? JSON.parse(r.student_responses) : [])
-                              .map((resp, idx) => {
-                                const q = questions.find(q => q.id === resp.question_id);
-                                return `
-                                  <tr style="border-bottom: 1px solid #ddd;">
-                                    <td style="padding: 8px;">Q${idx + 1}</td>
-                                    <td style="padding: 8px;">${resp.is_correct ? '✓ Correct' : '✗ Wrong'}</td>
-                                    <td style="padding: 8px; color: #666;">${resp.student_answer}</td>
-                                    <td style="padding: 8px; color: green;">${q?.correct_answers?.[0] || 'N/A'}</td>
-                                  </tr>
-                                `;
-                              })
-                              .join('');
-
-                            const emailBody = `
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: Arial, sans-serif; color: #333; }
-    .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 20px; text-align: center; }
-    .content { padding: 20px; max-width: 600px; margin: 0 auto; }
-    .score { font-size: 24px; font-weight: bold; color: #CC0000; margin: 20px 0; }
-    .level { font-size: 32px; font-weight: bold; color: #CC0000; }
-    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-    th { background: #f5f5f5; padding: 10px; text-align: left; font-weight: bold; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>CEFR Placement Test Results</h1>
-    <p>Premium Language Centre</p>
-  </div>
-  <div class="content">
-    <h2>Your CEFR Level: <span class="level">${r.determined_cefr_level}</span></h2>
-    <p class="score">Score: ${r.overall_score.toFixed(1)}% (${Math.round(r.overall_score * 30 / 100)}/30 correct)</p>
-    ${r.teacher_comment ? `<div style="background: #fff9e6; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
-      <strong>Teacher's Comment:</strong><br>${r.teacher_comment}
-    </div>` : ''}
-    <h3>Question Breakdown</h3>
-    <table>
-      <tr style="background: #f5f5f5;">
-        <th>Question</th>
-        <th>Result</th>
-        <th>Your Answer</th>
-        <th>Correct Answer</th>
-      </tr>
-      ${resultHtml}
-    </table>
-  </div>
-</body>
-</html>
-                            `;
-
-                            const response = await fetch('https://api.resend.com/emails', {
+                            const response = await fetch('/api/send-email', {
                               method: 'POST',
-                              headers: {
-                                'Authorization': 'Bearer re_C62P4y1x_D3tFng4bZpkcpSBC5Mnwh7d7',
-                                'Content-Type': 'application/json',
+                              headers: { 
+                                'Content-Type': 'application/json'
                               },
                               body: JSON.stringify({
-                                from: 'noreply@resend.dev',
-                                to: studentEmail,
-                                subject: `Your CEFR Placement Test Results - ${r.determined_cefr_level} Level`,
-                                html: emailBody,
-                              }),
+                                studentEmail: studentEmail,
+                                cefrLevel: r.determined_cefr_level,
+                                score: r.overall_score,
+                                comment: r.teacher_comment || '',
+                                responses: r.student_responses ? JSON.parse(r.student_responses) : [],
+                                questions: questions
+                              })
                             });
 
                             const result = await response.json();
