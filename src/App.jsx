@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
+const SUPERADMIN_EMAIL = 'mrosani22@premium.edu.my';
 const COMPANY_NAME = 'Premium Language Centre';
 const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/plc-logo.png';
 
@@ -188,6 +189,30 @@ const api = {
   },
   getQuestionBank() {
     return this.request('GET', '/rest/v1/questions?select=*');
+  },
+  async getManagedUsers() {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || 'Unable to load users');
+    return data.users || [];
+  },
+  async updateManagedUserRole(userId, role) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ userId, role })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || 'Unable to update role');
+    return data;
   }
 };
 
@@ -302,7 +327,9 @@ function LoginScreen({ onLogin }) {
       }
 
       localStorage.setItem('sb-token', result.access_token);
-      const role = await api.getUserRole(result.user.id);
+      const role = email.trim().toLowerCase() === SUPERADMIN_EMAIL
+        ? 'superadmin'
+        : await api.getUserRole(result.user.id);
       onLogin({ ...result.user, role });
     } catch (err) {
       setError(err.message || 'An error occurred');
@@ -623,23 +650,30 @@ function TeacherDashboard({ user, onLogout }) {
   const [questionSkillFilter, setQuestionSkillFilter] = useState('');
   const [questionCefrFilter, setQuestionCefrFilter] = useState('');
   const [questionSort, setQuestionSort] = useState('recent');
+  const [managedUsers, setManagedUsers] = useState([]);
+  const [userMgmtLoading, setUserMgmtLoading] = useState(false);
+  const isSuperAdmin = user.email?.toLowerCase() === SUPERADMIN_EMAIL || user.role === 'superadmin';
+
+  const loadData = useCallback(async () => {
+    try {
+      const [res, q] = await Promise.all([api.getAllResults(), api.getQuestionBank()]);
+      setResults(res || []);
+      setQuestions(q || []);
+      if (isSuperAdmin) {
+        const users = await api.getManagedUsers();
+        setManagedUsers(users);
+      }
+    } catch (err) {
+      console.error('Error loading:', err);
+    }
+    setLoading(false);
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const [res, q] = await Promise.all([api.getAllResults(), api.getQuestionBank()]);
-      setResults(res || []);
-      setQuestions(q || []);
-    } catch (err) {
-      console.error('Error loading:', err);
-    }
-    setLoading(false);
-  };
+  }, [loadData]);
 
   const handleApprove = async () => {
     if (!selectedResult) return;
@@ -742,6 +776,11 @@ function TeacherDashboard({ user, onLogout }) {
         <button className={`tab ${activeTab === 'questions' ? 'active' : ''}`} onClick={() => setActiveTab('questions')}>
           Questions
         </button>
+        {isSuperAdmin && (
+          <button className={`tab ${activeTab === 'admins' ? 'active' : ''}`} onClick={() => setActiveTab('admins')}>
+            Admin Management
+          </button>
+        )}
       </div>
 
       {activeTab === 'pending' && (
@@ -959,6 +998,55 @@ function TeacherDashboard({ user, onLogout }) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'admins' && isSuperAdmin && (
+        <div className="tab-content">
+          <h3>Super Admin User Role Management</h3>
+          <p style={{ fontSize: '13px', color: '#666', marginBottom: '15px' }}>
+            Promote users to admin or revert to student. Admin self-signup remains disabled.
+          </p>
+          <table className="results-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Full Name</th>
+                <th>Role</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {managedUsers.map(u => (
+                <tr key={u.id}>
+                  <td>{u.email}</td>
+                  <td>{u.full_name || 'N/A'}</td>
+                  <td style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>{u.role || 'student'}</td>
+                  <td>
+                    <button
+                      className="approve-button"
+                      disabled={userMgmtLoading || u.email?.toLowerCase() === SUPERADMIN_EMAIL}
+                      onClick={async () => {
+                        try {
+                          setUserMgmtLoading(true);
+                          const nextRole = u.role === 'admin' ? 'student' : 'admin';
+                          await api.updateManagedUserRole(u.id, nextRole);
+                          await loadData();
+                        } catch (err) {
+                          alert(err.message || 'Failed to update role');
+                        } finally {
+                          setUserMgmtLoading(false);
+                        }
+                      }}
+                      style={{ fontSize: '12px', padding: '6px 12px' }}
+                    >
+                      {u.role === 'admin' ? 'Set Student' : 'Set Admin'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -1201,7 +1289,7 @@ export default function App() {
 
       {!user ? (
         <LoginScreen onLogin={setUser} />
-      ) : user.role === 'teacher' ? (
+      ) : ['teacher', 'admin', 'superadmin'].includes(user.role) ? (
         <TeacherDashboard user={user} onLogout={() => setUser(null)} />
       ) : (
         <StudentTest user={user} onComplete={() => setUser(null)} />
