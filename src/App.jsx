@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 
 const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
-const REGISTRATION_CODE = 'PREMIUM2024';
 const COMPANY_NAME = 'Premium Language Centre';
 const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/plc-logo.png';
 
@@ -97,8 +96,8 @@ const styles = `
 
 // API Helper
 const api = {
-  async request(method, path, body = null) {
-    const token = localStorage.getItem('sb-token');
+  async request(method, path, body = null, authToken = null) {
+    const token = authToken || localStorage.getItem('sb-token');
     const headers = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const options = { method, headers };
@@ -117,25 +116,50 @@ const api = {
       throw error;
     }
   },
-  async signup(email, password, fullName, passportId, country) {
+  async signup(email, password, role, fullName, passportId, country) {
     const result = await this.request('POST', '/auth/v1/signup', { email, password });
     
-    // Create student record
-    if (result?.user?.id) {
+    if (result?.user?.id && result?.access_token) {
       try {
-        await this.request('POST', '/rest/v1/students', {
-          user_id: result.user.id,
+        await this.request('POST', '/rest/v1/users', {
+          id: result.user.id,
           email: email,
-          full_name: fullName,
-          passport_id: passportId,
-          country: country
-        });
+          role,
+          full_name: fullName
+        }, result.access_token);
       } catch (err) {
-        console.error('Error creating student record:', err);
+        console.error('Error creating user role record:', err);
+      }
+
+      // Create student record only for student role
+      if (role === 'student') {
+        try {
+          await this.request('POST', '/rest/v1/students', {
+            user_id: result.user.id,
+            email: email,
+            full_name: fullName,
+            passport_id: passportId,
+            country: country
+          }, result.access_token);
+        } catch (err) {
+          console.error('Error creating student record:', err);
+        }
       }
     }
     
     return result;
+  },
+  async validateRegistration(role, registrationCode, email, country, passportId) {
+    const response = await fetch('/api/validate-registration', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role, registrationCode, email, country, passportId })
+    });
+    const data = await response.json();
+    if (!response.ok || !data?.valid) {
+      throw new Error(data?.error || 'Registration is not allowed.');
+    }
+    return data;
   },
   login(email, password) { return this.request('POST', '/auth/v1/token?grant_type=password', { email, password }); },
   async getUserRole(userId) {
@@ -233,11 +257,6 @@ function LoginScreen({ onLogin }) {
           setLoading(false);
           return;
         }
-        if (registrationCode.trim() !== REGISTRATION_CODE) {
-          setError('Invalid registration code.');
-          setLoading(false);
-          return;
-        }
         if (!fullName.trim()) {
           setError('Full name is required.');
           setLoading(false);
@@ -268,8 +287,12 @@ function LoginScreen({ onLogin }) {
         return;
       }
 
+      if (isSignup) {
+        await api.validateRegistration('student', registrationCode.trim(), email.trim(), country, passportId);
+      }
+
       const result = isSignup 
-        ? await api.signup(email, password, fullName, passportId, country)
+        ? await api.signup(email, password, 'student', fullName, passportId, country)
         : await api.login(email, password);
 
       if (!result?.access_token) {
@@ -313,7 +336,7 @@ function LoginScreen({ onLogin }) {
               {isSignup && (
                 <>
                   <div className="form-section">
-                    <div className="form-section-title">Personal Information</div>
+                    <div className="form-section-title">Account Setup</div>
                     <input type="text" placeholder="Full Name *" value={fullName} onChange={(e) => setFullName(e.target.value)} required={isSignup} />
                     <input type="text" placeholder="Passport/ID Number *" value={passportId} onChange={(e) => setPassportId(e.target.value)} required={isSignup} />
                     <select value={country} onChange={(e) => setCountry(e.target.value)} required={isSignup}>
@@ -333,7 +356,9 @@ function LoginScreen({ onLogin }) {
               {isSignup && (
                 <div className="form-section">
                   <div className="form-section-title">Registration Code</div>
-                  <label className="code-label">Enter the access code provided by your instructor</label>
+                  <label className="code-label">
+                    Student code format: PREMIUM + first 2 letters of country + last 2 digits of Passport/ID.
+                  </label>
                   <input type="text" placeholder="Registration Code *" value={registrationCode} onChange={(e) => setRegistrationCode(e.target.value)} className="code-input" required={isSignup} />
                 </div>
               )}
