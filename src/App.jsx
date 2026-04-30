@@ -212,7 +212,34 @@ const api = {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await this.parseResponse(response);
-    if (!response.ok) throw new Error(data?.error || 'Unable to load users');
+    if (!response.ok) {
+      // Fallback mode: if serverless function fails, read directly from Supabase REST.
+      // This keeps admin UI usable while server env is being fixed.
+      if (String(data?.error || '').includes('FUNCTION_INVOCATION_FAILED')) {
+        try {
+          const headers = {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${token}`
+          };
+          const [usersRes, studentsRes] = await Promise.all([
+            fetch(`${SUPABASE_URL}/rest/v1/users?select=id,email,full_name,role&order=email.asc`, { headers }),
+            fetch(`${SUPABASE_URL}/rest/v1/students?select=user_id,passport_id,country`, { headers })
+          ]);
+          const users = await this.parseResponse(usersRes);
+          const students = await this.parseResponse(studentsRes);
+          if (!usersRes.ok) throw new Error(users?.error || users?.message || 'Unable to load users.');
+          const studentMap = new Map((Array.isArray(students) ? students : []).map(s => [s.user_id, s]));
+          return (Array.isArray(users) ? users : []).map(u => ({
+            ...u,
+            passport_id: studentMap.get(u.id)?.passport_id || '',
+            country: studentMap.get(u.id)?.country || ''
+          }));
+        } catch (fallbackErr) {
+          throw new Error(`Admin API failed and fallback failed: ${fallbackErr.message || fallbackErr}`);
+        }
+      }
+      throw new Error(data?.error || 'Unable to load users');
+    }
     return data.users || [];
   },
   async updateManagedUserRole(userId, role, fullName, passportId, country) {
