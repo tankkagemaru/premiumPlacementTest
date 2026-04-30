@@ -1,4 +1,4 @@
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://nitxboxvkktcgkkkbrec.supabase.co';
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL || 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPERADMIN_EMAIL = 'mrosani22@premium.edu.my';
 
 async function getSessionUser(req) {
@@ -8,7 +8,7 @@ async function getSessionUser(req) {
 
   const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: {
-      apikey: process.env.SUPABASE_ANON_KEY,
+      apikey: process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY,
       Authorization: `Bearer ${token}`
     }
   });
@@ -32,7 +32,7 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Superadmin access required.' });
     }
 
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.SUPABASE_ANON_KEY) {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !(process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY)) {
       return res.status(500).json({ error: 'Server is missing Supabase environment configuration.' });
     }
 
@@ -46,7 +46,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PATCH') {
-      const { userId, role } = req.body || {};
+      const { userId, role, fullName } = req.body || {};
       if (!userId || !['student', 'admin', 'teacher'].includes(role)) {
         return res.status(400).json({ error: 'userId and valid role are required.' });
       }
@@ -68,11 +68,19 @@ export default async function handler(req, res) {
           ...getServiceHeaders(),
           Prefer: 'return=representation'
         },
-        body: JSON.stringify({ role })
+        body: JSON.stringify({ role, ...(fullName !== undefined ? { full_name: fullName } : {}) })
       });
 
       const updated = await response.json();
       if (!response.ok) return res.status(response.status).json({ error: updated?.message || 'Failed to update role.' });
+
+      if (fullName !== undefined) {
+        await fetch(`${SUPABASE_URL}/rest/v1/students?user_id=eq.${userId}`, {
+          method: 'PATCH',
+          headers: getServiceHeaders(),
+          body: JSON.stringify({ full_name: fullName })
+        });
+      }
       return res.status(200).json({ success: true, user: updated?.[0] || null });
     }
 

@@ -190,6 +190,12 @@ const api = {
   getQuestionBank() {
     return this.request('GET', '/rest/v1/questions?select=*');
   },
+  createQuestion(payload) {
+    return this.request('POST', '/rest/v1/questions', payload);
+  },
+  updateQuestion(id, payload) {
+    return this.request('PATCH', `/rest/v1/questions?id=eq.${id}`, payload);
+  },
   async getManagedUsers() {
     const token = localStorage.getItem('sb-token');
     const response = await fetch('/api/admin-users', {
@@ -200,7 +206,7 @@ const api = {
     if (!response.ok) throw new Error(data?.error || 'Unable to load users');
     return data.users || [];
   },
-  async updateManagedUserRole(userId, role) {
+  async updateManagedUserRole(userId, role, fullName) {
     const token = localStorage.getItem('sb-token');
     const response = await fetch('/api/admin-users', {
       method: 'PATCH',
@@ -208,7 +214,7 @@ const api = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ userId, role })
+      body: JSON.stringify({ userId, role, fullName })
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || 'Unable to update role');
@@ -654,6 +660,9 @@ function TeacherDashboard({ user, onLogout }) {
   const [questionSort, setQuestionSort] = useState('recent');
   const [managedUsers, setManagedUsers] = useState([]);
   const [userMgmtLoading, setUserMgmtLoading] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editingUserRole, setEditingUserRole] = useState('student');
+  const [editingUserName, setEditingUserName] = useState('');
   const normalizedDashboardEmail = (user.email || '').trim().toLowerCase();
   const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
   const isSuperAdmin = normalizedDashboardEmail === normalizedSuperAdminEmail || user.role === 'superadmin';
@@ -1032,28 +1041,55 @@ function TeacherDashboard({ user, onLogout }) {
               {managedUsers.map(u => (
                 <tr key={u.id}>
                   <td>{u.email}</td>
-                  <td>{u.full_name || 'N/A'}</td>
-                  <td style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>{u.role || 'student'}</td>
                   <td>
-                    <button
-                      className="approve-button"
-                      disabled={userMgmtLoading || u.email?.toLowerCase() === SUPERADMIN_EMAIL}
-                      onClick={async () => {
-                        try {
-                          setUserMgmtLoading(true);
-                          const nextRole = u.role === 'admin' ? 'student' : 'admin';
-                          await api.updateManagedUserRole(u.id, nextRole);
-                          await loadData();
-                        } catch (err) {
-                          alert(err.message || 'Failed to update role');
-                        } finally {
-                          setUserMgmtLoading(false);
-                        }
-                      }}
-                      style={{ fontSize: '12px', padding: '6px 12px' }}
-                    >
-                      {u.role === 'admin' ? 'Set Student' : 'Set Admin'}
-                    </button>
+                    {editingUserId === u.id ? (
+                      <input
+                        value={editingUserName}
+                        onChange={(e) => setEditingUserName(e.target.value)}
+                        style={{ padding: '6px', border: '1px solid #ddd', borderRadius: '4px', width: '100%' }}
+                      />
+                    ) : (u.full_name || 'N/A')}
+                  </td>
+                  <td style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>
+                    {editingUserId === u.id ? (
+                      <select value={editingUserRole} onChange={(e) => setEditingUserRole(e.target.value)} style={{ padding: '6px', border: '1px solid #ddd', borderRadius: '4px' }}>
+                        <option value="student">student</option>
+                        <option value="teacher">teacher</option>
+                        <option value="admin">admin</option>
+                      </select>
+                    ) : (u.role || 'student')}
+                  </td>
+                  <td>
+                    {editingUserId === u.id ? (
+                      <>
+                        <button className="approve-button" disabled={userMgmtLoading} onClick={async () => {
+                          try {
+                            setUserMgmtLoading(true);
+                            await api.updateManagedUserRole(u.id, editingUserRole, editingUserName);
+                            setEditingUserId(null);
+                            await loadData();
+                          } catch (err) {
+                            alert(err.message || 'Failed to update user');
+                          } finally {
+                            setUserMgmtLoading(false);
+                          }
+                        }} style={{ fontSize: '12px', padding: '6px 12px', marginRight: '8px' }}>Save</button>
+                        <button className="logout-button" onClick={() => setEditingUserId(null)} style={{ fontSize: '12px', padding: '6px 12px' }}>Cancel</button>
+                      </>
+                    ) : (
+                      <button
+                        className="approve-button"
+                        disabled={userMgmtLoading || u.email?.toLowerCase() === SUPERADMIN_EMAIL}
+                        onClick={() => {
+                          setEditingUserId(u.id);
+                          setEditingUserRole(u.role || 'student');
+                          setEditingUserName(u.full_name || '');
+                        }}
+                        style={{ fontSize: '12px', padding: '6px 12px' }}
+                      >
+                        Edit
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -1072,6 +1108,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Question Text:</label>
                 <textarea 
+                  id="question-text"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.question_text || ''}}
                   style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '100px', fontFamily: 'inherit' }}
                   placeholder="Enter question text..."
@@ -1082,6 +1119,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Question Type:</label>
                   <select 
+                    id="question-type"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.question_type || 'multiple_choice'}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   >
@@ -1110,6 +1148,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>CEFR Level:</label>
                   <select 
+                    id="question-cefr"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.cefr_level || 'A1'}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   >
@@ -1122,6 +1161,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Difficulty Score (1-10):</label>
                   <input 
+                    id="question-difficulty"
                     type="number" 
                     min="1" 
                     max="10" 
@@ -1136,6 +1176,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#e3f2fd', borderRadius: '4px', border: '1px solid #90caf9' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>🎵 Audio URL (Listening):</label>
                   <input 
+                    id="question-audio"
                     type="text"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.audio_url || ''}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #90caf9', borderRadius: '4px' }}
@@ -1150,6 +1191,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f3e5f5', borderRadius: '4px', border: '1px solid #ce93d8' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📖 Reading Passage:</label>
                   <textarea 
+                    id="question-passage"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.passage || ''}}
                     style={{ width: '100%', padding: '10px', border: '1px solid #ce93d8', borderRadius: '4px', minHeight: '120px', fontFamily: 'inherit' }}
                     placeholder="Paste the article or passage here for reading comprehension questions..."
@@ -1160,6 +1202,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Answer Options (comma-separated):</label>
                 <input 
+                  id="question-options"
                   type="text"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.options?.join(', ') || ''}}
                   style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
@@ -1170,6 +1213,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Correct Answer:</label>
                 <input 
+                  id="question-correct"
                   type="text"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.correct_answers?.[0] || ''}}
                   style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
@@ -1180,6 +1224,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Explanation:</label>
                 <textarea 
+                  id="question-explanation"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.explanation || ''}}
                   style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '80px', fontFamily: 'inherit' }}
                   placeholder="Explain why this is the correct answer..."
@@ -1194,9 +1239,37 @@ function TeacherDashboard({ user, onLogout }) {
                   Cancel
                 </button>
                 <button 
-                  onClick={() => {
-                    alert('Question saved! To save to database, export and upload via the Python script.');
-                    setSelectedQuestion(null);
+                  onClick={async () => {
+                    try {
+                      const payload = {
+                        question_text: document.getElementById('question-text')?.value?.trim(),
+                        question_type: document.getElementById('question-type')?.value || 'multiple_choice',
+                        skill: selectedQuestion.skill || 'reading',
+                        cefr_level: document.getElementById('question-cefr')?.value || 'A1',
+                        difficulty_score: Number(document.getElementById('question-difficulty')?.value || 5),
+                        audio_url: document.getElementById('question-audio')?.value?.trim() || null,
+                        passage: document.getElementById('question-passage')?.value?.trim() || null,
+                        options: (document.getElementById('question-options')?.value || '').split(',').map(v => v.trim()).filter(Boolean),
+                        correct_answers: [(document.getElementById('question-correct')?.value || '').trim()].filter(Boolean),
+                        explanation: document.getElementById('question-explanation')?.value?.trim() || ''
+                      };
+
+                      if (!payload.question_text || payload.options.length === 0 || payload.correct_answers.length === 0) {
+                        alert('Please fill Question Text, Options, and Correct Answer.');
+                        return;
+                      }
+
+                      if (selectedQuestion.new) {
+                        await api.createQuestion(payload);
+                      } else {
+                        await api.updateQuestion(selectedQuestion.id, payload);
+                      }
+                      await loadData();
+                      setSelectedQuestion(null);
+                      alert('Question saved to database successfully.');
+                    } catch (err) {
+                      alert(err.message || 'Failed to save question.');
+                    }
                   }}
                   style={{ padding: '10px 20px', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                 >
