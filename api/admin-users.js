@@ -56,13 +56,15 @@ export default async function handler(req, res) {
         headers: getServiceHeaders()
       });
       const data = await readResponseBody(response);
-      if (!response.ok) return res.status(response.status).json({ error: data?.message || 'Failed to load users.' });
+      if (!response.ok) return res.status(response.status).json({ error: data?.message || data?.error || data?.raw || 'Failed to load users.' });
       const studentsResponse = await fetch(`${SUPABASE_URL}/rest/v1/students?select=user_id,passport_id,country,full_name,email`, {
         headers: getServiceHeaders()
       });
-      const students = studentsResponse.ok ? await readResponseBody(studentsResponse) : [];
-      const studentMap = new Map((students || []).map(s => [s.user_id, s]));
-      const merged = (data || []).map(u => ({
+      const studentsRaw = studentsResponse.ok ? await readResponseBody(studentsResponse) : [];
+      const students = Array.isArray(studentsRaw) ? studentsRaw : [];
+      const users = Array.isArray(data) ? data : [];
+      const studentMap = new Map(students.map(s => [s.user_id, s]));
+      const merged = users.map(u => ({
         ...u,
         passport_id: studentMap.get(u.id)?.passport_id || '',
         country: studentMap.get(u.id)?.country || ''
@@ -119,8 +121,9 @@ export default async function handler(req, res) {
       if (!userId) return res.status(400).json({ error: 'userId is required.' });
 
       const checkResponse = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=id,email`, { headers: getServiceHeaders() });
-      const existing = await readResponseBody(checkResponse);
-      if (!checkResponse.ok || !existing?.length) return res.status(404).json({ error: 'User not found.' });
+      const existingRaw = await readResponseBody(checkResponse);
+      const existing = Array.isArray(existingRaw) ? existingRaw : [];
+      if (!checkResponse.ok || !existing.length) return res.status(404).json({ error: 'User not found.' });
       if (existing[0].email?.toLowerCase() === SUPERADMIN_EMAIL) return res.status(400).json({ error: 'Superadmin cannot be deleted.' });
 
       await fetch(`${SUPABASE_URL}/rest/v1/students?user_id=eq.${userId}`, { method: 'DELETE', headers: getServiceHeaders() });
@@ -142,8 +145,9 @@ export default async function handler(req, res) {
       const checkResponse = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=id,email`, {
         headers: getServiceHeaders()
       });
-      const existing = await readResponseBody(checkResponse);
-      if (!checkResponse.ok || !existing?.length) {
+      const existingRaw = await readResponseBody(checkResponse);
+      const existing = Array.isArray(existingRaw) ? existingRaw : [];
+      if (!checkResponse.ok || !existing.length) {
         return res.status(404).json({ error: 'User not found.' });
       }
       if (existing[0].email?.toLowerCase() === SUPERADMIN_EMAIL) {
@@ -175,6 +179,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed.' });
   } catch (error) {
     console.error('admin-users error:', error);
-    return res.status(500).json({ error: 'Unexpected server error.' });
+    return res.status(500).json({ error: `Unexpected server error: ${error?.message || 'unknown'}` });
   }
 }
