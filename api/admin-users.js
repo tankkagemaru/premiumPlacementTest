@@ -1,26 +1,38 @@
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL || 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPERADMIN_EMAIL = 'mrosani22@premium.edu.my';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+async function readResponseBody(response) {
+  const raw = await response.text();
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return { raw };
+  }
+}
 
 async function getSessionUser(req) {
   const auth = req.headers.authorization || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (!token) return null;
+  if (!SUPABASE_ANON_KEY) return null;
 
   const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: {
-      apikey: process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY,
+      apikey: SUPABASE_ANON_KEY,
       Authorization: `Bearer ${token}`
     }
   });
 
   if (!response.ok) return null;
-  return response.json();
+  return readResponseBody(response);
 }
 
 function getServiceHeaders() {
   return {
-    apikey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-    Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+    apikey: SUPABASE_SERVICE_ROLE_KEY,
+    Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
     'Content-Type': 'application/json'
   };
 }
@@ -32,20 +44,22 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Superadmin access required.' });
     }
 
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !(process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY)) {
-      return res.status(500).json({ error: 'Server is missing Supabase environment configuration.' });
+    if (!SUPABASE_SERVICE_ROLE_KEY || !SUPABASE_ANON_KEY) {
+      return res.status(500).json({
+        error: 'Missing Supabase env vars. Set SUPABASE_SERVICE_ROLE_KEY and SUPABASE_ANON_KEY in Vercel project settings, then redeploy.'
+      });
     }
 
     if (req.method === 'GET') {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/users?select=id,email,full_name,role&order=email.asc`, {
         headers: getServiceHeaders()
       });
-      const data = await response.json();
+      const data = await readResponseBody(response);
       if (!response.ok) return res.status(response.status).json({ error: data?.message || 'Failed to load users.' });
       const studentsResponse = await fetch(`${SUPABASE_URL}/rest/v1/students?select=user_id,passport_id,country,full_name,email`, {
         headers: getServiceHeaders()
       });
-      const students = studentsResponse.ok ? await studentsResponse.json() : [];
+      const students = studentsResponse.ok ? await readResponseBody(studentsResponse) : [];
       const studentMap = new Map((students || []).map(s => [s.user_id, s]));
       const merged = (data || []).map(u => ({
         ...u,
@@ -63,7 +77,7 @@ export default async function handler(req, res) {
           headers: getServiceHeaders(),
           body: JSON.stringify({ type: 'recovery', email })
         });
-        const resetData = await resetResponse.json();
+        const resetData = await readResponseBody(resetResponse);
         if (!resetResponse.ok) return res.status(resetResponse.status).json({ error: resetData?.msg || 'Failed to generate reset link.' });
         return res.status(200).json({ success: true, resetLink: resetData?.action_link || null, userId });
       }
@@ -79,7 +93,7 @@ export default async function handler(req, res) {
         headers: getServiceHeaders(),
         body: JSON.stringify({ email, password: tempPassword, email_confirm: true, user_metadata: { full_name: fullName } })
       });
-      const authUser = await createAuthResponse.json();
+      const authUser = await readResponseBody(createAuthResponse);
       if (!createAuthResponse.ok) return res.status(createAuthResponse.status).json({ error: authUser?.msg || 'Failed to create auth user.' });
       const userId = authUser?.id || authUser?.user?.id;
       if (!userId) return res.status(500).json({ error: 'Missing new user ID.' });
@@ -104,7 +118,7 @@ export default async function handler(req, res) {
       if (!userId) return res.status(400).json({ error: 'userId is required.' });
 
       const checkResponse = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=id,email`, { headers: getServiceHeaders() });
-      const existing = await checkResponse.json();
+      const existing = await readResponseBody(checkResponse);
       if (!checkResponse.ok || !existing?.length) return res.status(404).json({ error: 'User not found.' });
       if (existing[0].email?.toLowerCase() === SUPERADMIN_EMAIL) return res.status(400).json({ error: 'Superadmin cannot be deleted.' });
 
@@ -112,7 +126,7 @@ export default async function handler(req, res) {
       await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, { method: 'DELETE', headers: getServiceHeaders() });
       const authDelete = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, { method: 'DELETE', headers: getServiceHeaders() });
       if (!authDelete.ok) {
-        const err = await authDelete.json().catch(() => ({}));
+        const err = await readResponseBody(authDelete);
         return res.status(authDelete.status).json({ error: err?.msg || 'Failed to delete auth user.' });
       }
       return res.status(200).json({ success: true });
@@ -127,7 +141,7 @@ export default async function handler(req, res) {
       const checkResponse = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=id,email`, {
         headers: getServiceHeaders()
       });
-      const existing = await checkResponse.json();
+      const existing = await readResponseBody(checkResponse);
       if (!checkResponse.ok || !existing?.length) {
         return res.status(404).json({ error: 'User not found.' });
       }
@@ -144,7 +158,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({ role, ...(fullName !== undefined ? { full_name: fullName } : {}) })
       });
 
-      const updated = await response.json();
+      const updated = await readResponseBody(response);
       if (!response.ok) return res.status(response.status).json({ error: updated?.message || 'Failed to update role.' });
 
       if (fullName !== undefined) {
