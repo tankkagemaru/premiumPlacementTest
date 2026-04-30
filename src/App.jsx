@@ -327,7 +327,9 @@ function LoginScreen({ onLogin }) {
       }
 
       localStorage.setItem('sb-token', result.access_token);
-      const role = email.trim().toLowerCase() === SUPERADMIN_EMAIL
+      const normalizedLoginEmail = email.trim().toLowerCase();
+      const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
+      const role = normalizedLoginEmail === normalizedSuperAdminEmail
         ? 'superadmin'
         : await api.getUserRole(result.user.id);
       onLogin({ ...result.user, role });
@@ -652,7 +654,9 @@ function TeacherDashboard({ user, onLogout }) {
   const [questionSort, setQuestionSort] = useState('recent');
   const [managedUsers, setManagedUsers] = useState([]);
   const [userMgmtLoading, setUserMgmtLoading] = useState(false);
-  const isSuperAdmin = user.email?.toLowerCase() === SUPERADMIN_EMAIL || user.role === 'superadmin';
+  const normalizedDashboardEmail = (user.email || '').trim().toLowerCase();
+  const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
+  const isSuperAdmin = normalizedDashboardEmail === normalizedSuperAdminEmail || user.role === 'superadmin';
 
   const loadData = useCallback(async () => {
     try {
@@ -761,7 +765,7 @@ function TeacherDashboard({ user, onLogout }) {
       <div className="dashboard-header">
         <h1>Teacher Dashboard</h1>
         <div className="header-actions">
-          <span>{user.email}</span>
+          <span>{user.email} ({isSuperAdmin ? 'superadmin' : (user.role || 'student')})</span>
           <button className="logout-button" onClick={onLogout}>Sign Out</button>
         </div>
       </div>
@@ -782,6 +786,14 @@ function TeacherDashboard({ user, onLogout }) {
           </button>
         )}
       </div>
+
+      {!isSuperAdmin && ['teacher', 'admin'].includes(user.role) && (
+        <div className="tab-content" style={{ marginBottom: '20px', backgroundColor: '#fff9e6', border: '1px solid #ffc107' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: '#8a6d3b' }}>
+            Admin Management is only visible for superadmin ({SUPERADMIN_EMAIL}).
+          </p>
+        </div>
+      )}
 
       {activeTab === 'pending' && (
         <div className="tab-content">

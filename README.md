@@ -879,3 +879,23 @@ with check (user_id = auth.uid());
 ```
 
 > Keep admin/teacher role updates behind the server endpoint using `SUPABASE_SERVICE_ROLE_KEY`.
+
+### Environment variables setup (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
+
+Set these in **Vercel Project → Settings → Environment Variables**:
+
+- `SUPABASE_URL` = your Supabase project URL (example: `https://xxxx.supabase.co`)
+- `SUPABASE_ANON_KEY` = Supabase anon/public API key
+- `SUPABASE_SERVICE_ROLE_KEY` = Supabase service role key (server-side only, never in frontend)
+
+Recommended scopes:
+- Add all 3 for `Production`, `Preview`, and `Development` as needed.
+- Redeploy after saving env vars so serverless functions pick up new values.
+
+For local development (`.env.local`):
+
+```bash
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
