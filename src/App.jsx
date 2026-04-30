@@ -84,6 +84,7 @@ const styles = `
   .question-wrong { border-left: 4px solid #f44336; }
   .correct-badge { color: #4caf50; font-weight: bold; }
   .wrong-badge { color: #f44336; font-weight: bold; }
+  .notranslate { translate: no; }
   .approve-button { padding: 10px 20px; background-color: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
   .approve-button:hover { background-color: #45a049; }
   .textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: inherit; min-height: 80px; }
@@ -206,7 +207,7 @@ const api = {
     if (!response.ok) throw new Error(data?.error || 'Unable to load users');
     return data.users || [];
   },
-  async updateManagedUserRole(userId, role, fullName) {
+  async updateManagedUserRole(userId, role, fullName, passportId, country) {
     const token = localStorage.getItem('sb-token');
     const response = await fetch('/api/admin-users', {
       method: 'PATCH',
@@ -214,10 +215,24 @@ const api = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ userId, role, fullName })
+      body: JSON.stringify({ userId, role, fullName, passportId, country })
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || 'Unable to update role');
+    return data;
+  },
+  async createManagedUser(payload) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || 'Unable to create user');
     return data;
   }
 };
@@ -624,17 +639,17 @@ function StudentTest({ user, onComplete }) {
         </div>
       </div>
 
-      <div className="question-box" onCopy={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }} style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
-        <h3 style={{ pointerEvents: 'none' }}>{currentQuestion.question_text}</h3>
+      <div className="question-box notranslate" translate="no" onCopy={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }} style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
+        <h3 style={{ pointerEvents: 'none' }} className="notranslate" translate="no">{currentQuestion.question_text}</h3>
         {currentQuestion.audio_url && (
           <audio controls style={{ width: '100%', marginBottom: '20px' }}>
             <source src={currentQuestion.audio_url} type="audio/wav" />
           </audio>
         )}
-        {currentQuestion.passage && <div className="passage" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none', pointerEvents: 'none' }}><p>{currentQuestion.passage}</p></div>}
+        {currentQuestion.passage && <div className="passage notranslate" translate="no" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none', pointerEvents: 'none' }}><p>{currentQuestion.passage}</p></div>}
         <div className="options">
           {currentQuestion.options?.map((option, idx) => (
-            <button key={idx} className="option-button" onClick={() => handleAnswer(option)}>
+            <button key={idx} className="option-button notranslate" translate="no" onClick={() => handleAnswer(option)}>
               {option}
             </button>
           ))}
@@ -663,6 +678,9 @@ function TeacherDashboard({ user, onLogout }) {
   const [editingUserId, setEditingUserId] = useState(null);
   const [editingUserRole, setEditingUserRole] = useState('student');
   const [editingUserName, setEditingUserName] = useState('');
+  const [editingPassportId, setEditingPassportId] = useState('');
+  const [editingCountry, setEditingCountry] = useState('');
+  const [newUser, setNewUser] = useState({ email: '', fullName: '', role: 'student', passportId: '', country: '' });
   const normalizedDashboardEmail = (user.email || '').trim().toLowerCase();
   const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
   const isSuperAdmin = normalizedDashboardEmail === normalizedSuperAdminEmail || user.role === 'superadmin';
@@ -1028,12 +1046,29 @@ function TeacherDashboard({ user, onLogout }) {
           <p style={{ fontSize: '13px', color: '#666', marginBottom: '15px' }}>
             Promote users to admin or revert to student. Admin self-signup remains disabled.
           </p>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr auto', gap: '8px', marginBottom: '12px' }}>
+            <input placeholder="Email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
+            <input placeholder="Full Name" value={newUser.fullName} onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })} />
+            <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}><option value="student">student</option><option value="teacher">teacher</option><option value="admin">admin</option></select>
+            <input placeholder="Passport/ID" value={newUser.passportId} onChange={(e) => setNewUser({ ...newUser, passportId: e.target.value })} />
+            <input placeholder="Country" value={newUser.country} onChange={(e) => setNewUser({ ...newUser, country: e.target.value })} />
+            <button className="approve-button" onClick={async () => {
+              try {
+                const result = await api.createManagedUser(newUser);
+                alert(`User created. Temporary password: ${result.tempPassword}`);
+                setNewUser({ email: '', fullName: '', role: 'student', passportId: '', country: '' });
+                await loadData();
+              } catch (err) { alert(err.message || 'Failed to create user'); }
+            }}>Add User</button>
+          </div>
           <table className="results-table">
             <thead>
               <tr>
                 <th>Email</th>
                 <th>Full Name</th>
                 <th>Role</th>
+                <th>Passport/ID</th>
+                <th>Country</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -1059,13 +1094,15 @@ function TeacherDashboard({ user, onLogout }) {
                       </select>
                     ) : (u.role || 'student')}
                   </td>
+                  <td>{editingUserId === u.id ? <input value={editingPassportId} onChange={(e) => setEditingPassportId(e.target.value)} /> : (u.passport_id || '-')}</td>
+                  <td>{editingUserId === u.id ? <input value={editingCountry} onChange={(e) => setEditingCountry(e.target.value)} /> : (u.country || '-')}</td>
                   <td>
                     {editingUserId === u.id ? (
                       <>
                         <button className="approve-button" disabled={userMgmtLoading} onClick={async () => {
                           try {
                             setUserMgmtLoading(true);
-                            await api.updateManagedUserRole(u.id, editingUserRole, editingUserName);
+                            await api.updateManagedUserRole(u.id, editingUserRole, editingUserName, editingPassportId, editingCountry);
                             setEditingUserId(null);
                             await loadData();
                           } catch (err) {
@@ -1084,6 +1121,8 @@ function TeacherDashboard({ user, onLogout }) {
                           setEditingUserId(u.id);
                           setEditingUserRole(u.role || 'student');
                           setEditingUserName(u.full_name || '');
+                          setEditingPassportId(u.passport_id || '');
+                          setEditingCountry(u.country || '');
                         }}
                         style={{ fontSize: '12px', padding: '6px 12px' }}
                       >
@@ -1352,6 +1391,10 @@ export default function App() {
     meta.name = 'google';
     meta.content = 'notranslate';
     document.head.appendChild(meta);
+
+    document.documentElement.setAttribute('translate', 'no');
+    document.body.setAttribute('translate', 'no');
+    document.body.classList.add('notranslate');
   }, []);
 
   return (

@@ -42,11 +42,55 @@ export default async function handler(req, res) {
       });
       const data = await response.json();
       if (!response.ok) return res.status(response.status).json({ error: data?.message || 'Failed to load users.' });
-      return res.status(200).json({ users: data || [] });
+      const studentsResponse = await fetch(`${SUPABASE_URL}/rest/v1/students?select=user_id,passport_id,country,full_name,email`, {
+        headers: getServiceHeaders()
+      });
+      const students = studentsResponse.ok ? await studentsResponse.json() : [];
+      const studentMap = new Map((students || []).map(s => [s.user_id, s]));
+      const merged = (data || []).map(u => ({
+        ...u,
+        passport_id: studentMap.get(u.id)?.passport_id || '',
+        country: studentMap.get(u.id)?.country || ''
+      }));
+      return res.status(200).json({ users: merged });
+    }
+
+    if (req.method === 'POST') {
+      const { email, fullName, role = 'student', passportId = '', country = '' } = req.body || {};
+      if (!email || !fullName || !role) {
+        return res.status(400).json({ error: 'email, fullName and role are required.' });
+      }
+      if (!['student', 'admin', 'teacher'].includes(role)) {
+        return res.status(400).json({ error: 'Invalid role.' });
+      }
+      const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!`;
+      const createAuthResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: getServiceHeaders(),
+        body: JSON.stringify({ email, password: tempPassword, email_confirm: true, user_metadata: { full_name: fullName } })
+      });
+      const authUser = await createAuthResponse.json();
+      if (!createAuthResponse.ok) return res.status(createAuthResponse.status).json({ error: authUser?.msg || 'Failed to create auth user.' });
+      const userId = authUser?.id || authUser?.user?.id;
+      if (!userId) return res.status(500).json({ error: 'Missing new user ID.' });
+
+      await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+        method: 'POST',
+        headers: getServiceHeaders(),
+        body: JSON.stringify({ id: userId, email, full_name: fullName, role })
+      });
+      if (role === 'student') {
+        await fetch(`${SUPABASE_URL}/rest/v1/students`, {
+          method: 'POST',
+          headers: getServiceHeaders(),
+          body: JSON.stringify({ user_id: userId, email, full_name: fullName, passport_id: passportId || null, country: country || null })
+        });
+      }
+      return res.status(200).json({ success: true, tempPassword });
     }
 
     if (req.method === 'PATCH') {
-      const { userId, role, fullName } = req.body || {};
+      const { userId, role, fullName, passportId, country } = req.body || {};
       if (!userId || !['student', 'admin', 'teacher'].includes(role)) {
         return res.status(400).json({ error: 'userId and valid role are required.' });
       }
@@ -78,7 +122,7 @@ export default async function handler(req, res) {
         await fetch(`${SUPABASE_URL}/rest/v1/students?user_id=eq.${userId}`, {
           method: 'PATCH',
           headers: getServiceHeaders(),
-          body: JSON.stringify({ full_name: fullName })
+          body: JSON.stringify({ full_name: fullName, ...(passportId !== undefined ? { passport_id: passportId } : {}), ...(country !== undefined ? { country } : {}) })
         });
       }
       return res.status(200).json({ success: true, user: updated?.[0] || null });
