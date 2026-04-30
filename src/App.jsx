@@ -268,19 +268,59 @@ const api = {
 // Helper Functions
 function selectNextQuestion(questionsBank, currentDifficulty, userResponses) {
   const answeredIds = new Set(userResponses.map(r => r.question_id));
+  const askedQuestionTexts = new Set(
+    userResponses
+      .map((r) => questionsBank.find(qb => qb.id === r.question_id)?.question_text?.trim())
+      .filter(Boolean)
+  );
+  const skillTargets = { grammar: 8, vocabulary: 7, reading: 8, listening: 7 };
+  const skillCounts = { grammar: 0, vocabulary: 0, reading: 0, listening: 0 };
+  userResponses.forEach((r) => {
+    const q = questionsBank.find(qb => qb.id === r.question_id);
+    const skill = q?.skill;
+    if (skill && skillCounts[skill] !== undefined) skillCounts[skill] += 1;
+  });
+  const underTargetSkills = Object.keys(skillTargets).filter(skill => skillCounts[skill] < skillTargets[skill]);
+
   const minDiff = Math.max(1, currentDifficulty - 1.5);
   const maxDiff = Math.min(10, currentDifficulty + 1.5);
   const suitable = questionsBank.filter(q => {
     if (!q.id || answeredIds.has(q.id)) return false;
+    if (q.question_text && askedQuestionTexts.has(q.question_text.trim())) return false;
     const qDiff = q.difficulty_score || 5;
     return qDiff >= minDiff && qDiff <= maxDiff;
   });
-  if (suitable.length === 0) {
-    const remaining = questionsBank.filter(q => q.id && !answeredIds.has(q.id));
-    if (remaining.length === 0) return null;
-    return remaining[Math.floor(Math.random() * remaining.length)];
+
+  // Priority 1: in-band and under-target skills
+  const inBandUnderTarget = suitable.filter(q => underTargetSkills.includes(q.skill));
+  if (inBandUnderTarget.length > 0) {
+    return inBandUnderTarget[Math.floor(Math.random() * inBandUnderTarget.length)];
   }
-  return suitable[Math.floor(Math.random() * suitable.length)];
+
+  // Priority 2: under-target skills regardless of difficulty band
+  const underTargetAnyBand = questionsBank.filter(q =>
+    q.id &&
+    !answeredIds.has(q.id) &&
+    underTargetSkills.includes(q.skill) &&
+    (!q.question_text || !askedQuestionTexts.has(q.question_text.trim()))
+  );
+  if (underTargetAnyBand.length > 0) {
+    return underTargetAnyBand[Math.floor(Math.random() * underTargetAnyBand.length)];
+  }
+
+  // Priority 3: any remaining in-band
+  if (suitable.length > 0) {
+    return suitable[Math.floor(Math.random() * suitable.length)];
+  }
+
+  // Priority 4: any remaining question
+  const remaining = questionsBank.filter(q =>
+    q.id &&
+    !answeredIds.has(q.id) &&
+    (!q.question_text || !askedQuestionTexts.has(q.question_text.trim()))
+  );
+  if (remaining.length === 0) return null;
+  return remaining[Math.floor(Math.random() * remaining.length)];
 }
 
 function calculateDifficulty(responses) {
@@ -290,13 +330,32 @@ function calculateDifficulty(responses) {
   return Math.max(1, Math.min(10, difficulty));
 }
 
-function determineCEFRLevel(percentage) {
-  if (percentage >= 85) return 'C2';
-  if (percentage >= 75) return 'C1';
-  if (percentage >= 65) return 'B2';
-  if (percentage >= 55) return 'B1';
-  if (percentage >= 40) return 'A2';
-  return 'A1';
+function determineCEFRLevel(responses) {
+  const totalCorrect = responses.filter(r => r.is_correct).length;
+  const fallback = { cefrLevel: 'A1', abilityEstimate: 1, needsTeacherReview: true };
+  if (!responses?.length) return fallback;
+
+  const avgDifficulty = (items) => {
+    if (!items.length) return 1;
+    const total = items.reduce((sum, r) => sum + (Number(r.difficulty_at_time) || 1), 0);
+    return total / items.length;
+  };
+
+  const lastTen = responses.slice(-10);
+  const lastTenCorrect = lastTen.filter(r => r.is_correct);
+  const allCorrect = responses.filter(r => r.is_correct);
+  const abilityEstimate = lastTenCorrect.length >= 4 ? avgDifficulty(lastTenCorrect) : avgDifficulty(allCorrect);
+
+  if (totalCorrect < 8) {
+    return { cefrLevel: 'A1', abilityEstimate, needsTeacherReview: true };
+  }
+
+  if (abilityEstimate < 2.5) return { cefrLevel: 'A1', abilityEstimate, needsTeacherReview: false };
+  if (abilityEstimate < 4.0) return { cefrLevel: 'A2', abilityEstimate, needsTeacherReview: false };
+  if (abilityEstimate < 5.5) return { cefrLevel: 'B1', abilityEstimate, needsTeacherReview: false };
+  if (abilityEstimate < 7.5) return { cefrLevel: 'B2', abilityEstimate, needsTeacherReview: false };
+  if (abilityEstimate < 8.5) return { cefrLevel: 'C1', abilityEstimate, needsTeacherReview: false };
+  return { cefrLevel: 'C2', abilityEstimate, needsTeacherReview: false };
 }
 
 function formatTime(seconds) {
@@ -533,18 +592,12 @@ function StudentTest({ user, onComplete }) {
     const timeSpentMs = now - questionStartTime;
     const timeSpentSeconds = Math.round(timeSpentMs / 1000);
     
-    // For first question, no previous reaction time to track
-    // For subsequent questions, reaction time is time from question display to answer
-    // We'll approximate it as 10% of time spent (typical reaction is quick)
-    const reactionTimeMs = Math.min(Math.round(timeSpentMs * 0.15), 5000); // Cap at 5 seconds
-    
     const newResponses = [...userResponses, {
       question_id: currentQuestion.id,
       student_answer: selectedAnswer,
       is_correct: isCorrect,
       time_spent_seconds: timeSpentSeconds,
-      difficulty_at_time: currentDifficulty,
-      reaction_time_ms: reactionTimeMs
+      difficulty_at_time: currentDifficulty
     }];
     
     setUserResponses(newResponses);
@@ -564,7 +617,7 @@ function StudentTest({ user, onComplete }) {
   const completeTest = async (responses) => {
     const correctCount = responses.filter(r => r.is_correct).length;
     const score = (correctCount / responses.length) * 100;
-    const cefrLevel = determineCEFRLevel(score);
+    const { cefrLevel, abilityEstimate, needsTeacherReview } = determineCEFRLevel(responses);
     setTestState('pending');
 
     const saveTestResult = async (retries = 3) => {
@@ -580,6 +633,8 @@ function StudentTest({ user, onComplete }) {
             student_passport: 'N/A',
             overall_score: score,
             determined_cefr_level: cefrLevel,
+            ability_estimate: abilityEstimate,
+            needs_teacher_review: needsTeacherReview,
             completed_at: new Date().toISOString(),
             notes: `Completed 30 questions. Score: ${score.toFixed(1)}%. Time: ${formatTime(elapsedTime)}`,
             is_approved: false,
@@ -713,6 +768,7 @@ function TeacherDashboard({ user, onLogout }) {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserPasswordConfirm, setNewUserPasswordConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [adminError, setAdminError] = useState('');
   const normalizedDashboardEmail = (user.email || '').trim().toLowerCase();
   const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
   const isSuperAdmin = normalizedDashboardEmail === normalizedSuperAdminEmail || user.role === 'superadmin';
@@ -730,8 +786,14 @@ function TeacherDashboard({ user, onLogout }) {
       setResults(res || []);
       setQuestions(q || []);
       if (isSuperAdmin) {
-        const users = await api.getManagedUsers();
-        setManagedUsers(users);
+        try {
+          const users = await api.getManagedUsers();
+          setManagedUsers(users);
+          setAdminError('');
+        } catch (err) {
+          setManagedUsers([]);
+          setAdminError(err.message || 'Unable to load users from Supabase.');
+        }
       }
     } catch (err) {
       console.error('Error loading:', err);
@@ -1085,6 +1147,11 @@ function TeacherDashboard({ user, onLogout }) {
           <p style={{ fontSize: '13px', color: '#666', marginBottom: '15px' }}>
             Promote users to admin or revert to student. Admin self-signup remains disabled.
           </p>
+          {adminError && (
+            <div className="error-message" style={{ marginBottom: '12px' }}>
+              {adminError} Please verify `SUPABASE_SERVICE_ROLE_KEY` in Vercel and redeploy.
+            </div>
+          )}
           <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'flex-end' }}>
             <button className="approve-button" onClick={() => setShowAddUserModal(true)}>+ Add User</button>
           </div>
@@ -1100,6 +1167,13 @@ function TeacherDashboard({ user, onLogout }) {
               </tr>
             </thead>
             <tbody>
+              {managedUsers.length === 0 && (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', color: '#666', padding: '16px' }}>
+                    No users loaded. Check Admin API configuration or Supabase permissions.
+                  </td>
+                </tr>
+              )}
               {managedUsers.map(u => (
                 <tr key={u.id}>
                   <td>{u.email}</td>
