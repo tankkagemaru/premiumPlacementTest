@@ -56,14 +56,24 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { email, fullName, role = 'student', passportId = '', country = '' } = req.body || {};
+      const { action, userId, email, fullName, role = 'student', passportId = '', country = '', password = '' } = req.body || {};
+      if (action === 'send_reset') {
+        const resetResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/generate_link`, {
+          method: 'POST',
+          headers: getServiceHeaders(),
+          body: JSON.stringify({ type: 'recovery', email })
+        });
+        const resetData = await resetResponse.json();
+        if (!resetResponse.ok) return res.status(resetResponse.status).json({ error: resetData?.msg || 'Failed to generate reset link.' });
+        return res.status(200).json({ success: true, resetLink: resetData?.action_link || null, userId });
+      }
       if (!email || !fullName || !role) {
         return res.status(400).json({ error: 'email, fullName and role are required.' });
       }
       if (!['student', 'admin', 'teacher'].includes(role)) {
         return res.status(400).json({ error: 'Invalid role.' });
       }
-      const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!`;
+      const tempPassword = password || `Temp${Math.random().toString(36).slice(-8)}!`;
       const createAuthResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
         method: 'POST',
         headers: getServiceHeaders(),
@@ -87,6 +97,25 @@ export default async function handler(req, res) {
         });
       }
       return res.status(200).json({ success: true, tempPassword });
+    }
+
+    if (req.method === 'DELETE') {
+      const { userId } = req.body || {};
+      if (!userId) return res.status(400).json({ error: 'userId is required.' });
+
+      const checkResponse = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}&select=id,email`, { headers: getServiceHeaders() });
+      const existing = await checkResponse.json();
+      if (!checkResponse.ok || !existing?.length) return res.status(404).json({ error: 'User not found.' });
+      if (existing[0].email?.toLowerCase() === SUPERADMIN_EMAIL) return res.status(400).json({ error: 'Superadmin cannot be deleted.' });
+
+      await fetch(`${SUPABASE_URL}/rest/v1/students?user_id=eq.${userId}`, { method: 'DELETE', headers: getServiceHeaders() });
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, { method: 'DELETE', headers: getServiceHeaders() });
+      const authDelete = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, { method: 'DELETE', headers: getServiceHeaders() });
+      if (!authDelete.ok) {
+        const err = await authDelete.json().catch(() => ({}));
+        return res.status(authDelete.status).json({ error: err?.msg || 'Failed to delete auth user.' });
+      }
+      return res.status(200).json({ success: true });
     }
 
     if (req.method === 'PATCH') {

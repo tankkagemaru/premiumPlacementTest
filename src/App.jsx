@@ -234,6 +234,34 @@ const api = {
     const data = await response.json();
     if (!response.ok) throw new Error(data?.error || 'Unable to create user');
     return data;
+  },
+  async sendUserResetLink(email) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ action: 'send_reset', email })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || 'Unable to generate reset link');
+    return data;
+  },
+  async deleteManagedUser(userId) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ userId })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || 'Unable to delete user');
+    return data;
   }
 };
 
@@ -681,9 +709,20 @@ function TeacherDashboard({ user, onLogout }) {
   const [editingPassportId, setEditingPassportId] = useState('');
   const [editingCountry, setEditingCountry] = useState('');
   const [newUser, setNewUser] = useState({ email: '', fullName: '', role: 'student', passportId: '', country: '' });
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserPasswordConfirm, setNewUserPasswordConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const normalizedDashboardEmail = (user.email || '').trim().toLowerCase();
   const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
   const isSuperAdmin = normalizedDashboardEmail === normalizedSuperAdminEmail || user.role === 'superadmin';
+  const passwordStrength = newUserPassword.length >= 12 && /[A-Z]/.test(newUserPassword) && /[a-z]/.test(newUserPassword) && /\d/.test(newUserPassword) && /[^A-Za-z0-9]/.test(newUserPassword)
+    ? 'Strong'
+    : newUserPassword.length >= 8
+      ? 'Medium'
+      : newUserPassword.length > 0
+        ? 'Weak'
+        : 'Not set';
 
   const loadData = useCallback(async () => {
     try {
@@ -1046,20 +1085,8 @@ function TeacherDashboard({ user, onLogout }) {
           <p style={{ fontSize: '13px', color: '#666', marginBottom: '15px' }}>
             Promote users to admin or revert to student. Admin self-signup remains disabled.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr auto', gap: '8px', marginBottom: '12px' }}>
-            <input placeholder="Email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
-            <input placeholder="Full Name" value={newUser.fullName} onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })} />
-            <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}><option value="student">student</option><option value="teacher">teacher</option><option value="admin">admin</option></select>
-            <input placeholder="Passport/ID" value={newUser.passportId} onChange={(e) => setNewUser({ ...newUser, passportId: e.target.value })} />
-            <input placeholder="Country" value={newUser.country} onChange={(e) => setNewUser({ ...newUser, country: e.target.value })} />
-            <button className="approve-button" onClick={async () => {
-              try {
-                const result = await api.createManagedUser(newUser);
-                alert(`User created. Temporary password: ${result.tempPassword}`);
-                setNewUser({ email: '', fullName: '', role: 'student', passportId: '', country: '' });
-                await loadData();
-              } catch (err) { alert(err.message || 'Failed to create user'); }
-            }}>Add User</button>
+          <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="approve-button" onClick={() => setShowAddUserModal(true)}>+ Add User</button>
           </div>
           <table className="results-table">
             <thead>
@@ -1128,12 +1155,85 @@ function TeacherDashboard({ user, onLogout }) {
                       >
                         Edit
                       </button>
+                      
                     )}
+                    <button
+                      className="logout-button"
+                      disabled={userMgmtLoading || u.email?.toLowerCase() === SUPERADMIN_EMAIL}
+                      onClick={async () => {
+                        if (!window.confirm(`Delete user ${u.email}? This cannot be undone.`)) return;
+                        try {
+                          setUserMgmtLoading(true);
+                          await api.deleteManagedUser(u.id);
+                          await loadData();
+                        } catch (err) {
+                          alert(err.message || 'Failed to delete user');
+                        } finally {
+                          setUserMgmtLoading(false);
+                        }
+                      }}
+                      style={{ fontSize: '12px', padding: '6px 12px', marginLeft: '8px', backgroundColor: '#b00020' }}
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {showAddUserModal && (
+        <div className="modal-overlay" onClick={() => setShowAddUserModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px' }}>
+            <button className="modal-close" onClick={() => setShowAddUserModal(false)}>×</button>
+            <h2>Add User</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <input placeholder="Email *" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
+              <input placeholder="Full Name *" value={newUser.fullName} onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })} />
+              <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}><option value="student">student</option><option value="teacher">teacher</option><option value="admin">admin</option></select>
+              <input placeholder="Passport/ID (student only)" value={newUser.passportId} onChange={(e) => setNewUser({ ...newUser, passportId: e.target.value })} />
+              <input placeholder="Country (student only)" value={newUser.country} onChange={(e) => setNewUser({ ...newUser, country: e.target.value })} />
+              <div />
+              <input type={showPassword ? 'text' : 'password'} placeholder="Password (leave blank = auto)" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} />
+              <input type={showPassword ? 'text' : 'password'} placeholder="Confirm Password" value={newUserPasswordConfirm} onChange={(e) => setNewUserPasswordConfirm(e.target.value)} />
+            </div>
+            <div style={{ marginTop: '8px', fontSize: '12px', color: '#666', display: 'flex', justifyContent: 'space-between' }}>
+              <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} />
+                Show passwords
+              </label>
+              <span>Password strength: <strong>{passwordStrength}</strong></span>
+            </div>
+            <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button className="logout-button" onClick={() => setShowAddUserModal(false)}>Cancel</button>
+              <button className="approve-button" onClick={async () => {
+                try {
+                  if (newUserPassword && newUserPassword !== newUserPasswordConfirm) {
+                    alert('Password and confirmation do not match.');
+                    return;
+                  }
+                  const result = await api.createManagedUser({ ...newUser, password: newUserPassword || undefined });
+                  alert(newUserPassword ? 'User created successfully.' : `User created. Temporary password: ${result.tempPassword}`);
+                  if (!newUserPassword) {
+                    const shouldGenerateReset = window.confirm('Generate reset link now for this user?');
+                    if (shouldGenerateReset) {
+                      const resetData = await api.sendUserResetLink(newUser.email);
+                      if (resetData?.resetLink) window.prompt('Copy and send this reset link:', resetData.resetLink);
+                    }
+                  }
+                  setNewUser({ email: '', fullName: '', role: 'student', passportId: '', country: '' });
+                  setNewUserPassword('');
+                  setNewUserPasswordConfirm('');
+                  setShowAddUserModal(false);
+                  await loadData();
+                } catch (err) {
+                  alert(err.message || 'Failed to create user');
+                }
+              }}>Create User</button>
+            </div>
+          </div>
         </div>
       )}
 
