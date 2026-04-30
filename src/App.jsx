@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
-const REGISTRATION_CODE = 'PREMIUM2024';
+const SUPERADMIN_EMAIL = 'mrosani22@premium.edu.my';
 const COMPANY_NAME = 'Premium Language Centre';
 const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/plc-logo.png';
 
@@ -97,8 +97,8 @@ const styles = `
 
 // API Helper
 const api = {
-  async request(method, path, body = null) {
-    const token = localStorage.getItem('sb-token');
+  async request(method, path, body = null, authToken = null) {
+    const token = authToken || localStorage.getItem('sb-token');
     const headers = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const options = { method, headers };
@@ -117,25 +117,50 @@ const api = {
       throw error;
     }
   },
-  async signup(email, password, fullName, passportId, country) {
+  async signup(email, password, role, fullName, passportId, country) {
     const result = await this.request('POST', '/auth/v1/signup', { email, password });
     
-    // Create student record
-    if (result?.user?.id) {
+    if (result?.user?.id && result?.access_token) {
       try {
-        await this.request('POST', '/rest/v1/students', {
-          user_id: result.user.id,
+        await this.request('POST', '/rest/v1/users', {
+          id: result.user.id,
           email: email,
-          full_name: fullName,
-          passport_id: passportId,
-          country: country
-        });
+          role,
+          full_name: fullName
+        }, result.access_token);
       } catch (err) {
-        console.error('Error creating student record:', err);
+        console.error('Error creating user role record:', err);
+      }
+
+      // Create student record only for student role
+      if (role === 'student') {
+        try {
+          await this.request('POST', '/rest/v1/students', {
+            user_id: result.user.id,
+            email: email,
+            full_name: fullName,
+            passport_id: passportId,
+            country: country
+          }, result.access_token);
+        } catch (err) {
+          console.error('Error creating student record:', err);
+        }
       }
     }
     
     return result;
+  },
+  async validateRegistration(role, registrationCode, email, country, passportId) {
+    const response = await fetch('/api/validate-registration', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role, registrationCode, email, country, passportId })
+    });
+    const data = await response.json();
+    if (!response.ok || !data?.valid) {
+      throw new Error(data?.error || 'Registration is not allowed.');
+    }
+    return data;
   },
   login(email, password) { return this.request('POST', '/auth/v1/token?grant_type=password', { email, password }); },
   async getUserRole(userId) {
@@ -164,6 +189,36 @@ const api = {
   },
   getQuestionBank() {
     return this.request('GET', '/rest/v1/questions?select=*');
+  },
+  createQuestion(payload) {
+    return this.request('POST', '/rest/v1/questions', payload);
+  },
+  updateQuestion(id, payload) {
+    return this.request('PATCH', `/rest/v1/questions?id=eq.${id}`, payload);
+  },
+  async getManagedUsers() {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || 'Unable to load users');
+    return data.users || [];
+  },
+  async updateManagedUserRole(userId, role, fullName) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ userId, role, fullName })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data?.error || 'Unable to update role');
+    return data;
   }
 };
 
@@ -233,11 +288,6 @@ function LoginScreen({ onLogin }) {
           setLoading(false);
           return;
         }
-        if (registrationCode.trim() !== REGISTRATION_CODE) {
-          setError('Invalid registration code.');
-          setLoading(false);
-          return;
-        }
         if (!fullName.trim()) {
           setError('Full name is required.');
           setLoading(false);
@@ -268,8 +318,12 @@ function LoginScreen({ onLogin }) {
         return;
       }
 
+      if (isSignup) {
+        await api.validateRegistration('student', registrationCode.trim(), email.trim(), country, passportId);
+      }
+
       const result = isSignup 
-        ? await api.signup(email, password, fullName, passportId, country)
+        ? await api.signup(email, password, 'student', fullName, passportId, country)
         : await api.login(email, password);
 
       if (!result?.access_token) {
@@ -279,7 +333,11 @@ function LoginScreen({ onLogin }) {
       }
 
       localStorage.setItem('sb-token', result.access_token);
-      const role = await api.getUserRole(result.user.id);
+      const normalizedLoginEmail = email.trim().toLowerCase();
+      const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
+      const role = normalizedLoginEmail === normalizedSuperAdminEmail
+        ? 'superadmin'
+        : await api.getUserRole(result.user.id);
       onLogin({ ...result.user, role });
     } catch (err) {
       setError(err.message || 'An error occurred');
@@ -313,7 +371,7 @@ function LoginScreen({ onLogin }) {
               {isSignup && (
                 <>
                   <div className="form-section">
-                    <div className="form-section-title">Personal Information</div>
+                    <div className="form-section-title">Account Setup</div>
                     <input type="text" placeholder="Full Name *" value={fullName} onChange={(e) => setFullName(e.target.value)} required={isSignup} />
                     <input type="text" placeholder="Passport/ID Number *" value={passportId} onChange={(e) => setPassportId(e.target.value)} required={isSignup} />
                     <select value={country} onChange={(e) => setCountry(e.target.value)} required={isSignup}>
@@ -333,7 +391,9 @@ function LoginScreen({ onLogin }) {
               {isSignup && (
                 <div className="form-section">
                   <div className="form-section-title">Registration Code</div>
-                  <label className="code-label">Enter the access code provided by your instructor</label>
+                  <label className="code-label">
+                    Student code format: PREMIUM + first 2 letters of country + last 2 digits of Passport/ID.
+                  </label>
                   <input type="text" placeholder="Registration Code *" value={registrationCode} onChange={(e) => setRegistrationCode(e.target.value)} className="code-input" required={isSignup} />
                 </div>
               )}
@@ -598,23 +658,35 @@ function TeacherDashboard({ user, onLogout }) {
   const [questionSkillFilter, setQuestionSkillFilter] = useState('');
   const [questionCefrFilter, setQuestionCefrFilter] = useState('');
   const [questionSort, setQuestionSort] = useState('recent');
+  const [managedUsers, setManagedUsers] = useState([]);
+  const [userMgmtLoading, setUserMgmtLoading] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editingUserRole, setEditingUserRole] = useState('student');
+  const [editingUserName, setEditingUserName] = useState('');
+  const normalizedDashboardEmail = (user.email || '').trim().toLowerCase();
+  const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
+  const isSuperAdmin = normalizedDashboardEmail === normalizedSuperAdminEmail || user.role === 'superadmin';
+
+  const loadData = useCallback(async () => {
+    try {
+      const [res, q] = await Promise.all([api.getAllResults(), api.getQuestionBank()]);
+      setResults(res || []);
+      setQuestions(q || []);
+      if (isSuperAdmin) {
+        const users = await api.getManagedUsers();
+        setManagedUsers(users);
+      }
+    } catch (err) {
+      console.error('Error loading:', err);
+    }
+    setLoading(false);
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const [res, q] = await Promise.all([api.getAllResults(), api.getQuestionBank()]);
-      setResults(res || []);
-      setQuestions(q || []);
-    } catch (err) {
-      console.error('Error loading:', err);
-    }
-    setLoading(false);
-  };
+  }, [loadData]);
 
   const handleApprove = async () => {
     if (!selectedResult) return;
@@ -702,7 +774,7 @@ function TeacherDashboard({ user, onLogout }) {
       <div className="dashboard-header">
         <h1>Teacher Dashboard</h1>
         <div className="header-actions">
-          <span>{user.email}</span>
+          <span>{user.email} ({isSuperAdmin ? 'superadmin' : (user.role || 'student')})</span>
           <button className="logout-button" onClick={onLogout}>Sign Out</button>
         </div>
       </div>
@@ -717,7 +789,20 @@ function TeacherDashboard({ user, onLogout }) {
         <button className={`tab ${activeTab === 'questions' ? 'active' : ''}`} onClick={() => setActiveTab('questions')}>
           Questions
         </button>
+        {isSuperAdmin && (
+          <button className={`tab ${activeTab === 'admins' ? 'active' : ''}`} onClick={() => setActiveTab('admins')}>
+            Admin Management
+          </button>
+        )}
       </div>
+
+      {!isSuperAdmin && ['teacher', 'admin'].includes(user.role) && (
+        <div className="tab-content" style={{ marginBottom: '20px', backgroundColor: '#fff9e6', border: '1px solid #ffc107' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: '#8a6d3b' }}>
+            Admin Management is only visible for superadmin ({SUPERADMIN_EMAIL}).
+          </p>
+        </div>
+      )}
 
       {activeTab === 'pending' && (
         <div className="tab-content">
@@ -937,6 +1022,82 @@ function TeacherDashboard({ user, onLogout }) {
         </div>
       )}
 
+      {activeTab === 'admins' && isSuperAdmin && (
+        <div className="tab-content">
+          <h3>Super Admin User Role Management</h3>
+          <p style={{ fontSize: '13px', color: '#666', marginBottom: '15px' }}>
+            Promote users to admin or revert to student. Admin self-signup remains disabled.
+          </p>
+          <table className="results-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Full Name</th>
+                <th>Role</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {managedUsers.map(u => (
+                <tr key={u.id}>
+                  <td>{u.email}</td>
+                  <td>
+                    {editingUserId === u.id ? (
+                      <input
+                        value={editingUserName}
+                        onChange={(e) => setEditingUserName(e.target.value)}
+                        style={{ padding: '6px', border: '1px solid #ddd', borderRadius: '4px', width: '100%' }}
+                      />
+                    ) : (u.full_name || 'N/A')}
+                  </td>
+                  <td style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>
+                    {editingUserId === u.id ? (
+                      <select value={editingUserRole} onChange={(e) => setEditingUserRole(e.target.value)} style={{ padding: '6px', border: '1px solid #ddd', borderRadius: '4px' }}>
+                        <option value="student">student</option>
+                        <option value="teacher">teacher</option>
+                        <option value="admin">admin</option>
+                      </select>
+                    ) : (u.role || 'student')}
+                  </td>
+                  <td>
+                    {editingUserId === u.id ? (
+                      <>
+                        <button className="approve-button" disabled={userMgmtLoading} onClick={async () => {
+                          try {
+                            setUserMgmtLoading(true);
+                            await api.updateManagedUserRole(u.id, editingUserRole, editingUserName);
+                            setEditingUserId(null);
+                            await loadData();
+                          } catch (err) {
+                            alert(err.message || 'Failed to update user');
+                          } finally {
+                            setUserMgmtLoading(false);
+                          }
+                        }} style={{ fontSize: '12px', padding: '6px 12px', marginRight: '8px' }}>Save</button>
+                        <button className="logout-button" onClick={() => setEditingUserId(null)} style={{ fontSize: '12px', padding: '6px 12px' }}>Cancel</button>
+                      </>
+                    ) : (
+                      <button
+                        className="approve-button"
+                        disabled={userMgmtLoading || u.email?.toLowerCase() === SUPERADMIN_EMAIL}
+                        onClick={() => {
+                          setEditingUserId(u.id);
+                          setEditingUserRole(u.role || 'student');
+                          setEditingUserName(u.full_name || '');
+                        }}
+                        style={{ fontSize: '12px', padding: '6px 12px' }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {selectedQuestion && (
         <div className="modal-overlay" onClick={() => setSelectedQuestion(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -947,6 +1108,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Question Text:</label>
                 <textarea 
+                  id="question-text"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.question_text || ''}}
                   style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '100px', fontFamily: 'inherit' }}
                   placeholder="Enter question text..."
@@ -957,6 +1119,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Question Type:</label>
                   <select 
+                    id="question-type"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.question_type || 'multiple_choice'}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   >
@@ -985,6 +1148,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>CEFR Level:</label>
                   <select 
+                    id="question-cefr"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.cefr_level || 'A1'}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   >
@@ -997,6 +1161,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Difficulty Score (1-10):</label>
                   <input 
+                    id="question-difficulty"
                     type="number" 
                     min="1" 
                     max="10" 
@@ -1011,6 +1176,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#e3f2fd', borderRadius: '4px', border: '1px solid #90caf9' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>🎵 Audio URL (Listening):</label>
                   <input 
+                    id="question-audio"
                     type="text"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.audio_url || ''}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #90caf9', borderRadius: '4px' }}
@@ -1025,6 +1191,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f3e5f5', borderRadius: '4px', border: '1px solid #ce93d8' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📖 Reading Passage:</label>
                   <textarea 
+                    id="question-passage"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.passage || ''}}
                     style={{ width: '100%', padding: '10px', border: '1px solid #ce93d8', borderRadius: '4px', minHeight: '120px', fontFamily: 'inherit' }}
                     placeholder="Paste the article or passage here for reading comprehension questions..."
@@ -1035,6 +1202,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Answer Options (comma-separated):</label>
                 <input 
+                  id="question-options"
                   type="text"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.options?.join(', ') || ''}}
                   style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
@@ -1045,6 +1213,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Correct Answer:</label>
                 <input 
+                  id="question-correct"
                   type="text"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.correct_answers?.[0] || ''}}
                   style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
@@ -1055,6 +1224,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Explanation:</label>
                 <textarea 
+                  id="question-explanation"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.explanation || ''}}
                   style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '80px', fontFamily: 'inherit' }}
                   placeholder="Explain why this is the correct answer..."
@@ -1069,9 +1239,37 @@ function TeacherDashboard({ user, onLogout }) {
                   Cancel
                 </button>
                 <button 
-                  onClick={() => {
-                    alert('Question saved! To save to database, export and upload via the Python script.');
-                    setSelectedQuestion(null);
+                  onClick={async () => {
+                    try {
+                      const payload = {
+                        question_text: document.getElementById('question-text')?.value?.trim(),
+                        question_type: document.getElementById('question-type')?.value || 'multiple_choice',
+                        skill: selectedQuestion.skill || 'reading',
+                        cefr_level: document.getElementById('question-cefr')?.value || 'A1',
+                        difficulty_score: Number(document.getElementById('question-difficulty')?.value || 5),
+                        audio_url: document.getElementById('question-audio')?.value?.trim() || null,
+                        passage: document.getElementById('question-passage')?.value?.trim() || null,
+                        options: (document.getElementById('question-options')?.value || '').split(',').map(v => v.trim()).filter(Boolean),
+                        correct_answers: [(document.getElementById('question-correct')?.value || '').trim()].filter(Boolean),
+                        explanation: document.getElementById('question-explanation')?.value?.trim() || ''
+                      };
+
+                      if (!payload.question_text || payload.options.length === 0 || payload.correct_answers.length === 0) {
+                        alert('Please fill Question Text, Options, and Correct Answer.');
+                        return;
+                      }
+
+                      if (selectedQuestion.new) {
+                        await api.createQuestion(payload);
+                      } else {
+                        await api.updateQuestion(selectedQuestion.id, payload);
+                      }
+                      await loadData();
+                      setSelectedQuestion(null);
+                      alert('Question saved to database successfully.');
+                    } catch (err) {
+                      alert(err.message || 'Failed to save question.');
+                    }
                   }}
                   style={{ padding: '10px 20px', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                 >
@@ -1176,7 +1374,7 @@ export default function App() {
 
       {!user ? (
         <LoginScreen onLogin={setUser} />
-      ) : user.role === 'teacher' ? (
+      ) : ['teacher', 'admin', 'superadmin'].includes(user.role) ? (
         <TeacherDashboard user={user} onLogout={() => setUser(null)} />
       ) : (
         <StudentTest user={user} onComplete={() => setUser(null)} />
