@@ -98,6 +98,14 @@ const styles = `
 
 // API Helper
 const api = {
+  async parseResponse(response) {
+    const raw = await response.text();
+    try {
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return { error: raw || `HTTP ${response.status}` };
+    }
+  },
   async request(method, path, body = null, authToken = null) {
     const token = authToken || localStorage.getItem('sb-token');
     const headers = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY };
@@ -203,7 +211,7 @@ const api = {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    const data = await response.json();
+    const data = await this.parseResponse(response);
     if (!response.ok) throw new Error(data?.error || 'Unable to load users');
     return data.users || [];
   },
@@ -217,7 +225,7 @@ const api = {
       },
       body: JSON.stringify({ userId, role, fullName, passportId, country })
     });
-    const data = await response.json();
+    const data = await this.parseResponse(response);
     if (!response.ok) throw new Error(data?.error || 'Unable to update role');
     return data;
   },
@@ -231,7 +239,7 @@ const api = {
       },
       body: JSON.stringify(payload)
     });
-    const data = await response.json();
+    const data = await this.parseResponse(response);
     if (!response.ok) throw new Error(data?.error || 'Unable to create user');
     return data;
   },
@@ -245,7 +253,7 @@ const api = {
       },
       body: JSON.stringify({ action: 'send_reset', email })
     });
-    const data = await response.json();
+    const data = await this.parseResponse(response);
     if (!response.ok) throw new Error(data?.error || 'Unable to generate reset link');
     return data;
   },
@@ -259,7 +267,7 @@ const api = {
       },
       body: JSON.stringify({ userId })
     });
-    const data = await response.json();
+    const data = await this.parseResponse(response);
     if (!response.ok) throw new Error(data?.error || 'Unable to delete user');
     return data;
   }
@@ -1263,15 +1271,23 @@ function TeacherDashboard({ user, onLogout }) {
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px' }}>
             <button className="modal-close" onClick={() => setShowAddUserModal(false)}>×</button>
             <h2>Add User</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <input placeholder="Email *" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
-              <input placeholder="Full Name *" value={newUser.fullName} onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })} />
-              <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}><option value="student">student</option><option value="teacher">teacher</option><option value="admin">admin</option></select>
-              <input placeholder="Passport/ID (student only)" value={newUser.passportId} onChange={(e) => setNewUser({ ...newUser, passportId: e.target.value })} />
-              <input placeholder="Country (student only)" value={newUser.country} onChange={(e) => setNewUser({ ...newUser, country: e.target.value })} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <input style={{ padding: '12px', fontSize: '15px' }} placeholder="Email *" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
+              <input style={{ padding: '12px', fontSize: '15px' }} placeholder="Full Name *" value={newUser.fullName} onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })} />
+              <select style={{ padding: '12px', fontSize: '15px' }} value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}><option value="student">student</option><option value="teacher">teacher</option><option value="admin">admin</option></select>
+              {newUser.role === 'student' ? (
+                <input style={{ padding: '12px', fontSize: '15px' }} placeholder="Passport/ID *" value={newUser.passportId} onChange={(e) => setNewUser({ ...newUser, passportId: e.target.value })} />
+              ) : (
+                <div style={{ fontSize: '12px', color: '#666', alignSelf: 'center' }}>Passport/ID not required for {newUser.role}.</div>
+              )}
+              {newUser.role === 'student' ? (
+                <input style={{ padding: '12px', fontSize: '15px' }} placeholder="Country *" value={newUser.country} onChange={(e) => setNewUser({ ...newUser, country: e.target.value })} />
+              ) : (
+                <div style={{ fontSize: '12px', color: '#666', alignSelf: 'center' }}>Country not required for {newUser.role}.</div>
+              )}
               <div />
-              <input type={showPassword ? 'text' : 'password'} placeholder="Password (leave blank = auto)" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} />
-              <input type={showPassword ? 'text' : 'password'} placeholder="Confirm Password" value={newUserPasswordConfirm} onChange={(e) => setNewUserPasswordConfirm(e.target.value)} />
+              <input style={{ padding: '12px', fontSize: '15px' }} type={showPassword ? 'text' : 'password'} placeholder="Password (leave blank = auto)" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} />
+              <input style={{ padding: '12px', fontSize: '15px' }} type={showPassword ? 'text' : 'password'} placeholder="Confirm Password" value={newUserPasswordConfirm} onChange={(e) => setNewUserPasswordConfirm(e.target.value)} />
             </div>
             <div style={{ marginTop: '8px', fontSize: '12px', color: '#666', display: 'flex', justifyContent: 'space-between' }}>
               <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -1286,6 +1302,10 @@ function TeacherDashboard({ user, onLogout }) {
                 try {
                   if (newUserPassword && newUserPassword !== newUserPasswordConfirm) {
                     alert('Password and confirmation do not match.');
+                    return;
+                  }
+                  if (newUser.role === 'student' && (!newUser.passportId.trim() || !newUser.country.trim())) {
+                    alert('Passport/ID and Country are required for student.');
                     return;
                   }
                   const result = await api.createManagedUser({ ...newUser, password: newUserPassword || undefined });
