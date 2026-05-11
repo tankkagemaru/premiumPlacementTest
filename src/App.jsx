@@ -190,6 +190,19 @@ const api = {
   saveTestResult(result) {
     return this.request('POST', '/rest/v1/test_results', result);
   },
+  createTestSession(payload) {
+    return this.request('POST', '/rest/v1/test_sessions', payload);
+  },
+  updateTestSession(id, payload) {
+    return this.request('PATCH', `/rest/v1/test_sessions?id=eq.${id}`, payload);
+  },
+  getStudentResults(userId) {
+    return this.request('GET', `/rest/v1/students?user_id=eq.${userId}&select=id`).then(async (students) => {
+      const studentId = students?.[0]?.id;
+      if (!studentId) return [];
+      return this.request('GET', `/rest/v1/test_results?student_id=eq.${studentId}&select=id,overall_score,determined_cefr_level,is_approved,completed_at,approved_at,teacher_comment,status,attempt_no,official_for_placement&order=completed_at.desc`);
+    });
+  },
   updateTestResult(id, updates) {
     return this.request('PATCH', `/rest/v1/test_results?id=eq.${id}`, updates);
   },
@@ -617,6 +630,22 @@ function StudentTest({ user, onComplete }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [attempts, setAttempts] = useState([]);
+  const [attemptsLoading, setAttemptsLoading] = useState(true);
+  const [sessionId, setSessionId] = useState(null);
+
+  useEffect(() => {
+    const loadAttempts = async () => {
+      try {
+        const data = await api.getStudentResults(user.id);
+        setAttempts(data || []);
+      } catch {
+        setAttempts([]);
+      }
+      setAttemptsLoading(false);
+    };
+    loadAttempts();
+  }, [user.id]);
 
   useEffect(() => {
     if (testState !== 'testing') return;
@@ -626,11 +655,7 @@ function StudentTest({ user, onComplete }) {
     return () => clearInterval(interval);
   }, [testState]);
 
-  useEffect(() => {
-    if (testStarted && questionsBank.length === 0) loadQuestions();
-  }, [testStarted, questionsBank.length]);
-
-  const loadQuestions = async () => {
+  const loadQuestions = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -647,12 +672,38 @@ function StudentTest({ user, onComplete }) {
       setQuestionStartTime(Date.now()); // Start timing this question
       setCurrentDifficulty(randomStart.difficulty_score || 5);
       setTestState('testing');
+
+      // Create test session record (best effort)
+      try {
+        const studentData = await api.request('GET', `/rest/v1/students?user_id=eq.${user.id}&select=id`);
+        const studentId = studentData?.[0]?.id || user.id;
+        const sessionInsert = await api.createTestSession({
+          student_id: studentId,
+          started_at: new Date().toISOString(),
+          status: 'in_progress'
+        });
+        if (Array.isArray(sessionInsert) && sessionInsert[0]?.id) {
+          setSessionId(sessionInsert[0].id);
+        } else {
+          const latestSession = await api.request(
+            'GET',
+            `/rest/v1/test_sessions?student_id=eq.${studentId}&order=started_at.desc&limit=1&select=id`
+          );
+          if (latestSession?.[0]?.id) setSessionId(latestSession[0].id);
+        }
+      } catch (err) {
+        console.warn('Unable to create test session record:', err);
+      }
     } catch (err) {
       setError('Error loading questions.');
       setTestStarted(false);
     }
     setLoading(false);
-  };
+  }, [user.id]);
+
+  useEffect(() => {
+    if (testStarted && questionsBank.length === 0) loadQuestions();
+  }, [testStarted, questionsBank.length, loadQuestions]);
 
   const handleAnswer = async (selectedAnswer) => {
     if (!currentQuestion || !questionStartTime) return;
@@ -710,7 +761,39 @@ function StudentTest({ user, onComplete }) {
             is_approved: false,
             student_responses: JSON.stringify(responses)
           };
-          await api.saveTestResult(resultData);
+          try {
+            await api.saveTestResult(resultData);
+          } catch (primaryErr) {
+            // Fallback for older schemas missing newer columns
+            const fallbackResultData = {
+              student_id: studentId,
+              student_name: user.email,
+              student_passport: 'N/A',
+              overall_score: score,
+              determined_cefr_level: cefrLevel,
+              completed_at: new Date().toISOString(),
+              notes: `Completed 30 questions. Score: ${score.toFixed(1)}%. Time: ${formatTime(elapsedTime)}`,
+              is_approved: false,
+              student_responses: JSON.stringify(responses)
+            };
+            await api.saveTestResult(fallbackResultData);
+            console.warn('Saved result via fallback schema:', primaryErr);
+          }
+
+          // Update session record (best effort)
+          if (sessionId) {
+            try {
+              await api.updateTestSession(sessionId, {
+                ended_at: new Date().toISOString(),
+                status: 'completed',
+                total_questions_answered: responses.length,
+                score: score,
+                determined_cefr_level: cefrLevel
+              });
+            } catch (err) {
+              console.warn('Unable to update test session:', err);
+            }
+          }
           return true;
         } catch (err) {
           console.error(`Attempt ${attempt} failed:`, err);
@@ -722,16 +805,56 @@ function StudentTest({ user, onComplete }) {
       return false;
     };
 
-    saveTestResult();
+    await saveTestResult();
   };
 
   const progressPercentage = (userResponses.length / 30) * 100;
 
   if (!testStarted) {
+    const approvedAttempts = attempts.filter(a => a.is_approved);
+    const hasPendingReview = attempts.some(a => !a.is_approved);
+    const canStartFirstAttempt = attempts.length === 0;
+    const canStart = canStartFirstAttempt; // retake requires manual teacher approval flow
+
     return (
       <div className="test-screen">
         <div className="test-intro">
           <h1>English Level Assessment</h1>
+          {attemptsLoading ? (
+            <p className="description">Loading your attempt history...</p>
+          ) : (
+            <div style={{ marginBottom: '20px', textAlign: 'left', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '6px' }}>
+              <h3 style={{ marginBottom: '10px', color: '#CC0000' }}>Approved Attempts</h3>
+              {approvedAttempts.length === 0 ? (
+                <p style={{ fontSize: '14px', color: '#666' }}>No approved attempts yet.</p>
+              ) : (
+                <table className="results-table">
+                  <thead>
+                    <tr><th>Date</th><th>Score</th><th>CEFR</th></tr>
+                  </thead>
+                  <tbody>
+                    {approvedAttempts.map(a => (
+                      <tr key={a.id}>
+                        <td>{new Date(a.approved_at || a.completed_at).toLocaleDateString()}</td>
+                        <td>{a.overall_score?.toFixed?.(1) || a.overall_score}%</td>
+                        <td>{a.determined_cefr_level}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {hasPendingReview && (
+                <p style={{ marginTop: '10px', color: '#ff9800', fontSize: '13px' }}>
+                  You have a pending attempt under teacher review. New attempts are locked.
+                </p>
+              )}
+              {!canStart && !hasPendingReview && (
+                <p style={{ marginTop: '10px', color: '#666', fontSize: '13px' }}>
+                  Retake requires manual teacher approval.
+                </p>
+              )}
+            </div>
+          )}
           <p className="description">Discover your CEFR level with our adaptive placement test. The test adjusts to your ability level and typically takes 15-20 minutes.</p>
           <div className="test-info">
             <h3>What you'll be tested on:</h3>
@@ -742,7 +865,7 @@ function StudentTest({ user, onComplete }) {
               <div>✓ Adaptive Difficulty</div>
             </div>
           </div>
-          <button className="primary-button" onClick={() => setTestStarted(true)} disabled={loading}>
+          <button className="primary-button" onClick={() => setTestStarted(true)} disabled={loading || attemptsLoading || !canStart}>
             {loading ? 'Loading...' : 'BEGIN ASSESSMENT →'}
           </button>
           {error && <div className="error-message">{error}</div>}
