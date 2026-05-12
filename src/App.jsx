@@ -1015,6 +1015,8 @@ function TeacherDashboard({ user, onLogout }) {
   const [newRegCode, setNewRegCode] = useState('');
   const [newRegMaxUses, setNewRegMaxUses] = useState('0');
   const [newRegExpiry, setNewRegExpiry] = useState('');
+  const [showCreateCodeModal, setShowCreateCodeModal] = useState(false);
+  const [registrationCodeError, setRegistrationCodeError] = useState('');
   const [managedUsers, setManagedUsers] = useState([]);
   const [userMgmtLoading, setUserMgmtLoading] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
@@ -1057,8 +1059,10 @@ function TeacherDashboard({ user, onLogout }) {
         try {
           const codes = await api.getRegistrationCodes();
           setRegistrationCodes(codes);
+          setRegistrationCodeError('');
         } catch (err) {
           console.error('Unable to load registration codes:', err);
+          setRegistrationCodeError(err.message || 'Unable to load registration codes.');
         }
       }
     } catch (err) {
@@ -1317,23 +1321,17 @@ function TeacherDashboard({ user, onLogout }) {
       {activeTab === 'codes' && (
         <div className="tab-content">
           <h3 style={{ marginBottom: 12 }}>Teacher/Admin Registration Codes</h3>
+          {registrationCodeError && (
+            <div className="error-message" style={{ marginBottom: 12 }}>
+              {registrationCodeError}
+              <div style={{ marginTop: 8, fontSize: 12 }}>
+                Setup required: run migration <code>db/migrations/002_registration_codes.sql</code> in Supabase SQL editor.
+              </div>
+            </div>
+          )}
           <div className="dashboard-toolbar">
-            <input className="dashboard-search" placeholder="Code (e.g. MAY2026A)" value={newRegCode} onChange={(e) => setNewRegCode(e.target.value.toUpperCase())} />
-            <input className="dashboard-search" style={{ maxWidth: 160 }} placeholder="Max uses" value={newRegMaxUses} onChange={(e) => setNewRegMaxUses(e.target.value)} />
-            <input className="dashboard-search" style={{ maxWidth: 220 }} type="datetime-local" value={newRegExpiry} onChange={(e) => setNewRegExpiry(e.target.value)} />
-            <button className="approve-button" onClick={async () => {
-              try {
-                if (!newRegCode.trim()) return;
-                await api.createRegistrationCode({ code: newRegCode.trim(), maxUses: Number(newRegMaxUses || 0), expiresAt: newRegExpiry || null });
-                setNewRegCode('');
-                setNewRegMaxUses('0');
-                setNewRegExpiry('');
-                const codes = await api.getRegistrationCodes();
-                setRegistrationCodes(codes);
-              } catch (err) {
-                alert(err.message || 'Unable to create code');
-              }
-            }}>+ Create Code</button>
+            <span className="status-chip approved">Active codes: {registrationCodes.filter(c => c.is_active).length}</span>
+            <button className="approve-button" onClick={() => setShowCreateCodeModal(true)}>+ Create Code</button>
           </div>
 
           <div className="table-wrap"><table className="results-table">
@@ -1360,6 +1358,38 @@ function TeacherDashboard({ user, onLogout }) {
               ))}
             </tbody>
           </table></div>
+        </div>
+      )}
+
+      {showCreateCodeModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateCodeModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowCreateCodeModal(false)}>×</button>
+            <h2>Create Registration Code</h2>
+            <div className="modal-section">
+              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Code</label>
+              <input className="dashboard-search" style={{ maxWidth: '100%' }} placeholder="e.g. MAY2026A" value={newRegCode} onChange={(e) => setNewRegCode(e.target.value.toUpperCase())} />
+              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Max Uses (0 = unlimited)</label>
+              <input className="dashboard-search" style={{ maxWidth: '100%' }} placeholder="0" value={newRegMaxUses} onChange={(e) => setNewRegMaxUses(e.target.value)} />
+              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Expiry (optional)</label>
+              <input className="dashboard-search" style={{ maxWidth: '100%' }} type="datetime-local" value={newRegExpiry} onChange={(e) => setNewRegExpiry(e.target.value)} />
+            </div>
+            <button className="primary-button" onClick={async () => {
+              try {
+                if (!newRegCode.trim()) throw new Error('Code is required');
+                await api.createRegistrationCode({ code: newRegCode.trim(), maxUses: Number(newRegMaxUses || 0), expiresAt: newRegExpiry || null });
+                setNewRegCode('');
+                setNewRegMaxUses('0');
+                setNewRegExpiry('');
+                setShowCreateCodeModal(false);
+                const codes = await api.getRegistrationCodes();
+                setRegistrationCodes(codes);
+                setRegistrationCodeError('');
+              } catch (err) {
+                setRegistrationCodeError(err.message || 'Unable to create code');
+              }
+            }}>Create Code</button>
+          </div>
         </div>
       )}
 
