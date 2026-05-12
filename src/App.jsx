@@ -122,6 +122,7 @@ const styles = `
 const api = {
   _runtimeConfigPromise: null,
   _resolvedConfig: null,
+  _runtimeConfigError: null,
   async resolveSupabaseConfig() {
     if (this._resolvedConfig) return this._resolvedConfig;
 
@@ -136,11 +137,12 @@ const api = {
     }
 
     if (!this._runtimeConfigPromise) {
-      this._runtimeConfigPromise = fetch('/api/runtime-config')
+      const runtimeConfigUrl = `${window.location.origin}/api/runtime-config`;
+      this._runtimeConfigPromise = fetch(runtimeConfigUrl, { cache: 'no-store' })
         .then(async (response) => {
           const payload = await this.parseResponse(response);
           if (!response.ok) {
-            throw new Error(payload?.error || 'Unable to load runtime config');
+            throw new Error(payload?.error || `Unable to load runtime config (${response.status})`);
           }
           return {
             url: payload.supabaseUrl || localConfig.url,
@@ -149,6 +151,7 @@ const api = {
         })
         .catch((error) => {
           console.error('Runtime config error:', error);
+          this._runtimeConfigError = error;
           return localConfig;
         });
     }
@@ -167,7 +170,12 @@ const api = {
   async request(method, path, body = null, authToken = null) {
     const config = await this.resolveSupabaseConfig();
     if (!config?.url) throw new Error('Missing Supabase URL env (REACT_APP_SUPABASE_URL or SUPABASE_URL).');
-    if (!config?.key) throw new Error('Missing Supabase anon key env (REACT_APP_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY).');
+    if (!config?.key) {
+      const runtimeError = this._runtimeConfigError?.message
+        ? ` Runtime config endpoint error: ${this._runtimeConfigError.message}.`
+        : '';
+      throw new Error(`Missing Supabase anon key env (REACT_APP_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY).${runtimeError}`);
+    }
     const token = authToken || localStorage.getItem('sb-token');
     const headers = { 'Content-Type': 'application/json', 'apikey': config.key };
     if (token) headers['Authorization'] = `Bearer ${token}`;
