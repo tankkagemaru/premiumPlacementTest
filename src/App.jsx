@@ -120,6 +120,42 @@ const styles = `
 
 // API Helper
 const api = {
+  _runtimeConfigPromise: null,
+  _resolvedConfig: null,
+  async resolveSupabaseConfig() {
+    if (this._resolvedConfig) return this._resolvedConfig;
+
+    const localConfig = {
+      url: SUPABASE_URL,
+      key: SUPABASE_KEY
+    };
+
+    if (localConfig.url && localConfig.key) {
+      this._resolvedConfig = localConfig;
+      return this._resolvedConfig;
+    }
+
+    if (!this._runtimeConfigPromise) {
+      this._runtimeConfigPromise = fetch('/api/runtime-config')
+        .then(async (response) => {
+          const payload = await this.parseResponse(response);
+          if (!response.ok) {
+            throw new Error(payload?.error || 'Unable to load runtime config');
+          }
+          return {
+            url: payload.supabaseUrl || localConfig.url,
+            key: payload.supabaseAnonKey || localConfig.key
+          };
+        })
+        .catch((error) => {
+          console.error('Runtime config error:', error);
+          return localConfig;
+        });
+    }
+
+    this._resolvedConfig = await this._runtimeConfigPromise;
+    return this._resolvedConfig;
+  },
   async parseResponse(response) {
     const raw = await response.text();
     try {
@@ -129,15 +165,16 @@ const api = {
     }
   },
   async request(method, path, body = null, authToken = null) {
-    if (!SUPABASE_URL) throw new Error('Missing Supabase URL env (REACT_APP_SUPABASE_URL or SUPABASE_URL).');
-    if (!SUPABASE_KEY) throw new Error('Missing Supabase anon key env (REACT_APP_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY).');
+    const config = await this.resolveSupabaseConfig();
+    if (!config?.url) throw new Error('Missing Supabase URL env (REACT_APP_SUPABASE_URL or SUPABASE_URL).');
+    if (!config?.key) throw new Error('Missing Supabase anon key env (REACT_APP_SUPABASE_ANON_KEY or SUPABASE_ANON_KEY).');
     const token = authToken || localStorage.getItem('sb-token');
-    const headers = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY };
+    const headers = { 'Content-Type': 'application/json', 'apikey': config.key };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const options = { method, headers };
     if (body) options.body = JSON.stringify(body);
     try {
-      const response = await fetch(`${SUPABASE_URL}${path}`, options);
+      const response = await fetch(`${config.url}${path}`, options);
       if (!response.ok) {
         const error = await response.text();
         console.error('API Error:', response.status, error);
