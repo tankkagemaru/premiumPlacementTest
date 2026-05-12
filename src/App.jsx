@@ -79,8 +79,8 @@ const styles = `
   .timer-display { font-size: 24px; font-weight: bold; color: #cc6600; font-family: 'Courier New', monospace; }
   .test-intro { background: var(--bg-card); padding: 40px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); text-align: center; }
   .test-intro h1 { color: var(--brand-500); margin-bottom: 20px; }
-  .description { color: #666; margin-bottom: 30px; line-height: 1.6; }
-  .test-info { background-color: #f9f9f9; border: 2px dashed #CC0000; padding: 20px; margin-bottom: 30px; border-radius: 4px; }
+  .description { color: var(--text-muted); margin-bottom: 30px; line-height: 1.6; }
+  .test-info { background-color: var(--bg-app); border: 2px dashed #CC0000; padding: 20px; margin-bottom: 30px; border-radius: 4px; }
   .test-info h3 { color: #CC0000; margin-bottom: 15px; text-align: left; }
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
   .info-grid div { padding: 8px; font-size: 14px; }
@@ -92,7 +92,7 @@ const styles = `
   .option-button { padding: 12px; border: 2px solid #ddd; background: white; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
   .option-button:hover { border-color: #CC0000; background-color: #fff5f5; }
   .results { background: var(--bg-card); padding: 40px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); text-align: center; }
-  .results h2 { margin-bottom: 30px; color: #333; }
+  .results h2 { margin-bottom: 30px; color: var(--text-primary); }
   .pending-box { background-color: #fff9e6; border: 2px solid #ffc107; padding: 30px; border-radius: 4px; margin-bottom: 30px; }
   .pending-box h3 { color: #ff9800; margin-bottom: 15px; font-size: 20px; }
   .pending-box p { color: #666; margin-bottom: 10px; line-height: 1.6; }
@@ -282,9 +282,7 @@ const api = {
     } catch { return 'student'; }
   },
   getAllQuestions() {
-    return fetch(`${SUPABASE_URL}/rest/v1/questions?select=*&limit=500`, {
-      headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${localStorage.getItem('sb-token')}` }
-    }).then(r => r.json()).catch(() => []);
+    return this.request('GET', '/rest/v1/questions?select=*&limit=800').catch(() => []);
   },
   saveTestResult(result) {
     return this.request('POST', '/rest/v1/test_results', result);
@@ -677,7 +675,7 @@ function LoginScreen({ onLogin }) {
       </div>
 
       {/* Footer - Copyright & Disclaimer */}
-      <footer style={{ backgroundColor: '#f0f0f0', borderTop: '1px solid #ddd', padding: '20px', textAlign: 'center', fontSize: '12px', color: '#666', marginTop: '20px' }}>
+      <footer style={{ backgroundColor: '#f0f0f0', borderTop: '1px solid #ddd', padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)', marginTop: '20px' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <p style={{ margin: '10px 0' }}>
             <strong>© 2024 Premium Language Centre. All rights reserved.</strong>
@@ -899,10 +897,10 @@ function StudentTest({ user, onComplete }) {
           {attemptsLoading ? (
             <p className="description">Loading your attempt history...</p>
           ) : (
-            <div style={{ marginBottom: '20px', textAlign: 'left', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '6px' }}>
+            <div style={{ marginBottom: '20px', textAlign: 'left', backgroundColor: 'var(--bg-card)', padding: '15px', borderRadius: '6px' }}>
               <h3 style={{ marginBottom: '10px', color: '#CC0000' }}>Approved Attempts</h3>
               {approvedAttempts.length === 0 ? (
-                <p style={{ fontSize: '14px', color: '#666' }}>No approved attempts yet.</p>
+                <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>No approved attempts yet.</p>
               ) : (
                 <table className="results-table">
                   <thead>
@@ -1459,111 +1457,6 @@ function TeacherDashboard({ user, onLogout }) {
         </div>
       )}
 
-      {activeTab === 'codes' && (
-        <div className="tab-content">
-          <h3 style={{ marginBottom: 12 }}>Teacher/Admin Registration Codes</h3>
-          {registrationCodeError && (
-            <div className="error-message" style={{ marginBottom: 12 }}>
-              {registrationCodeError}
-              <div style={{ marginTop: 8, fontSize: 12 }}>
-                Setup required: run migration <code>db/migrations/002_registration_codes.sql</code> in Supabase SQL editor.
-              </div>
-            </div>
-          )}
-          <div className="dashboard-toolbar">
-            <span className="status-chip approved">Active codes: {registrationCodes.filter(c => c.is_active).length}</span>
-            <button className="approve-button" onClick={() => setShowCreateCodeModal(true)}>+ Create Code</button>
-          </div>
-
-          <div className="table-wrap"><table className="results-table">
-            <thead>
-              <tr>
-                <th>Code</th><th>Created By</th><th>Used</th><th>Max</th><th>Expires</th><th>Status</th><th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {registrationCodes.map((c) => (
-                <tr key={c.id}>
-                  <td><strong>{c.code}</strong></td>
-                  <td>{c.creator?.full_name || c.creator?.email || '-'}</td>
-                  <td>
-                    <button className="link-button" onClick={async () => {
-                      try {
-                        const usage = await api.getRegistrationCodeUsage(c.id);
-                        setUsageRows(usage);
-                        setUsageCodeLabel(c.code);
-                        setShowUsageModal(true);
-                      } catch (err) {
-                        setRegistrationCodeError(err.message || 'Unable to load usage history');
-                      }
-                    }}>{c.used_count || 0}</button>
-                  </td>
-                  <td>{c.max_uses || 0}</td>
-                  <td>{c.expires_at ? new Date(c.expires_at).toLocaleString() : 'No expiry'}</td>
-                  <td><span className={`status-chip ${c.is_active ? 'approved' : 'pending'}`}>{c.is_active ? 'Active' : 'Inactive'}</span></td>
-                  <td><button className="approve-button" onClick={async () => {
-                    await api.toggleRegistrationCode(c.id, !c.is_active);
-                    const codes = await api.getRegistrationCodes();
-                    setRegistrationCodes(codes);
-                  }}>{c.is_active ? 'Disable' : 'Enable'}</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table></div>
-        </div>
-      )}
-
-      {showCreateCodeModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateCodeModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowCreateCodeModal(false)}>×</button>
-            <h2>Create Registration Code</h2>
-            <div className="modal-section">
-              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Code</label>
-              <input className="dashboard-search" style={{ maxWidth: '100%' }} placeholder="e.g. MAY2026A" value={newRegCode} onChange={(e) => setNewRegCode(e.target.value.toUpperCase())} />
-              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Max Uses (0 = unlimited)</label>
-              <input className="dashboard-search" style={{ maxWidth: '100%' }} placeholder="0" value={newRegMaxUses} onChange={(e) => setNewRegMaxUses(e.target.value)} />
-              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Expiry (optional)</label>
-              <input className="dashboard-search" style={{ maxWidth: '100%' }} type="datetime-local" value={newRegExpiry} onChange={(e) => setNewRegExpiry(e.target.value)} />
-            </div>
-            <button className="primary-button" onClick={async () => {
-              try {
-                if (!newRegCode.trim()) throw new Error('Code is required');
-                await api.createRegistrationCode({ code: newRegCode.trim(), maxUses: Number(newRegMaxUses || 0), expiresAt: newRegExpiry || null });
-                setNewRegCode('');
-                setNewRegMaxUses('0');
-                setNewRegExpiry('');
-                setShowCreateCodeModal(false);
-                const codes = await api.getRegistrationCodes();
-                setRegistrationCodes(codes);
-                setRegistrationCodeError('');
-              } catch (err) {
-                setRegistrationCodeError(err.message || 'Unable to create code');
-              }
-            }}>Create Code</button>
-          </div>
-        </div>
-      )}
-
-      {showUsageModal && (
-        <div className="modal-overlay" onClick={() => setShowUsageModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={() => setShowUsageModal(false)}>×</button>
-            <h2>Usage History: {usageCodeLabel}</h2>
-            {usageRows.length === 0 ? <p>No usage records yet.</p> : (
-              <div className="table-wrap"><table className="results-table">
-                <thead><tr><th>Email</th><th>Used At</th></tr></thead>
-                <tbody>
-                  {usageRows.map((u) => (
-                    <tr key={u.id}><td>{u.used_email || '-'}</td><td>{new Date(u.used_at).toLocaleString()}</td></tr>
-                  ))}
-                </tbody>
-              </table></div>
-            )}
-          </div>
-        </div>
-      )}
-
       {activeTab === 'questions' && (
         <div className="tab-content">
           <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1591,7 +1484,7 @@ function TeacherDashboard({ user, onLogout }) {
           </div>
 
           {/* Search and Filter Controls */}
-          <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f9f9f9', borderRadius: '4px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+          <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: 'var(--bg-card)', borderRadius: '4px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
             <div>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '12px' }}>Search Questions:</label>
               <input 
@@ -1681,7 +1574,7 @@ function TeacherDashboard({ user, onLogout }) {
       {activeTab === 'admins' && isSuperAdmin && (
         <div className="tab-content">
           <h3>Super Admin User Role Management</h3>
-          <p style={{ fontSize: '13px', color: '#666', marginBottom: '15px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '15px' }}>
             Promote users to admin or revert to student. Admin self-signup remains disabled.
           </p>
           {adminError && (
@@ -1706,7 +1599,7 @@ function TeacherDashboard({ user, onLogout }) {
             <tbody>
               {managedUsers.length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', color: '#666', padding: '16px' }}>
+                  <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px' }}>
                     No users loaded. Check Admin API configuration or Supabase permissions.
                   </td>
                 </tr>
@@ -1807,18 +1700,18 @@ function TeacherDashboard({ user, onLogout }) {
               {newUser.role === 'student' ? (
                 <input style={{ padding: '12px', fontSize: '15px' }} placeholder="Passport/ID *" value={newUser.passportId} onChange={(e) => setNewUser({ ...newUser, passportId: e.target.value })} />
               ) : (
-                <div style={{ fontSize: '12px', color: '#666', alignSelf: 'center' }}>Passport/ID not required for {newUser.role}.</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', alignSelf: 'center' }}>Passport/ID not required for {newUser.role}.</div>
               )}
               {newUser.role === 'student' ? (
                 <input style={{ padding: '12px', fontSize: '15px' }} placeholder="Country *" value={newUser.country} onChange={(e) => setNewUser({ ...newUser, country: e.target.value })} />
               ) : (
-                <div style={{ fontSize: '12px', color: '#666', alignSelf: 'center' }}>Country not required for {newUser.role}.</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', alignSelf: 'center' }}>Country not required for {newUser.role}.</div>
               )}
               <div />
               <input style={{ padding: '12px', fontSize: '15px' }} type={showPassword ? 'text' : 'password'} placeholder="Password (leave blank = auto)" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} />
               <input style={{ padding: '12px', fontSize: '15px' }} type={showPassword ? 'text' : 'password'} placeholder="Confirm Password" value={newUserPasswordConfirm} onChange={(e) => setNewUserPasswordConfirm(e.target.value)} />
             </div>
-            <div style={{ marginTop: '8px', fontSize: '12px', color: '#666', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
               <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} />
                 Show passwords
@@ -1944,7 +1837,7 @@ function TeacherDashboard({ user, onLogout }) {
                     style={{ width: '100%', padding: '8px', border: '1px solid #90caf9', borderRadius: '4px' }}
                     placeholder="https://example.com/audio.mp3"
                   />
-                  <p style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>Link to the audio file for this listening question</p>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '5px' }}>Link to the audio file for this listening question</p>
                 </div>
               )}
 
