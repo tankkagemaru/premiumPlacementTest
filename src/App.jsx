@@ -31,6 +31,20 @@ const styles = `
     --border-soft: #374151;
     --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.5);
   }
+  [data-theme='dark'] .login-brand-panel {
+    background: #111827;
+    border-right-color: #374151;
+  }
+  [data-theme='dark'] .brand-title { color: #f3f4f6; }
+  [data-theme='dark'] .brand-pill { background: #0b1220; color: #e5e7eb; border-color: #374151; }
+  [data-theme='dark'] .login-box input,
+  [data-theme='dark'] .login-box select {
+    background: #111827;
+    color: #e5e7eb;
+    border-color: #374151;
+  }
+  [data-theme='dark'] .auth-chip.active { background: #1f2937; color: #f3f4f6; }
+  [data-theme='dark'] .auth-mode-switch { background: #0b1220; border-color: #374151; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: var(--bg-app); color: var(--text-primary); }
   .app { min-height: 100vh; background-color: var(--bg-app); }
@@ -282,7 +296,18 @@ const api = {
     } catch { return 'student'; }
   },
   getAllQuestions() {
-    return this.request('GET', '/rest/v1/questions?select=*&limit=800').catch(() => []);
+    return this.request('GET', '/rest/v1/questions?select=*&limit=800').then((rows) => {
+      const list = Array.isArray(rows) ? rows : [];
+      return list.map((q) => ({
+        ...q,
+        difficulty_score: Number(q.difficulty_score ?? q.difficulty ?? 5),
+        options: Array.isArray(q.options)
+          ? q.options
+          : typeof q.options === 'string'
+            ? q.options.split(',').map((v) => v.trim()).filter(Boolean)
+            : []
+      }));
+    });
   },
   saveTestResult(result) {
     return this.request('POST', '/rest/v1/test_results', result);
@@ -607,7 +632,7 @@ function LoginScreen({ onLogin }) {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-app)' }}>
       <div className="login-container" style={{ flex: 1 }}>
         <div className="login-shell">
           <div className="login-brand-panel">
@@ -675,7 +700,7 @@ function LoginScreen({ onLogin }) {
       </div>
 
       {/* Footer - Copyright & Disclaimer */}
-      <footer style={{ backgroundColor: '#f0f0f0', borderTop: '1px solid #ddd', padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)', marginTop: '20px' }}>
+      <footer style={{ backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-soft)', padding: '20px', textAlign: 'center', fontSize: '12px', color: 'var(--text-muted)', marginTop: '20px' }}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <p style={{ margin: '10px 0' }}>
             <strong>© 2024 Premium Language Centre. All rights reserved.</strong>
@@ -770,7 +795,7 @@ function StudentTest({ user, onComplete }) {
         console.warn('Unable to create test session record:', err);
       }
     } catch (err) {
-      setError('Error loading questions.');
+      setError(`Error loading questions: ${err?.message || 'unknown error'}`);
       setTestStarted(false);
     }
     setLoading(false);
