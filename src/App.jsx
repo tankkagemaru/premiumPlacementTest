@@ -1,27 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
-const REGISTRATION_CODE = 'PREMIUM2024';
+const SUPERADMIN_EMAIL = 'mrosani22@premium.edu.my';
 const COMPANY_NAME = 'Premium Language Centre';
 const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/plc-logo.png';
 
 const styles = `
+  :root {
+    --bg-app: #f3f5f9;
+    --bg-card: #ffffff;
+    --text-primary: #1f2937;
+    --text-muted: #6b7280;
+    --border-soft: #e5e7eb;
+    --shadow-soft: 0 8px 30px rgba(15, 23, 42, 0.08);
+    --brand-500: #CC0000;
+    --brand-700: #990000;
+    --radius-md: 10px;
+    --radius-sm: 6px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: #f5f5f5; }
-  .app { min-height: 100vh; background-color: #f5f5f5; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: var(--bg-app); color: var(--text-primary); }
+  .app { min-height: 100vh; background-color: var(--bg-app); }
+  .card-surface { background: var(--bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
   .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 10px 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 70px; }
   .header-logo { height: 40px; width: auto; object-fit: contain; flex-shrink: 0; margin-top: 0; }
   .header-content { flex: 1; text-align: center; padding: 0; }
   .header h1 { font-size: 26px; margin: 0; margin-bottom: 2px; }
   .subtitle { font-size: 12px; opacity: 0.95; margin: 0; }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
-  .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
-  .login-box h1 { color: #CC0000; font-size: 24px; margin-bottom: 10px; }
-  .login-box input, .login-box select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+  .login-box { background: var(--bg-card); padding: 40px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+  .login-box h1 { color: var(--brand-500); font-size: 24px; margin-bottom: 10px; }
+  .login-box input, .login-box select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); font-size: 14px; }
   .login-box input:focus, .login-box select:focus { outline: none; border-color: #CC0000; box-shadow: 0 0 5px rgba(204, 0, 0, 0.2); }
-  .primary-button { width: 100%; padding: 12px; background-color: #CC0000; color: white; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
-  .primary-button:hover { background-color: #990000; }
+  .primary-button { width: 100%; padding: 12px; background-color: var(--brand-500); color: white; border: none; border-radius: var(--radius-sm); font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
+  .primary-button:hover { background-color: var(--brand-700); }
   .primary-button:disabled { opacity: 0.6; cursor: not-allowed; }
   .error-message { background-color: #fee; color: #c00; padding: 12px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
   .code-label { font-size: 12px; color: #ff9800; margin-bottom: 5px; display: block; }
@@ -31,7 +48,7 @@ const styles = `
   .toggle-auth { text-align: center; margin-top: 20px; font-size: 14px; }
   .link-button { background: none; border: none; color: #CC0000; cursor: pointer; text-decoration: underline; margin-left: 5px; }
   .test-screen { max-width: 900px; margin: 0 auto; padding: 20px; }
-  .test-header { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  .test-header { background: var(--bg-card); padding: 15px; border-radius: var(--radius-md); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
   .progress-tracker { flex: 1; }
   .progress-title { font-size: 12px; color: #666; font-weight: bold; margin-bottom: 8px; }
   .progress-bar { background-color: #e0e0e0; border-radius: 10px; height: 30px; overflow: hidden; margin-bottom: 5px; }
@@ -40,42 +57,42 @@ const styles = `
   .timer-box { background-color: #fff9e6; border: 2px solid #ffc107; padding: 12px 20px; border-radius: 6px; text-align: center; }
   .timer-label { font-size: 11px; color: #ff9800; font-weight: bold; margin-bottom: 3px; }
   .timer-display { font-size: 24px; font-weight: bold; color: #cc6600; font-family: 'Courier New', monospace; }
-  .test-intro { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
-  .test-intro h1 { color: #CC0000; margin-bottom: 20px; }
+  .test-intro { background: var(--bg-card); padding: 40px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); text-align: center; }
+  .test-intro h1 { color: var(--brand-500); margin-bottom: 20px; }
   .description { color: #666; margin-bottom: 30px; line-height: 1.6; }
   .test-info { background-color: #f9f9f9; border: 2px dashed #CC0000; padding: 20px; margin-bottom: 30px; border-radius: 4px; }
   .test-info h3 { color: #CC0000; margin-bottom: 15px; text-align: left; }
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
   .info-grid div { padding: 8px; font-size: 14px; }
   .disclaimer { color: #999; font-size: 12px; margin-top: 20px; }
-  .question-box { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+  .question-box { background: var(--bg-card); padding: 30px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
   .question-box h3 { margin-bottom: 20px; color: #333; line-height: 1.6; }
   .passage { background-color: #f9f9f9; padding: 15px; border-left: 4px solid #CC0000; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
   .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .option-button { padding: 12px; border: 2px solid #ddd; background: white; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
   .option-button:hover { border-color: #CC0000; background-color: #fff5f5; }
-  .results { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }
+  .results { background: var(--bg-card); padding: 40px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); text-align: center; }
   .results h2 { margin-bottom: 30px; color: #333; }
   .pending-box { background-color: #fff9e6; border: 2px solid #ffc107; padding: 30px; border-radius: 4px; margin-bottom: 30px; }
   .pending-box h3 { color: #ff9800; margin-bottom: 15px; font-size: 20px; }
   .pending-box p { color: #666; margin-bottom: 10px; line-height: 1.6; }
   .dashboard { max-width: 1200px; margin: 0 auto; padding: 20px; }
-  .dashboard-header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-  .dashboard-header h1 { color: #CC0000; margin: 0; }
+  .dashboard-header { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 20px; border-radius: var(--radius-md); margin-bottom: 20px; box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
+  .dashboard-header h1 { color: var(--brand-500); margin: 0; }
   .header-actions { display: flex; gap: 20px; align-items: center; }
-  .logout-button { padding: 10px 20px; background-color: #CC0000; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-  .logout-button:hover { background-color: #990000; }
+  .logout-button { padding: 10px 20px; background-color: var(--brand-500); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: bold; }
+  .logout-button:hover { background-color: var(--brand-700); }
   .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-  .tab { padding: 10px 20px; background: white; border: 2px solid #ddd; border-radius: 4px; cursor: pointer; font-weight: bold; transition: all 0.3s; }
-  .tab.active { background-color: #CC0000; color: white; border-color: #CC0000; }
-  .tab-content { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+  .tab { padding: 10px 20px; background: var(--bg-card); border: 2px solid var(--border-soft); border-radius: var(--radius-sm); cursor: pointer; font-weight: bold; transition: all 0.3s; }
+  .tab.active { background-color: var(--brand-500); color: white; border-color: var(--brand-500); }
+  .tab-content { background: var(--bg-card); padding: 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
   .results-table { width: 100%; border-collapse: collapse; }
   .results-table th { background-color: #f5f5f5; padding: 12px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd; }
   .results-table td { padding: 12px; border-bottom: 1px solid #ddd; }
   .results-table tr:hover { background-color: #f9f9f9; }
   .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-  .modal { background: white; padding: 30px; border-radius: 8px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; }
-  .modal h2 { color: #CC0000; margin-bottom: 20px; }
+  .modal { background: var(--bg-card); padding: 30px; border-radius: var(--radius-md); max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; border: 1px solid var(--border-soft); box-shadow: var(--shadow-soft); }
+  .modal h2 { color: var(--brand-500); margin-bottom: 20px; }
   .modal-section { margin-bottom: 20px; }
   .modal-section h3 { color: #333; margin-bottom: 10px; font-size: 16px; }
   .modal-close { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
@@ -84,6 +101,7 @@ const styles = `
   .question-wrong { border-left: 4px solid #f44336; }
   .correct-badge { color: #4caf50; font-weight: bold; }
   .wrong-badge { color: #f44336; font-weight: bold; }
+  .notranslate { translate: no; }
   .approve-button { padding: 10px 20px; background-color: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
   .approve-button:hover { background-color: #45a049; }
   .textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: inherit; min-height: 80px; }
@@ -97,8 +115,16 @@ const styles = `
 
 // API Helper
 const api = {
-  async request(method, path, body = null) {
-    const token = localStorage.getItem('sb-token');
+  async parseResponse(response) {
+    const raw = await response.text();
+    try {
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return { error: raw || `HTTP ${response.status}` };
+    }
+  },
+  async request(method, path, body = null, authToken = null) {
+    const token = authToken || localStorage.getItem('sb-token');
     const headers = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY };
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const options = { method, headers };
@@ -117,25 +143,50 @@ const api = {
       throw error;
     }
   },
-  async signup(email, password, fullName, passportId, country) {
+  async signup(email, password, role, fullName, passportId, country) {
     const result = await this.request('POST', '/auth/v1/signup', { email, password });
     
-    // Create student record
-    if (result?.user?.id) {
+    if (result?.user?.id && result?.access_token) {
       try {
-        await this.request('POST', '/rest/v1/students', {
-          user_id: result.user.id,
+        await this.request('POST', '/rest/v1/users', {
+          id: result.user.id,
           email: email,
-          full_name: fullName,
-          passport_id: passportId,
-          country: country
-        });
+          role,
+          full_name: fullName
+        }, result.access_token);
       } catch (err) {
-        console.error('Error creating student record:', err);
+        console.error('Error creating user role record:', err);
+      }
+
+      // Create student record only for student role
+      if (role === 'student') {
+        try {
+          await this.request('POST', '/rest/v1/students', {
+            user_id: result.user.id,
+            email: email,
+            full_name: fullName,
+            passport_id: passportId,
+            country: country
+          }, result.access_token);
+        } catch (err) {
+          console.error('Error creating student record:', err);
+        }
       }
     }
     
     return result;
+  },
+  async validateRegistration(role, registrationCode, email, country, passportId) {
+    const response = await fetch('/api/validate-registration', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role, registrationCode, email, country, passportId })
+    });
+    const data = await response.json();
+    if (!response.ok || !data?.valid) {
+      throw new Error(data?.error || 'Registration is not allowed.');
+    }
+    return data;
   },
   login(email, password) { return this.request('POST', '/auth/v1/token?grant_type=password', { email, password }); },
   async getUserRole(userId) {
@@ -156,6 +207,19 @@ const api = {
   saveTestResult(result) {
     return this.request('POST', '/rest/v1/test_results', result);
   },
+  createTestSession(payload) {
+    return this.request('POST', '/rest/v1/test_sessions', payload);
+  },
+  updateTestSession(id, payload) {
+    return this.request('PATCH', `/rest/v1/test_sessions?id=eq.${id}`, payload);
+  },
+  getStudentResults(userId) {
+    return this.request('GET', `/rest/v1/students?user_id=eq.${userId}&select=id`).then(async (students) => {
+      const studentId = students?.[0]?.id;
+      if (!studentId) return [];
+      return this.request('GET', `/rest/v1/test_results?student_id=eq.${studentId}&select=id,overall_score,determined_cefr_level,is_approved,completed_at,approved_at,teacher_comment,status,attempt_no,official_for_placement&order=completed_at.desc`);
+    });
+  },
   updateTestResult(id, updates) {
     return this.request('PATCH', `/rest/v1/test_results?id=eq.${id}`, updates);
   },
@@ -164,25 +228,199 @@ const api = {
   },
   getQuestionBank() {
     return this.request('GET', '/rest/v1/questions?select=*');
+  },
+  createQuestion(payload) {
+    return this.request('POST', '/rest/v1/questions', payload);
+  },
+  updateQuestion(id, payload) {
+    return this.request('PATCH', `/rest/v1/questions?id=eq.${id}`, payload);
+  },
+  async getManagedUsers() {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await this.parseResponse(response);
+    if (!response.ok) {
+      // Fallback mode: if serverless function fails, read directly from Supabase REST.
+      // This keeps admin UI usable while server env is being fixed.
+      if (String(data?.error || '').includes('FUNCTION_INVOCATION_FAILED')) {
+        try {
+          const headers = {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${token}`
+          };
+          const [usersRes, studentsRes] = await Promise.all([
+            fetch(`${SUPABASE_URL}/rest/v1/users?select=id,email,full_name,role&order=email.asc`, { headers }),
+            fetch(`${SUPABASE_URL}/rest/v1/students?select=user_id,passport_id,country`, { headers })
+          ]);
+          const users = await this.parseResponse(usersRes);
+          const students = await this.parseResponse(studentsRes);
+          if (!usersRes.ok) throw new Error(users?.error || users?.message || 'Unable to load users.');
+          const studentMap = new Map((Array.isArray(students) ? students : []).map(s => [s.user_id, s]));
+          return (Array.isArray(users) ? users : []).map(u => ({
+            ...u,
+            passport_id: studentMap.get(u.id)?.passport_id || '',
+            country: studentMap.get(u.id)?.country || ''
+          }));
+        } catch (fallbackErr) {
+          throw new Error(`Admin API failed and fallback failed: ${fallbackErr.message || fallbackErr}`);
+        }
+      }
+      throw new Error(data?.error || 'Unable to load users');
+    }
+    return data.users || [];
+  },
+  async updateManagedUserRole(userId, role, fullName, passportId, country) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ userId, role, fullName, passportId, country })
+    });
+    const data = await this.parseResponse(response);
+    if (!response.ok) throw new Error(data?.error || 'Unable to update role');
+    return data;
+  },
+  async createManagedUser(payload) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await this.parseResponse(response);
+    if (!response.ok) {
+      if (String(data?.error || '').includes('FUNCTION_INVOCATION_FAILED')) {
+        // Fallback mode: create user via public signup + direct table writes.
+        const signupRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
+          body: JSON.stringify({ email: payload.email, password: payload.password || `Temp${Math.random().toString(36).slice(-8)}!` })
+        });
+        const signupData = await this.parseResponse(signupRes);
+        if (!signupRes.ok || !signupData?.user?.id) {
+          throw new Error(signupData?.error_description || signupData?.msg || signupData?.error || 'Fallback signup failed.');
+        }
+        const userId = signupData.user.id;
+        const headers = { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` };
+        await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ id: userId, email: payload.email, full_name: payload.fullName, role: payload.role || 'student' })
+        });
+        if ((payload.role || 'student') === 'student') {
+          await fetch(`${SUPABASE_URL}/rest/v1/students`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              user_id: userId,
+              email: payload.email,
+              full_name: payload.fullName,
+              passport_id: payload.passportId || null,
+              country: payload.country || null
+            })
+          });
+        }
+        return { success: true, tempPassword: payload.password || '(set during signup)' };
+      }
+      throw new Error(data?.error || 'Unable to create user');
+    }
+    return data;
+  },
+  async sendUserResetLink(email) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ action: 'send_reset', email })
+    });
+    const data = await this.parseResponse(response);
+    if (!response.ok) throw new Error(data?.error || 'Unable to generate reset link');
+    return data;
+  },
+  async deleteManagedUser(userId) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-users', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ userId })
+    });
+    const data = await this.parseResponse(response);
+    if (!response.ok) throw new Error(data?.error || 'Unable to delete user');
+    return data;
   }
 };
 
 // Helper Functions
 function selectNextQuestion(questionsBank, currentDifficulty, userResponses) {
   const answeredIds = new Set(userResponses.map(r => r.question_id));
+  const askedQuestionTexts = new Set(
+    userResponses
+      .map((r) => questionsBank.find(qb => qb.id === r.question_id)?.question_text?.trim())
+      .filter(Boolean)
+  );
+  const skillTargets = { grammar: 8, vocabulary: 7, reading: 8, listening: 7 };
+  const skillCounts = { grammar: 0, vocabulary: 0, reading: 0, listening: 0 };
+  userResponses.forEach((r) => {
+    const q = questionsBank.find(qb => qb.id === r.question_id);
+    const skill = q?.skill;
+    if (skill && skillCounts[skill] !== undefined) skillCounts[skill] += 1;
+  });
+  const underTargetSkills = Object.keys(skillTargets).filter(skill => skillCounts[skill] < skillTargets[skill]);
+
   const minDiff = Math.max(1, currentDifficulty - 1.5);
   const maxDiff = Math.min(10, currentDifficulty + 1.5);
   const suitable = questionsBank.filter(q => {
     if (!q.id || answeredIds.has(q.id)) return false;
+    if (q.question_text && askedQuestionTexts.has(q.question_text.trim())) return false;
     const qDiff = q.difficulty_score || 5;
     return qDiff >= minDiff && qDiff <= maxDiff;
   });
-  if (suitable.length === 0) {
-    const remaining = questionsBank.filter(q => q.id && !answeredIds.has(q.id));
-    if (remaining.length === 0) return null;
-    return remaining[Math.floor(Math.random() * remaining.length)];
+
+  // Priority 1: in-band and under-target skills
+  const inBandUnderTarget = suitable.filter(q => underTargetSkills.includes(q.skill));
+  if (inBandUnderTarget.length > 0) {
+    return inBandUnderTarget[Math.floor(Math.random() * inBandUnderTarget.length)];
   }
-  return suitable[Math.floor(Math.random() * suitable.length)];
+
+  // Priority 2: under-target skills regardless of difficulty band
+  const underTargetAnyBand = questionsBank.filter(q =>
+    q.id &&
+    !answeredIds.has(q.id) &&
+    underTargetSkills.includes(q.skill) &&
+    (!q.question_text || !askedQuestionTexts.has(q.question_text.trim()))
+  );
+  if (underTargetAnyBand.length > 0) {
+    return underTargetAnyBand[Math.floor(Math.random() * underTargetAnyBand.length)];
+  }
+
+  // Priority 3: any remaining in-band
+  if (suitable.length > 0) {
+    return suitable[Math.floor(Math.random() * suitable.length)];
+  }
+
+  // Priority 4: any remaining question
+  const remaining = questionsBank.filter(q =>
+    q.id &&
+    !answeredIds.has(q.id) &&
+    (!q.question_text || !askedQuestionTexts.has(q.question_text.trim()))
+  );
+  if (remaining.length === 0) return null;
+  return remaining[Math.floor(Math.random() * remaining.length)];
 }
 
 function calculateDifficulty(responses) {
@@ -192,13 +430,32 @@ function calculateDifficulty(responses) {
   return Math.max(1, Math.min(10, difficulty));
 }
 
-function determineCEFRLevel(percentage) {
-  if (percentage >= 85) return 'C2';
-  if (percentage >= 75) return 'C1';
-  if (percentage >= 65) return 'B2';
-  if (percentage >= 55) return 'B1';
-  if (percentage >= 40) return 'A2';
-  return 'A1';
+function determineCEFRLevel(responses) {
+  const totalCorrect = responses.filter(r => r.is_correct).length;
+  const fallback = { cefrLevel: 'A1', abilityEstimate: 1, needsTeacherReview: true };
+  if (!responses?.length) return fallback;
+
+  const avgDifficulty = (items) => {
+    if (!items.length) return 1;
+    const total = items.reduce((sum, r) => sum + (Number(r.difficulty_at_time) || 1), 0);
+    return total / items.length;
+  };
+
+  const lastTen = responses.slice(-10);
+  const lastTenCorrect = lastTen.filter(r => r.is_correct);
+  const allCorrect = responses.filter(r => r.is_correct);
+  const abilityEstimate = lastTenCorrect.length >= 4 ? avgDifficulty(lastTenCorrect) : avgDifficulty(allCorrect);
+
+  if (totalCorrect < 8) {
+    return { cefrLevel: 'A1', abilityEstimate, needsTeacherReview: true };
+  }
+
+  if (abilityEstimate < 2.5) return { cefrLevel: 'A1', abilityEstimate, needsTeacherReview: false };
+  if (abilityEstimate < 4.0) return { cefrLevel: 'A2', abilityEstimate, needsTeacherReview: false };
+  if (abilityEstimate < 5.5) return { cefrLevel: 'B1', abilityEstimate, needsTeacherReview: false };
+  if (abilityEstimate < 7.5) return { cefrLevel: 'B2', abilityEstimate, needsTeacherReview: false };
+  if (abilityEstimate < 8.5) return { cefrLevel: 'C1', abilityEstimate, needsTeacherReview: false };
+  return { cefrLevel: 'C2', abilityEstimate, needsTeacherReview: false };
 }
 
 function formatTime(seconds) {
@@ -233,11 +490,6 @@ function LoginScreen({ onLogin }) {
           setLoading(false);
           return;
         }
-        if (registrationCode.trim() !== REGISTRATION_CODE) {
-          setError('Invalid registration code.');
-          setLoading(false);
-          return;
-        }
         if (!fullName.trim()) {
           setError('Full name is required.');
           setLoading(false);
@@ -268,8 +520,12 @@ function LoginScreen({ onLogin }) {
         return;
       }
 
+      if (isSignup) {
+        await api.validateRegistration('student', registrationCode.trim(), email.trim(), country, passportId);
+      }
+
       const result = isSignup 
-        ? await api.signup(email, password, fullName, passportId, country)
+        ? await api.signup(email, password, 'student', fullName, passportId, country)
         : await api.login(email, password);
 
       if (!result?.access_token) {
@@ -279,7 +535,11 @@ function LoginScreen({ onLogin }) {
       }
 
       localStorage.setItem('sb-token', result.access_token);
-      const role = await api.getUserRole(result.user.id);
+      const normalizedLoginEmail = email.trim().toLowerCase();
+      const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
+      const role = normalizedLoginEmail === normalizedSuperAdminEmail
+        ? 'superadmin'
+        : await api.getUserRole(result.user.id);
       onLogin({ ...result.user, role });
     } catch (err) {
       setError(err.message || 'An error occurred');
@@ -313,7 +573,7 @@ function LoginScreen({ onLogin }) {
               {isSignup && (
                 <>
                   <div className="form-section">
-                    <div className="form-section-title">Personal Information</div>
+                    <div className="form-section-title">Account Setup</div>
                     <input type="text" placeholder="Full Name *" value={fullName} onChange={(e) => setFullName(e.target.value)} required={isSignup} />
                     <input type="text" placeholder="Passport/ID Number *" value={passportId} onChange={(e) => setPassportId(e.target.value)} required={isSignup} />
                     <select value={country} onChange={(e) => setCountry(e.target.value)} required={isSignup}>
@@ -333,7 +593,6 @@ function LoginScreen({ onLogin }) {
               {isSignup && (
                 <div className="form-section">
                   <div className="form-section-title">Registration Code</div>
-                  <label className="code-label">Enter the access code provided by your instructor</label>
                   <input type="text" placeholder="Registration Code *" value={registrationCode} onChange={(e) => setRegistrationCode(e.target.value)} className="code-input" required={isSignup} />
                 </div>
               )}
@@ -385,6 +644,22 @@ function StudentTest({ user, onComplete }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [attempts, setAttempts] = useState([]);
+  const [attemptsLoading, setAttemptsLoading] = useState(true);
+  const [sessionId, setSessionId] = useState(null);
+
+  useEffect(() => {
+    const loadAttempts = async () => {
+      try {
+        const data = await api.getStudentResults(user.id);
+        setAttempts(data || []);
+      } catch {
+        setAttempts([]);
+      }
+      setAttemptsLoading(false);
+    };
+    loadAttempts();
+  }, [user.id]);
 
   useEffect(() => {
     if (testState !== 'testing') return;
@@ -394,11 +669,7 @@ function StudentTest({ user, onComplete }) {
     return () => clearInterval(interval);
   }, [testState]);
 
-  useEffect(() => {
-    if (testStarted && questionsBank.length === 0) loadQuestions();
-  }, [testStarted, questionsBank.length]);
-
-  const loadQuestions = async () => {
+  const loadQuestions = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -415,12 +686,38 @@ function StudentTest({ user, onComplete }) {
       setQuestionStartTime(Date.now()); // Start timing this question
       setCurrentDifficulty(randomStart.difficulty_score || 5);
       setTestState('testing');
+
+      // Create test session record (best effort)
+      try {
+        const studentData = await api.request('GET', `/rest/v1/students?user_id=eq.${user.id}&select=id`);
+        const studentId = studentData?.[0]?.id || user.id;
+        const sessionInsert = await api.createTestSession({
+          student_id: studentId,
+          started_at: new Date().toISOString(),
+          status: 'in_progress'
+        });
+        if (Array.isArray(sessionInsert) && sessionInsert[0]?.id) {
+          setSessionId(sessionInsert[0].id);
+        } else {
+          const latestSession = await api.request(
+            'GET',
+            `/rest/v1/test_sessions?student_id=eq.${studentId}&order=started_at.desc&limit=1&select=id`
+          );
+          if (latestSession?.[0]?.id) setSessionId(latestSession[0].id);
+        }
+      } catch (err) {
+        console.warn('Unable to create test session record:', err);
+      }
     } catch (err) {
       setError('Error loading questions.');
       setTestStarted(false);
     }
     setLoading(false);
-  };
+  }, [user.id]);
+
+  useEffect(() => {
+    if (testStarted && questionsBank.length === 0) loadQuestions();
+  }, [testStarted, questionsBank.length, loadQuestions]);
 
   const handleAnswer = async (selectedAnswer) => {
     if (!currentQuestion || !questionStartTime) return;
@@ -430,18 +727,12 @@ function StudentTest({ user, onComplete }) {
     const timeSpentMs = now - questionStartTime;
     const timeSpentSeconds = Math.round(timeSpentMs / 1000);
     
-    // For first question, no previous reaction time to track
-    // For subsequent questions, reaction time is time from question display to answer
-    // We'll approximate it as 10% of time spent (typical reaction is quick)
-    const reactionTimeMs = Math.min(Math.round(timeSpentMs * 0.15), 5000); // Cap at 5 seconds
-    
     const newResponses = [...userResponses, {
       question_id: currentQuestion.id,
       student_answer: selectedAnswer,
       is_correct: isCorrect,
       time_spent_seconds: timeSpentSeconds,
-      difficulty_at_time: currentDifficulty,
-      reaction_time_ms: reactionTimeMs
+      difficulty_at_time: currentDifficulty
     }];
     
     setUserResponses(newResponses);
@@ -461,7 +752,7 @@ function StudentTest({ user, onComplete }) {
   const completeTest = async (responses) => {
     const correctCount = responses.filter(r => r.is_correct).length;
     const score = (correctCount / responses.length) * 100;
-    const cefrLevel = determineCEFRLevel(score);
+    const { cefrLevel, abilityEstimate, needsTeacherReview } = determineCEFRLevel(responses);
     setTestState('pending');
 
     const saveTestResult = async (retries = 3) => {
@@ -477,12 +768,46 @@ function StudentTest({ user, onComplete }) {
             student_passport: 'N/A',
             overall_score: score,
             determined_cefr_level: cefrLevel,
+            ability_estimate: abilityEstimate,
+            needs_teacher_review: needsTeacherReview,
             completed_at: new Date().toISOString(),
             notes: `Completed 30 questions. Score: ${score.toFixed(1)}%. Time: ${formatTime(elapsedTime)}`,
             is_approved: false,
             student_responses: JSON.stringify(responses)
           };
-          await api.saveTestResult(resultData);
+          try {
+            await api.saveTestResult(resultData);
+          } catch (primaryErr) {
+            // Fallback for older schemas missing newer columns
+            const fallbackResultData = {
+              student_id: studentId,
+              student_name: user.email,
+              student_passport: 'N/A',
+              overall_score: score,
+              determined_cefr_level: cefrLevel,
+              completed_at: new Date().toISOString(),
+              notes: `Completed 30 questions. Score: ${score.toFixed(1)}%. Time: ${formatTime(elapsedTime)}`,
+              is_approved: false,
+              student_responses: JSON.stringify(responses)
+            };
+            await api.saveTestResult(fallbackResultData);
+            console.warn('Saved result via fallback schema:', primaryErr);
+          }
+
+          // Update session record (best effort)
+          if (sessionId) {
+            try {
+              await api.updateTestSession(sessionId, {
+                ended_at: new Date().toISOString(),
+                status: 'completed',
+                total_questions_answered: responses.length,
+                score: score,
+                determined_cefr_level: cefrLevel
+              });
+            } catch (err) {
+              console.warn('Unable to update test session:', err);
+            }
+          }
           return true;
         } catch (err) {
           console.error(`Attempt ${attempt} failed:`, err);
@@ -494,16 +819,56 @@ function StudentTest({ user, onComplete }) {
       return false;
     };
 
-    saveTestResult();
+    await saveTestResult();
   };
 
   const progressPercentage = (userResponses.length / 30) * 100;
 
   if (!testStarted) {
+    const approvedAttempts = attempts.filter(a => a.is_approved);
+    const hasPendingReview = attempts.some(a => !a.is_approved);
+    const canStartFirstAttempt = attempts.length === 0;
+    const canStart = canStartFirstAttempt; // retake requires manual teacher approval flow
+
     return (
       <div className="test-screen">
         <div className="test-intro">
           <h1>English Level Assessment</h1>
+          {attemptsLoading ? (
+            <p className="description">Loading your attempt history...</p>
+          ) : (
+            <div style={{ marginBottom: '20px', textAlign: 'left', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '6px' }}>
+              <h3 style={{ marginBottom: '10px', color: '#CC0000' }}>Approved Attempts</h3>
+              {approvedAttempts.length === 0 ? (
+                <p style={{ fontSize: '14px', color: '#666' }}>No approved attempts yet.</p>
+              ) : (
+                <table className="results-table">
+                  <thead>
+                    <tr><th>Date</th><th>Score</th><th>CEFR</th></tr>
+                  </thead>
+                  <tbody>
+                    {approvedAttempts.map(a => (
+                      <tr key={a.id}>
+                        <td>{new Date(a.approved_at || a.completed_at).toLocaleDateString()}</td>
+                        <td>{a.overall_score?.toFixed?.(1) || a.overall_score}%</td>
+                        <td>{a.determined_cefr_level}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {hasPendingReview && (
+                <p style={{ marginTop: '10px', color: '#ff9800', fontSize: '13px' }}>
+                  You have a pending attempt under teacher review. New attempts are locked.
+                </p>
+              )}
+              {!canStart && !hasPendingReview && (
+                <p style={{ marginTop: '10px', color: '#666', fontSize: '13px' }}>
+                  Retake requires manual teacher approval.
+                </p>
+              )}
+            </div>
+          )}
           <p className="description">Discover your CEFR level with our adaptive placement test. The test adjusts to your ability level and typically takes 15-20 minutes.</p>
           <div className="test-info">
             <h3>What you'll be tested on:</h3>
@@ -514,7 +879,7 @@ function StudentTest({ user, onComplete }) {
               <div>✓ Adaptive Difficulty</div>
             </div>
           </div>
-          <button className="primary-button" onClick={() => setTestStarted(true)} disabled={loading}>
+          <button className="primary-button" onClick={() => setTestStarted(true)} disabled={loading || attemptsLoading || !canStart}>
             {loading ? 'Loading...' : 'BEGIN ASSESSMENT →'}
           </button>
           {error && <div className="error-message">{error}</div>}
@@ -564,17 +929,17 @@ function StudentTest({ user, onComplete }) {
         </div>
       </div>
 
-      <div className="question-box" onCopy={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }} style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
-        <h3 style={{ pointerEvents: 'none' }}>{currentQuestion.question_text}</h3>
+      <div className="question-box notranslate" translate="no" onCopy={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }} style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
+        <h3 style={{ pointerEvents: 'none' }} className="notranslate" translate="no">{currentQuestion.question_text}</h3>
         {currentQuestion.audio_url && (
           <audio controls style={{ width: '100%', marginBottom: '20px' }}>
             <source src={currentQuestion.audio_url} type="audio/wav" />
           </audio>
         )}
-        {currentQuestion.passage && <div className="passage" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none', pointerEvents: 'none' }}><p>{currentQuestion.passage}</p></div>}
+        {currentQuestion.passage && <div className="passage notranslate" translate="no" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none', pointerEvents: 'none' }}><p>{currentQuestion.passage}</p></div>}
         <div className="options">
           {currentQuestion.options?.map((option, idx) => (
-            <button key={idx} className="option-button" onClick={() => handleAnswer(option)}>
+            <button key={idx} className="option-button notranslate" translate="no" onClick={() => handleAnswer(option)}>
               {option}
             </button>
           ))}
@@ -598,23 +963,56 @@ function TeacherDashboard({ user, onLogout }) {
   const [questionSkillFilter, setQuestionSkillFilter] = useState('');
   const [questionCefrFilter, setQuestionCefrFilter] = useState('');
   const [questionSort, setQuestionSort] = useState('recent');
+  const [managedUsers, setManagedUsers] = useState([]);
+  const [userMgmtLoading, setUserMgmtLoading] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [editingUserRole, setEditingUserRole] = useState('student');
+  const [editingUserName, setEditingUserName] = useState('');
+  const [editingPassportId, setEditingPassportId] = useState('');
+  const [editingCountry, setEditingCountry] = useState('');
+  const [newUser, setNewUser] = useState({ email: '', fullName: '', role: 'student', passportId: '', country: '' });
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserPasswordConfirm, setNewUserPasswordConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [adminError, setAdminError] = useState('');
+  const normalizedDashboardEmail = (user.email || '').trim().toLowerCase();
+  const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
+  const isSuperAdmin = normalizedDashboardEmail === normalizedSuperAdminEmail || user.role === 'superadmin';
+  const passwordStrength = newUserPassword.length >= 12 && /[A-Z]/.test(newUserPassword) && /[a-z]/.test(newUserPassword) && /\d/.test(newUserPassword) && /[^A-Za-z0-9]/.test(newUserPassword)
+    ? 'Strong'
+    : newUserPassword.length >= 8
+      ? 'Medium'
+      : newUserPassword.length > 0
+        ? 'Weak'
+        : 'Not set';
+
+  const loadData = useCallback(async () => {
+    try {
+      const [res, q] = await Promise.all([api.getAllResults(), api.getQuestionBank()]);
+      setResults(res || []);
+      setQuestions(q || []);
+      if (isSuperAdmin) {
+        try {
+          const users = await api.getManagedUsers();
+          setManagedUsers(users);
+          setAdminError('');
+        } catch (err) {
+          setManagedUsers([]);
+          setAdminError(err.message || 'Unable to load users from Supabase.');
+        }
+      }
+    } catch (err) {
+      console.error('Error loading:', err);
+    }
+    setLoading(false);
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const [res, q] = await Promise.all([api.getAllResults(), api.getQuestionBank()]);
-      setResults(res || []);
-      setQuestions(q || []);
-    } catch (err) {
-      console.error('Error loading:', err);
-    }
-    setLoading(false);
-  };
+  }, [loadData]);
 
   const handleApprove = async () => {
     if (!selectedResult) return;
@@ -702,7 +1100,7 @@ function TeacherDashboard({ user, onLogout }) {
       <div className="dashboard-header">
         <h1>Teacher Dashboard</h1>
         <div className="header-actions">
-          <span>{user.email}</span>
+          <span>{user.email} ({isSuperAdmin ? 'superadmin' : (user.role || 'student')})</span>
           <button className="logout-button" onClick={onLogout}>Sign Out</button>
         </div>
       </div>
@@ -717,7 +1115,20 @@ function TeacherDashboard({ user, onLogout }) {
         <button className={`tab ${activeTab === 'questions' ? 'active' : ''}`} onClick={() => setActiveTab('questions')}>
           Questions
         </button>
+        {isSuperAdmin && (
+          <button className={`tab ${activeTab === 'admins' ? 'active' : ''}`} onClick={() => setActiveTab('admins')}>
+            Admin Management
+          </button>
+        )}
       </div>
+
+      {!isSuperAdmin && ['teacher', 'admin'].includes(user.role) && (
+        <div className="tab-content" style={{ marginBottom: '20px', backgroundColor: '#fff9e6', border: '1px solid #ffc107' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: '#8a6d3b' }}>
+            Admin Management is only visible for superadmin ({SUPERADMIN_EMAIL}).
+          </p>
+        </div>
+      )}
 
       {activeTab === 'pending' && (
         <div className="tab-content">
@@ -937,6 +1348,188 @@ function TeacherDashboard({ user, onLogout }) {
         </div>
       )}
 
+      {activeTab === 'admins' && isSuperAdmin && (
+        <div className="tab-content">
+          <h3>Super Admin User Role Management</h3>
+          <p style={{ fontSize: '13px', color: '#666', marginBottom: '15px' }}>
+            Promote users to admin or revert to student. Admin self-signup remains disabled.
+          </p>
+          {adminError && (
+            <div className="error-message" style={{ marginBottom: '12px' }}>
+              {adminError} Please verify `SUPABASE_SERVICE_ROLE_KEY` in Vercel and redeploy.
+            </div>
+          )}
+          <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="approve-button" onClick={() => setShowAddUserModal(true)}>+ Add User</button>
+          </div>
+          <table className="results-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Full Name</th>
+                <th>Role</th>
+                <th>Passport/ID</th>
+                <th>Country</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {managedUsers.length === 0 && (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', color: '#666', padding: '16px' }}>
+                    No users loaded. Check Admin API configuration or Supabase permissions.
+                  </td>
+                </tr>
+              )}
+              {managedUsers.map(u => (
+                <tr key={u.id}>
+                  <td>{u.email}</td>
+                  <td>
+                    {editingUserId === u.id ? (
+                      <input
+                        value={editingUserName}
+                        onChange={(e) => setEditingUserName(e.target.value)}
+                        style={{ padding: '6px', border: '1px solid #ddd', borderRadius: '4px', width: '100%' }}
+                      />
+                    ) : (u.full_name || 'N/A')}
+                  </td>
+                  <td style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>
+                    {editingUserId === u.id ? (
+                      <select value={editingUserRole} onChange={(e) => setEditingUserRole(e.target.value)} style={{ padding: '6px', border: '1px solid #ddd', borderRadius: '4px' }}>
+                        <option value="student">student</option>
+                        <option value="teacher">teacher</option>
+                        <option value="admin">admin</option>
+                      </select>
+                    ) : (u.role || 'student')}
+                  </td>
+                  <td>{editingUserId === u.id ? <input value={editingPassportId} onChange={(e) => setEditingPassportId(e.target.value)} /> : (u.passport_id || '-')}</td>
+                  <td>{editingUserId === u.id ? <input value={editingCountry} onChange={(e) => setEditingCountry(e.target.value)} /> : (u.country || '-')}</td>
+                  <td>
+                    {editingUserId === u.id ? (
+                      <>
+                        <button className="approve-button" disabled={userMgmtLoading} onClick={async () => {
+                          try {
+                            setUserMgmtLoading(true);
+                            await api.updateManagedUserRole(u.id, editingUserRole, editingUserName, editingPassportId, editingCountry);
+                            setEditingUserId(null);
+                            await loadData();
+                          } catch (err) {
+                            alert(err.message || 'Failed to update user');
+                          } finally {
+                            setUserMgmtLoading(false);
+                          }
+                        }} style={{ fontSize: '12px', padding: '6px 12px', marginRight: '8px' }}>Save</button>
+                        <button className="logout-button" onClick={() => setEditingUserId(null)} style={{ fontSize: '12px', padding: '6px 12px' }}>Cancel</button>
+                      </>
+                    ) : (
+                      <button
+                        className="approve-button"
+                        disabled={userMgmtLoading || u.email?.toLowerCase() === SUPERADMIN_EMAIL}
+                        onClick={() => {
+                          setEditingUserId(u.id);
+                          setEditingUserRole(u.role || 'student');
+                          setEditingUserName(u.full_name || '');
+                          setEditingPassportId(u.passport_id || '');
+                          setEditingCountry(u.country || '');
+                        }}
+                        style={{ fontSize: '12px', padding: '6px 12px' }}
+                      >
+                        Edit
+                      </button>
+                      
+                    )}
+                    <button
+                      className="logout-button"
+                      disabled={userMgmtLoading || u.email?.toLowerCase() === SUPERADMIN_EMAIL}
+                      onClick={async () => {
+                        if (!window.confirm(`Delete user ${u.email}? This cannot be undone.`)) return;
+                        try {
+                          setUserMgmtLoading(true);
+                          await api.deleteManagedUser(u.id);
+                          await loadData();
+                        } catch (err) {
+                          alert(err.message || 'Failed to delete user');
+                        } finally {
+                          setUserMgmtLoading(false);
+                        }
+                      }}
+                      style={{ fontSize: '12px', padding: '6px 12px', marginLeft: '8px', backgroundColor: '#b00020' }}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showAddUserModal && (
+        <div className="modal-overlay" onClick={() => setShowAddUserModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '640px' }}>
+            <button className="modal-close" onClick={() => setShowAddUserModal(false)}>×</button>
+            <h2>Add User</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <input style={{ padding: '12px', fontSize: '15px' }} placeholder="Email *" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
+              <input style={{ padding: '12px', fontSize: '15px' }} placeholder="Full Name *" value={newUser.fullName} onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })} />
+              <select style={{ padding: '12px', fontSize: '15px' }} value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}><option value="student">student</option><option value="teacher">teacher</option><option value="admin">admin</option></select>
+              {newUser.role === 'student' ? (
+                <input style={{ padding: '12px', fontSize: '15px' }} placeholder="Passport/ID *" value={newUser.passportId} onChange={(e) => setNewUser({ ...newUser, passportId: e.target.value })} />
+              ) : (
+                <div style={{ fontSize: '12px', color: '#666', alignSelf: 'center' }}>Passport/ID not required for {newUser.role}.</div>
+              )}
+              {newUser.role === 'student' ? (
+                <input style={{ padding: '12px', fontSize: '15px' }} placeholder="Country *" value={newUser.country} onChange={(e) => setNewUser({ ...newUser, country: e.target.value })} />
+              ) : (
+                <div style={{ fontSize: '12px', color: '#666', alignSelf: 'center' }}>Country not required for {newUser.role}.</div>
+              )}
+              <div />
+              <input style={{ padding: '12px', fontSize: '15px' }} type={showPassword ? 'text' : 'password'} placeholder="Password (leave blank = auto)" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} />
+              <input style={{ padding: '12px', fontSize: '15px' }} type={showPassword ? 'text' : 'password'} placeholder="Confirm Password" value={newUserPasswordConfirm} onChange={(e) => setNewUserPasswordConfirm(e.target.value)} />
+            </div>
+            <div style={{ marginTop: '8px', fontSize: '12px', color: '#666', display: 'flex', justifyContent: 'space-between' }}>
+              <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} />
+                Show passwords
+              </label>
+              <span>Password strength: <strong>{passwordStrength}</strong></span>
+            </div>
+            <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button className="logout-button" onClick={() => setShowAddUserModal(false)}>Cancel</button>
+              <button className="approve-button" onClick={async () => {
+                try {
+                  if (newUserPassword && newUserPassword !== newUserPasswordConfirm) {
+                    alert('Password and confirmation do not match.');
+                    return;
+                  }
+                  if (newUser.role === 'student' && (!newUser.passportId.trim() || !newUser.country.trim())) {
+                    alert('Passport/ID and Country are required for student.');
+                    return;
+                  }
+                  const result = await api.createManagedUser({ ...newUser, password: newUserPassword || undefined });
+                  alert(newUserPassword ? 'User created successfully.' : `User created. Temporary password: ${result.tempPassword}`);
+                  if (!newUserPassword) {
+                    const shouldGenerateReset = window.confirm('Generate reset link now for this user?');
+                    if (shouldGenerateReset) {
+                      const resetData = await api.sendUserResetLink(newUser.email);
+                      if (resetData?.resetLink) window.prompt('Copy and send this reset link:', resetData.resetLink);
+                    }
+                  }
+                  setNewUser({ email: '', fullName: '', role: 'student', passportId: '', country: '' });
+                  setNewUserPassword('');
+                  setNewUserPasswordConfirm('');
+                  setShowAddUserModal(false);
+                  await loadData();
+                } catch (err) {
+                  alert(err.message || 'Failed to create user');
+                }
+              }}>Create User</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedQuestion && (
         <div className="modal-overlay" onClick={() => setSelectedQuestion(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto' }}>
@@ -947,6 +1540,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Question Text:</label>
                 <textarea 
+                  id="question-text"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.question_text || ''}}
                   style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '100px', fontFamily: 'inherit' }}
                   placeholder="Enter question text..."
@@ -957,6 +1551,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Question Type:</label>
                   <select 
+                    id="question-type"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.question_type || 'multiple_choice'}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   >
@@ -985,6 +1580,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>CEFR Level:</label>
                   <select 
+                    id="question-cefr"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.cefr_level || 'A1'}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
                   >
@@ -997,6 +1593,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Difficulty Score (1-10):</label>
                   <input 
+                    id="question-difficulty"
                     type="number" 
                     min="1" 
                     max="10" 
@@ -1011,6 +1608,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#e3f2fd', borderRadius: '4px', border: '1px solid #90caf9' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>🎵 Audio URL (Listening):</label>
                   <input 
+                    id="question-audio"
                     type="text"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.audio_url || ''}}
                     style={{ width: '100%', padding: '8px', border: '1px solid #90caf9', borderRadius: '4px' }}
@@ -1025,6 +1623,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f3e5f5', borderRadius: '4px', border: '1px solid #ce93d8' }}>
                   <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📖 Reading Passage:</label>
                   <textarea 
+                    id="question-passage"
                     ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.passage || ''}}
                     style={{ width: '100%', padding: '10px', border: '1px solid #ce93d8', borderRadius: '4px', minHeight: '120px', fontFamily: 'inherit' }}
                     placeholder="Paste the article or passage here for reading comprehension questions..."
@@ -1035,6 +1634,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Answer Options (comma-separated):</label>
                 <input 
+                  id="question-options"
                   type="text"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.options?.join(', ') || ''}}
                   style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
@@ -1045,6 +1645,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Correct Answer:</label>
                 <input 
+                  id="question-correct"
                   type="text"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.correct_answers?.[0] || ''}}
                   style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
@@ -1055,6 +1656,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ marginBottom: '15px' }}>
                 <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Explanation:</label>
                 <textarea 
+                  id="question-explanation"
                   ref={(ref) => {if(ref) ref.defaultValue = selectedQuestion.explanation || ''}}
                   style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', minHeight: '80px', fontFamily: 'inherit' }}
                   placeholder="Explain why this is the correct answer..."
@@ -1069,9 +1671,37 @@ function TeacherDashboard({ user, onLogout }) {
                   Cancel
                 </button>
                 <button 
-                  onClick={() => {
-                    alert('Question saved! To save to database, export and upload via the Python script.');
-                    setSelectedQuestion(null);
+                  onClick={async () => {
+                    try {
+                      const payload = {
+                        question_text: document.getElementById('question-text')?.value?.trim(),
+                        question_type: document.getElementById('question-type')?.value || 'multiple_choice',
+                        skill: selectedQuestion.skill || 'reading',
+                        cefr_level: document.getElementById('question-cefr')?.value || 'A1',
+                        difficulty_score: Number(document.getElementById('question-difficulty')?.value || 5),
+                        audio_url: document.getElementById('question-audio')?.value?.trim() || null,
+                        passage: document.getElementById('question-passage')?.value?.trim() || null,
+                        options: (document.getElementById('question-options')?.value || '').split(',').map(v => v.trim()).filter(Boolean),
+                        correct_answers: [(document.getElementById('question-correct')?.value || '').trim()].filter(Boolean),
+                        explanation: document.getElementById('question-explanation')?.value?.trim() || ''
+                      };
+
+                      if (!payload.question_text || payload.options.length === 0 || payload.correct_answers.length === 0) {
+                        alert('Please fill Question Text, Options, and Correct Answer.');
+                        return;
+                      }
+
+                      if (selectedQuestion.new) {
+                        await api.createQuestion(payload);
+                      } else {
+                        await api.updateQuestion(selectedQuestion.id, payload);
+                      }
+                      await loadData();
+                      setSelectedQuestion(null);
+                      alert('Question saved to database successfully.');
+                    } catch (err) {
+                      alert(err.message || 'Failed to save question.');
+                    }
                   }}
                   style={{ padding: '10px 20px', backgroundColor: '#4caf50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
                 >
@@ -1154,6 +1784,10 @@ export default function App() {
     meta.name = 'google';
     meta.content = 'notranslate';
     document.head.appendChild(meta);
+
+    document.documentElement.setAttribute('translate', 'no');
+    document.body.setAttribute('translate', 'no');
+    document.body.classList.add('notranslate');
   }, []);
 
   return (
@@ -1176,7 +1810,7 @@ export default function App() {
 
       {!user ? (
         <LoginScreen onLogin={setUser} />
-      ) : user.role === 'teacher' ? (
+      ) : ['teacher', 'admin', 'superadmin'].includes(user.role) ? (
         <TeacherDashboard user={user} onLogout={() => setUser(null)} />
       ) : (
         <StudentTest user={user} onComplete={() => setUser(null)} />
