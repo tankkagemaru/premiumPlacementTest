@@ -562,7 +562,7 @@ function LoginScreen({ onLogin }) {
             <img
               src={LOGO_URL}
               alt="Premium Language Centre"
-              style={{ height: '76px', width: 'auto' }}
+              style={{ width: '220px', maxWidth: '100%', height: 'auto', objectFit: 'contain', display: 'block' }}
             />
             <div className="brand-kicker">Premium Language Centre</div>
             <div className="brand-title">CEFR Placement Test</div>
