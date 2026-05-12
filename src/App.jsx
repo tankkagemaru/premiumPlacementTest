@@ -33,8 +33,14 @@ const styles = `
   .header h1 { font-size: 26px; margin: 0; margin-bottom: 2px; }
   .subtitle { font-size: 12px; opacity: 0.95; margin: 0; }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
-  .login-shell { width: 100%; max-width: 560px; }
-  .login-box { background: var(--bg-card); padding: 40px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+  .login-shell { width: 100%; max-width: 980px; display: grid; grid-template-columns: 0.95fr 1.05fr; background: var(--bg-card); border-radius: 18px; box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); overflow: hidden; }
+  .login-brand-panel { background: linear-gradient(160deg, #fff5f5 0%, #fff 100%); border-right: 1px solid var(--border-soft); padding: 34px; display: flex; flex-direction: column; justify-content: center; gap: 18px; }
+  .brand-kicker { font-size: 12px; letter-spacing: 0.08em; color: #b91c1c; font-weight: 700; text-transform: uppercase; }
+  .brand-title { font-size: 34px; line-height: 1.15; color: #b91c1c; font-weight: 800; }
+  .brand-copy { font-size: 14px; line-height: 1.6; color: var(--text-muted); }
+  .brand-list { display: grid; gap: 10px; margin-top: 6px; }
+  .brand-pill { border: 1px solid #fecaca; color: #991b1b; background: #fff; border-radius: 999px; padding: 8px 12px; font-size: 12px; width: fit-content; }
+  .login-box { background: var(--bg-card); padding: 36px; width: 100%; max-height: 80vh; overflow-y: auto; }
   .login-box h1 { color: var(--brand-500); font-size: 24px; margin-bottom: 10px; }
   .auth-subtitle { font-size: 14px; color: var(--text-muted); margin: 0 0 20px 0; }
   .field-help { margin-top: -8px; margin-bottom: 10px; color: var(--text-muted); font-size: 12px; }
@@ -49,6 +55,9 @@ const styles = `
   .form-section { margin-bottom: 20px; }
   .form-section-title { font-size: 12px; color: #666; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
   .toggle-auth { text-align: center; margin-top: 20px; font-size: 14px; }
+  .auth-mode-switch { display: inline-flex; border: 1px solid var(--border-soft); background: #f9fafb; border-radius: 999px; padding: 3px; margin-bottom: 20px; }
+  .auth-chip { border: none; background: transparent; padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; color: #6b7280; cursor: pointer; }
+  .auth-chip.active { background: #fff; color: #b91c1c; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
   .link-button { background: none; border: none; color: #CC0000; cursor: pointer; text-decoration: underline; margin-left: 5px; }
   .test-screen { max-width: 900px; margin: 0 auto; padding: 20px; }
   .test-header { background: var(--bg-card); padding: 15px; border-radius: var(--radius-md); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
@@ -115,6 +124,10 @@ const styles = `
     .info-grid { grid-template-columns: 1fr; }
     .test-header { flex-direction: column; gap: 15px; }
     .dashboard-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+  }
+  @media (max-width: 900px) {
+    .login-shell { grid-template-columns: 1fr; }
+    .login-brand-panel { border-right: none; border-bottom: 1px solid var(--border-soft); }
   }
 `;
 
@@ -543,21 +556,31 @@ function LoginScreen({ onLogin }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
-        <div style={{ textAlign: 'center', maxWidth: '500px', width: '100%' }}>
-          {/* Logo - Centered at top */}
-          <div style={{ marginBottom: '30px' }}>
-            <img 
-              src="https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/plc-logo.png" 
-              alt="Premium Language Centre" 
-              style={{ height: '80px', width: 'auto', marginBottom: '20px' }}
+      <div className="login-container" style={{ flex: 1 }}>
+        <div className="login-shell">
+          <div className="login-brand-panel">
+            <img
+              src={LOGO_URL}
+              alt="Premium Language Centre"
+              style={{ height: '76px', width: 'auto' }}
             />
-            <h1 style={{ fontSize: '32px', color: '#CC0000', margin: '0 0 5px 0' }}>CEFR Placement Test</h1>
-            <p style={{ fontSize: '14px', color: '#666', margin: 0 }}>Premium Language Centre</p>
+            <div className="brand-kicker">Premium Language Centre</div>
+            <div className="brand-title">CEFR Placement Test</div>
+            <div className="brand-copy">
+              Modern English placement with teacher-reviewed outcomes and a secure testing workflow.
+            </div>
+            <div className="brand-list">
+              <div className="brand-pill">Adaptive multi-skill assessment</div>
+              <div className="brand-pill">Approved history & retake controls</div>
+              <div className="brand-pill">Admin-managed enrollment</div>
+            </div>
           </div>
 
-          {/* Login Box */}
-          <div className="login-box" style={{ marginTop: '20px' }}>
+          <div className="login-box">
+            <div className="auth-mode-switch" role="tablist" aria-label="Authentication mode">
+              <button type="button" className={`auth-chip ${!isSignup ? 'active' : ''}`} onClick={() => { setIsSignup(false); setError(''); }}>Login</button>
+              <button type="button" className={`auth-chip ${isSignup ? 'active' : ''}`} onClick={() => { setIsSignup(true); setError(''); }}>Sign Up</button>
+            </div>
             <form onSubmit={handleSubmit}>
               {isSignup && (
                 <>
@@ -595,12 +618,7 @@ function LoginScreen({ onLogin }) {
               </button>
             </form>
 
-            <p className="toggle-auth">
-              {isSignup ? 'Already have an account?' : "Don't have an account?"}
-              <button type="button" onClick={() => { setIsSignup(!isSignup); setError(''); }} className="link-button">
-                {isSignup ? 'Login' : 'Sign Up'}
-              </button>
-            </p>
+            <p className="toggle-auth">Use the switch above to change between Login and Sign Up.</p>
           </div>
         </div>
       </div>
