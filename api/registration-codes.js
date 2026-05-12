@@ -31,6 +31,12 @@ export default async function handler(req, res) {
   if (!['teacher', 'admin', 'superadmin'].includes(String(role || '').toLowerCase())) return res.status(403).json({ error: 'Teacher/admin access required.' });
 
   if (req.method === 'GET') {
+    if (req.query?.codeId) {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/registration_code_usage?select=id,used_email,used_at&code_id=eq.${req.query.codeId}&order=used_at.desc`, { headers: serviceHeaders() });
+      const data = await readBody(response);
+      if (!response.ok) return res.status(response.status).json({ error: data?.message || 'Failed to load usage history.' });
+      return res.status(200).json({ usage: Array.isArray(data) ? data : [] });
+    }
     const response = await fetch(`${SUPABASE_URL}/rest/v1/registration_codes?select=*,creator:users!registration_codes_created_by_fkey(full_name,email)&order=created_at.desc`, { headers: serviceHeaders() });
     const data = await readBody(response);
     if (!response.ok) return res.status(response.status).json({ error: data?.message || 'Failed to load codes.' });

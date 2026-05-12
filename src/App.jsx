@@ -403,6 +403,13 @@ const api = {
     const data = await this.parseResponse(response);
     if (!response.ok) throw new Error(data?.error || 'Unable to update code');
     return data;
+  },
+  async getRegistrationCodeUsage(codeId) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch(`/api/registration-codes?codeId=${codeId}`, { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
+    const data = await this.parseResponse(response);
+    if (!response.ok) throw new Error(data?.error || 'Unable to load usage history');
+    return data.usage || [];
   }
 };
 
@@ -1017,6 +1024,9 @@ function TeacherDashboard({ user, onLogout }) {
   const [newRegExpiry, setNewRegExpiry] = useState('');
   const [showCreateCodeModal, setShowCreateCodeModal] = useState(false);
   const [registrationCodeError, setRegistrationCodeError] = useState('');
+  const [showUsageModal, setShowUsageModal] = useState(false);
+  const [usageRows, setUsageRows] = useState([]);
+  const [usageCodeLabel, setUsageCodeLabel] = useState('');
   const [managedUsers, setManagedUsers] = useState([]);
   const [userMgmtLoading, setUserMgmtLoading] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
@@ -1345,7 +1355,18 @@ function TeacherDashboard({ user, onLogout }) {
                 <tr key={c.id}>
                   <td><strong>{c.code}</strong></td>
                   <td>{c.creator?.full_name || c.creator?.email || '-'}</td>
-                  <td>{c.used_count || 0}</td>
+                  <td>
+                    <button className="link-button" onClick={async () => {
+                      try {
+                        const usage = await api.getRegistrationCodeUsage(c.id);
+                        setUsageRows(usage);
+                        setUsageCodeLabel(c.code);
+                        setShowUsageModal(true);
+                      } catch (err) {
+                        setRegistrationCodeError(err.message || 'Unable to load usage history');
+                      }
+                    }}>{c.used_count || 0}</button>
+                  </td>
                   <td>{c.max_uses || 0}</td>
                   <td>{c.expires_at ? new Date(c.expires_at).toLocaleString() : 'No expiry'}</td>
                   <td><span className={`status-chip ${c.is_active ? 'approved' : 'pending'}`}>{c.is_active ? 'Active' : 'Inactive'}</span></td>
@@ -1389,6 +1410,25 @@ function TeacherDashboard({ user, onLogout }) {
                 setRegistrationCodeError(err.message || 'Unable to create code');
               }
             }}>Create Code</button>
+          </div>
+        </div>
+      )}
+
+      {showUsageModal && (
+        <div className="modal-overlay" onClick={() => setShowUsageModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowUsageModal(false)}>×</button>
+            <h2>Usage History: {usageCodeLabel}</h2>
+            {usageRows.length === 0 ? <p>No usage records yet.</p> : (
+              <div className="table-wrap"><table className="results-table">
+                <thead><tr><th>Email</th><th>Used At</th></tr></thead>
+                <tbody>
+                  {usageRows.map((u) => (
+                    <tr key={u.id}><td>{u.used_email || '-'}</td><td>{new Date(u.used_at).toLocaleString()}</td></tr>
+                  ))}
+                </tbody>
+              </table></div>
+            )}
           </div>
         </div>
       )}

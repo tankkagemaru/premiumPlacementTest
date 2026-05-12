@@ -28,7 +28,7 @@ export default async function handler(req, res) {
     const code = String(registrationCode || '').trim().toUpperCase();
     if (!code) return res.status(400).json({ valid: false, error: 'Registration code is required.' });
 
-    const check = await fetch(`${SUPABASE_URL}/rest/v1/registration_codes?select=id,code,created_by,email_hint,max_uses,used_count,is_active,expires_at&code=eq.${encodeURIComponent(code)}&is_active=eq.true&limit=1`, { headers: headers() });
+    const check = await fetch(`${SUPABASE_URL}/rest/v1/registration_codes?select=id,code,created_by,max_uses,used_count,is_active,expires_at&code=eq.${code}&is_active=eq.true&limit=1`, { headers: headers() });
     const data = await readBody(check);
     const row = Array.isArray(data) ? data[0] : null;
     if (!check.ok || !row) return res.status(403).json({ valid: false, error: 'Invalid registration code.' });
