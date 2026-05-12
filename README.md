@@ -836,3 +836,66 @@ Browser Console:
 
 **Last Updated: April 2024**
 **Status: Production Ready** ✅
+
+---
+
+## Security Hardening (Required)
+
+To avoid unrestricted writes in Supabase, apply these controls:
+
+1. **Enable RLS on all tables** (`users`, `students`, `questions`, `test_results`).
+2. **Never expose service role key in frontend** (use serverless functions only).
+3. **Restrict role management to superadmin-only server endpoint** (`/api/admin-users`).
+4. **Disable public admin signup** (already enforced in `/api/validate-registration`).
+
+### Recommended minimum RLS policies
+
+```sql
+-- users table
+alter table public.users enable row level security;
+
+create policy "users_select_own"
+on public.users for select
+using (auth.uid() = id);
+
+create policy "users_update_own_profile_only"
+on public.users for update
+using (auth.uid() = id)
+with check (
+  auth.uid() = id
+  and role = (select role from public.users u where u.id = auth.uid())
+);
+
+-- students table
+alter table public.students enable row level security;
+
+create policy "students_select_own"
+on public.students for select
+using (user_id = auth.uid());
+
+create policy "students_insert_own"
+on public.students for insert
+with check (user_id = auth.uid());
+```
+
+> Keep admin/teacher role updates behind the server endpoint using `SUPABASE_SERVICE_ROLE_KEY`.
+
+### Environment variables setup (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`)
+
+Set these in **Vercel Project → Settings → Environment Variables**:
+
+- `SUPABASE_URL` = your Supabase project URL (example: `https://xxxx.supabase.co`)
+- `SUPABASE_ANON_KEY` = Supabase anon/public API key
+- `SUPABASE_SERVICE_ROLE_KEY` = Supabase service role key (server-side only, never in frontend)
+
+Recommended scopes:
+- Add all 3 for `Production`, `Preview`, and `Development` as needed.
+- Redeploy after saving env vars so serverless functions pick up new values.
+
+For local development (`.env.local`):
+
+```bash
+SUPABASE_URL=https://xxxx.supabase.co
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
