@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || '';
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
 const SUPERADMIN_EMAIL = (process.env.REACT_APP_SUPERADMIN_EMAIL || 'mrosani22@premium.edu.my').trim().toLowerCase();
 const COMPANY_NAME = 'Premium Language Centre';
@@ -129,6 +129,8 @@ const api = {
     }
   },
   async request(method, path, body = null, authToken = null) {
+    if (!SUPABASE_URL) throw new Error('Missing REACT_APP_SUPABASE_URL.');
+    if (!SUPABASE_KEY) throw new Error('Missing REACT_APP_SUPABASE_ANON_KEY.');
     const token = authToken || localStorage.getItem('sb-token');
     const headers = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY };
     if (token) headers['Authorization'] = `Bearer ${token}`;
