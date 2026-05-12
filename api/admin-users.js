@@ -1,5 +1,5 @@
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL || 'https://nitxboxvkktcgkkkbrec.supabase.co';
-const SUPERADMIN_EMAIL = 'mrosani22@premium.edu.my';
+const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || '').toLowerCase();
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_AUTH_API_KEY = SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY;
@@ -41,6 +41,9 @@ function getServiceHeaders() {
 export default async function handler(req, res) {
   try {
     const user = await getSessionUser(req);
+    if (!SUPERADMIN_EMAIL) {
+      return res.status(500).json({ error: 'Missing SUPERADMIN_EMAIL in server environment.' });
+    }
     if (!user || user.email?.toLowerCase() !== SUPERADMIN_EMAIL) {
       return res.status(403).json({ error: 'Superadmin access required.' });
     }
@@ -73,7 +76,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { action, userId, email, fullName, role = 'student', passportId = '', country = '', password = '' } = req.body || {};
+      const { action, email, fullName, role = 'student', passportId = '', country = '', password = '' } = req.body || {};
       if (action === 'send_reset') {
         const resetResponse = await fetch(`${SUPABASE_URL}/auth/v1/admin/generate_link`, {
           method: 'POST',

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
-const SUPERADMIN_EMAIL = 'mrosani22@premium.edu.my';
+const SUPERADMIN_EMAIL = process.env.REACT_APP_SUPERADMIN_EMAIL || '';
 const COMPANY_NAME = 'Premium Language Centre';
 const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/plc-logo.png';
 
@@ -242,34 +242,7 @@ const api = {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await this.parseResponse(response);
-    if (!response.ok) {
-      // Fallback mode: if serverless function fails, read directly from Supabase REST.
-      // This keeps admin UI usable while server env is being fixed.
-      if (String(data?.error || '').includes('FUNCTION_INVOCATION_FAILED')) {
-        try {
-          const headers = {
-            apikey: SUPABASE_KEY,
-            Authorization: `Bearer ${token}`
-          };
-          const [usersRes, studentsRes] = await Promise.all([
-            fetch(`${SUPABASE_URL}/rest/v1/users?select=id,email,full_name,role&order=email.asc`, { headers }),
-            fetch(`${SUPABASE_URL}/rest/v1/students?select=user_id,passport_id,country`, { headers })
-          ]);
-          const users = await this.parseResponse(usersRes);
-          const students = await this.parseResponse(studentsRes);
-          if (!usersRes.ok) throw new Error(users?.error || users?.message || 'Unable to load users.');
-          const studentMap = new Map((Array.isArray(students) ? students : []).map(s => [s.user_id, s]));
-          return (Array.isArray(users) ? users : []).map(u => ({
-            ...u,
-            passport_id: studentMap.get(u.id)?.passport_id || '',
-            country: studentMap.get(u.id)?.country || ''
-          }));
-        } catch (fallbackErr) {
-          throw new Error(`Admin API failed and fallback failed: ${fallbackErr.message || fallbackErr}`);
-        }
-      }
-      throw new Error(data?.error || 'Unable to load users');
-    }
+    if (!response.ok) throw new Error(data?.error || 'Unable to load users');
     return data.users || [];
   },
   async updateManagedUserRole(userId, role, fullName, passportId, country) {
@@ -297,42 +270,7 @@ const api = {
       body: JSON.stringify(payload)
     });
     const data = await this.parseResponse(response);
-    if (!response.ok) {
-      if (String(data?.error || '').includes('FUNCTION_INVOCATION_FAILED')) {
-        // Fallback mode: create user via public signup + direct table writes.
-        const signupRes = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: SUPABASE_KEY },
-          body: JSON.stringify({ email: payload.email, password: payload.password || `Temp${Math.random().toString(36).slice(-8)}!` })
-        });
-        const signupData = await this.parseResponse(signupRes);
-        if (!signupRes.ok || !signupData?.user?.id) {
-          throw new Error(signupData?.error_description || signupData?.msg || signupData?.error || 'Fallback signup failed.');
-        }
-        const userId = signupData.user.id;
-        const headers = { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${token}` };
-        await fetch(`${SUPABASE_URL}/rest/v1/users`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ id: userId, email: payload.email, full_name: payload.fullName, role: payload.role || 'student' })
-        });
-        if ((payload.role || 'student') === 'student') {
-          await fetch(`${SUPABASE_URL}/rest/v1/students`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              user_id: userId,
-              email: payload.email,
-              full_name: payload.fullName,
-              passport_id: payload.passportId || null,
-              country: payload.country || null
-            })
-          });
-        }
-        return { success: true, tempPassword: payload.password || '(set during signup)' };
-      }
-      throw new Error(data?.error || 'Unable to create user');
-    }
+    if (!response.ok) throw new Error(data?.error || 'Unable to create user');
     return data;
   },
   async sendUserResetLink(email) {

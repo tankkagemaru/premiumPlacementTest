@@ -1,25 +1,25 @@
 import crypto from 'crypto';
 
-function timingSafeEquals(a = '', b = '') {
+export function timingSafeEquals(a = '', b = '') {
   const aBuf = Buffer.from(String(a));
   const bBuf = Buffer.from(String(b));
   if (aBuf.length !== bBuf.length) return false;
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
-function countryPrefix(country = '') {
+export function countryPrefix(country = '') {
   return String(country)
     .toUpperCase()
     .replace(/[^A-Z]/g, '')
     .slice(0, 2);
 }
 
-function passportSuffix(passportId = '') {
+export function passportSuffix(passportId = '') {
   const digits = String(passportId).replace(/\D/g, '');
   return digits.slice(-2);
 }
 
-function buildStudentCode(country, passportId) {
+export function buildStudentCode(country, passportId) {
   const prefix = countryPrefix(country);
   const suffix = passportSuffix(passportId);
   if (prefix.length < 2 || suffix.length < 2) return null;
