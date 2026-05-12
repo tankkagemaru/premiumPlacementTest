@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-const SUPABASE_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdHhib3h2a2t0Y2dra2ticmVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTE4MjgsImV4cCI6MjA5MTc4NzgyOH0.wFhjlAvvFG92JGT2Pb-KhHwRnas89ZjPB46h1RIwdJ0';
+const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
 const SUPERADMIN_EMAIL = process.env.REACT_APP_SUPERADMIN_EMAIL || '';
 const COMPANY_NAME = 'Premium Language Centre';
 const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/plc-logo.png';
@@ -33,8 +33,11 @@ const styles = `
   .header h1 { font-size: 26px; margin: 0; margin-bottom: 2px; }
   .subtitle { font-size: 12px; opacity: 0.95; margin: 0; }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
+  .login-shell { width: 100%; max-width: 560px; }
   .login-box { background: var(--bg-card); padding: 40px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
   .login-box h1 { color: var(--brand-500); font-size: 24px; margin-bottom: 10px; }
+  .auth-subtitle { font-size: 14px; color: var(--text-muted); margin: 0 0 20px 0; }
+  .field-help { margin-top: -8px; margin-bottom: 10px; color: var(--text-muted); font-size: 12px; }
   .login-box input, .login-box select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); font-size: 14px; }
   .login-box input:focus, .login-box select:focus { outline: none; border-color: #CC0000; box-shadow: 0 0 5px rgba(204, 0, 0, 0.2); }
   .primary-button { width: 100%; padding: 12px; background-color: var(--brand-500); color: white; border: none; border-radius: var(--radius-sm); font-size: 16px; font-weight: bold; cursor: pointer; transition: background-color 0.3s; }
@@ -89,7 +92,9 @@ const styles = `
   .results-table { width: 100%; border-collapse: collapse; }
   .results-table th { background-color: #f5f5f5; padding: 12px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd; }
   .results-table td { padding: 12px; border-bottom: 1px solid #ddd; }
+  .results-table tbody tr:nth-child(even) { background-color: #fcfcfc; }
   .results-table tr:hover { background-color: #f9f9f9; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); }
   .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
   .modal { background: var(--bg-card); padding: 30px; border-radius: var(--radius-md); max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; border: 1px solid var(--border-soft); box-shadow: var(--shadow-soft); }
   .modal h2 { color: var(--brand-500); margin-bottom: 20px; }
@@ -524,6 +529,7 @@ function LoginScreen({ onLogin }) {
 
               <div className="form-section">
                 <div className="form-section-title">{isSignup ? 'Create Account' : 'Login'}</div>
+                {!isSignup && <p className="auth-subtitle">Sign in with your registered account to continue your placement journey.</p>}
                 <input type="email" placeholder="Email Address *" value={email} onChange={(e) => setEmail(e.target.value)} required />
                 <input type="password" placeholder="Password (minimum 6 characters) *" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
@@ -531,6 +537,7 @@ function LoginScreen({ onLogin }) {
               {isSignup && (
                 <div className="form-section">
                   <div className="form-section-title">Registration Code</div>
+                  <div className="field-help">Enter the registration code provided by your school administrator.</div>
                   <input type="text" placeholder="Registration Code *" value={registrationCode} onChange={(e) => setRegistrationCode(e.target.value)} className="code-input" required={isSignup} />
                 </div>
               )}
