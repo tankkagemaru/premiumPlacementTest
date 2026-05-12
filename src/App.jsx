@@ -249,11 +249,11 @@ const api = {
     
     return result;
   },
-  async validateRegistration(role, registrationCode, email, country, passportId) {
+  async validateRegistration(role, registrationCode, email) {
     const response = await fetch('/api/validate-registration', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role, registrationCode, email, country, passportId })
+      body: JSON.stringify({ role, registrationCode, email })
     });
     const data = await response.json();
     if (!response.ok || !data?.valid) {
@@ -372,6 +372,36 @@ const api = {
     });
     const data = await this.parseResponse(response);
     if (!response.ok) throw new Error(data?.error || 'Unable to delete user');
+    return data;
+  }
+  ,
+  async getRegistrationCodes() {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/registration-codes', { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
+    const data = await this.parseResponse(response);
+    if (!response.ok) throw new Error(data?.error || 'Unable to load registration codes');
+    return data.codes || [];
+  },
+  async createRegistrationCode(payload) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/registration-codes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload)
+    });
+    const data = await this.parseResponse(response);
+    if (!response.ok) throw new Error(data?.error || 'Unable to create registration code');
+    return data;
+  },
+  async toggleRegistrationCode(id, isActive) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/registration-codes', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id, isActive })
+    });
+    const data = await this.parseResponse(response);
+    if (!response.ok) throw new Error(data?.error || 'Unable to update code');
     return data;
   }
 };
@@ -532,7 +562,7 @@ function LoginScreen({ onLogin }) {
       }
 
       if (isSignup) {
-        await api.validateRegistration('student', registrationCode.trim(), email.trim(), country, passportId);
+        await api.validateRegistration('student', registrationCode.trim(), email.trim());
       }
 
       const result = isSignup 
@@ -981,6 +1011,10 @@ function TeacherDashboard({ user, onLogout }) {
   const [questionSort, setQuestionSort] = useState('recent');
   const [pendingSearch, setPendingSearch] = useState('');
   const [approvedSearch, setApprovedSearch] = useState('');
+  const [registrationCodes, setRegistrationCodes] = useState([]);
+  const [newRegCode, setNewRegCode] = useState('');
+  const [newRegMaxUses, setNewRegMaxUses] = useState('0');
+  const [newRegExpiry, setNewRegExpiry] = useState('');
   const [managedUsers, setManagedUsers] = useState([]);
   const [userMgmtLoading, setUserMgmtLoading] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
@@ -1019,11 +1053,19 @@ function TeacherDashboard({ user, onLogout }) {
           setAdminError(err.message || 'Unable to load users from Supabase.');
         }
       }
+      if (['teacher', 'admin', 'superadmin'].includes((user.role || '').toLowerCase()) || isSuperAdmin) {
+        try {
+          const codes = await api.getRegistrationCodes();
+          setRegistrationCodes(codes);
+        } catch (err) {
+          console.error('Unable to load registration codes:', err);
+        }
+      }
     } catch (err) {
       console.error('Error loading:', err);
     }
     setLoading(false);
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, user.role]);
 
   useEffect(() => {
     loadData();
@@ -1140,6 +1182,11 @@ function TeacherDashboard({ user, onLogout }) {
         <button className={`tab ${activeTab === 'questions' ? 'active' : ''}`} onClick={() => setActiveTab('questions')}>
           Questions
         </button>
+        {['teacher', 'admin', 'superadmin'].includes((user.role || '').toLowerCase()) || isSuperAdmin ? (
+          <button className={`tab ${activeTab === 'codes' ? 'active' : ''}`} onClick={() => setActiveTab('codes')}>
+            Registration Codes
+          </button>
+        ) : null}
         {isSuperAdmin && (
           <button className={`tab ${activeTab === 'admins' ? 'active' : ''}`} onClick={() => setActiveTab('admins')}>
             Admin Management
@@ -1264,6 +1311,55 @@ function TeacherDashboard({ user, onLogout }) {
               </tbody>
             </table></div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'codes' && (
+        <div className="tab-content">
+          <h3 style={{ marginBottom: 12 }}>Teacher/Admin Registration Codes</h3>
+          <div className="dashboard-toolbar">
+            <input className="dashboard-search" placeholder="Code (e.g. MAY2026A)" value={newRegCode} onChange={(e) => setNewRegCode(e.target.value.toUpperCase())} />
+            <input className="dashboard-search" style={{ maxWidth: 160 }} placeholder="Max uses" value={newRegMaxUses} onChange={(e) => setNewRegMaxUses(e.target.value)} />
+            <input className="dashboard-search" style={{ maxWidth: 220 }} type="datetime-local" value={newRegExpiry} onChange={(e) => setNewRegExpiry(e.target.value)} />
+            <button className="approve-button" onClick={async () => {
+              try {
+                if (!newRegCode.trim()) return;
+                await api.createRegistrationCode({ code: newRegCode.trim(), maxUses: Number(newRegMaxUses || 0), expiresAt: newRegExpiry || null });
+                setNewRegCode('');
+                setNewRegMaxUses('0');
+                setNewRegExpiry('');
+                const codes = await api.getRegistrationCodes();
+                setRegistrationCodes(codes);
+              } catch (err) {
+                alert(err.message || 'Unable to create code');
+              }
+            }}>+ Create Code</button>
+          </div>
+
+          <div className="table-wrap"><table className="results-table">
+            <thead>
+              <tr>
+                <th>Code</th><th>Created By</th><th>Used</th><th>Max</th><th>Expires</th><th>Status</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {registrationCodes.map((c) => (
+                <tr key={c.id}>
+                  <td><strong>{c.code}</strong></td>
+                  <td>{c.creator?.full_name || c.creator?.email || '-'}</td>
+                  <td>{c.used_count || 0}</td>
+                  <td>{c.max_uses || 0}</td>
+                  <td>{c.expires_at ? new Date(c.expires_at).toLocaleString() : 'No expiry'}</td>
+                  <td><span className={`status-chip ${c.is_active ? 'approved' : 'pending'}`}>{c.is_active ? 'Active' : 'Inactive'}</span></td>
+                  <td><button className="approve-button" onClick={async () => {
+                    await api.toggleRegistrationCode(c.id, !c.is_active);
+                    const codes = await api.getRegistrationCodes();
+                    setRegistrationCodes(codes);
+                  }}>{c.is_active ? 'Disable' : 'Enable'}</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
         </div>
       )}
 
