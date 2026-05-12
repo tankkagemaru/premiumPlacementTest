@@ -23,6 +23,14 @@ const styles = `
     --space-5: 20px;
     --space-6: 24px;
   }
+  [data-theme='dark'] {
+    --bg-app: #0f172a;
+    --bg-card: #111827;
+    --text-primary: #e5e7eb;
+    --text-muted: #9ca3af;
+    --border-soft: #374151;
+    --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.5);
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: var(--bg-app); color: var(--text-primary); }
   .app { min-height: 100vh; background-color: var(--bg-app); }
@@ -94,6 +102,7 @@ const styles = `
   .header-actions { display: flex; gap: 20px; align-items: center; }
   .logout-button { padding: 10px 20px; background-color: var(--brand-500); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: bold; }
   .logout-button:hover { background-color: var(--brand-700); }
+  .theme-toggle { padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.12); color: white; cursor: pointer; }
   .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
   .tab { padding: 10px 20px; background: var(--bg-card); border: 2px solid var(--border-soft); border-radius: var(--radius-sm); cursor: pointer; font-weight: bold; transition: all 0.3s; }
   .tab.active { background-color: var(--brand-500); color: white; border-color: var(--brand-500); }
@@ -290,7 +299,7 @@ const api = {
     return this.request('GET', `/rest/v1/students?user_id=eq.${userId}&select=id`).then(async (students) => {
       const studentId = students?.[0]?.id;
       if (!studentId) return [];
-      return this.request('GET', `/rest/v1/test_results?student_id=eq.${studentId}&select=id,overall_score,determined_cefr_level,is_approved,completed_at,approved_at,teacher_comment,status,attempt_no,official_for_placement&order=completed_at.desc`);
+      return this.request('GET', `/rest/v1/test_results?student_id=eq.${studentId}&select=id,overall_score,determined_cefr_level,is_approved,completed_at,approved_at,teacher_comment,status,attempt_no,official_for_placement,student_responses&order=completed_at.desc`);
     });
   },
   updateTestResult(id, updates) {
@@ -700,6 +709,7 @@ function StudentTest({ user, onComplete }) {
   const [attempts, setAttempts] = useState([]);
   const [attemptsLoading, setAttemptsLoading] = useState(true);
   const [sessionId, setSessionId] = useState(null);
+  const [selectedAttemptReview, setSelectedAttemptReview] = useState(null);
 
   useEffect(() => {
     const loadAttempts = async () => {
@@ -880,8 +890,7 @@ function StudentTest({ user, onComplete }) {
   if (!testStarted) {
     const approvedAttempts = attempts.filter(a => a.is_approved);
     const hasPendingReview = attempts.some(a => !a.is_approved);
-    const canStartFirstAttempt = attempts.length === 0;
-    const canStart = canStartFirstAttempt; // retake requires manual teacher approval flow
+    const canStart = !hasPendingReview;
 
     return (
       <div className="test-screen">
@@ -897,7 +906,7 @@ function StudentTest({ user, onComplete }) {
               ) : (
                 <table className="results-table">
                   <thead>
-                    <tr><th>Date</th><th>Score</th><th>CEFR</th></tr>
+                    <tr><th>Date</th><th>Score</th><th>CEFR</th><th>Review</th></tr>
                   </thead>
                   <tbody>
                     {approvedAttempts.map(a => (
@@ -905,6 +914,7 @@ function StudentTest({ user, onComplete }) {
                         <td>{new Date(a.approved_at || a.completed_at).toLocaleDateString()}</td>
                         <td>{a.overall_score?.toFixed?.(1) || a.overall_score}%</td>
                         <td>{a.determined_cefr_level}</td>
+                        <td><button className="link-button" onClick={() => setSelectedAttemptReview(a)}>View</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -915,11 +925,7 @@ function StudentTest({ user, onComplete }) {
                   You have a pending attempt under teacher review. New attempts are locked.
                 </p>
               )}
-              {!canStart && !hasPendingReview && (
-                <p style={{ marginTop: '10px', color: '#666', fontSize: '13px' }}>
-                  Retake requires manual teacher approval.
-                </p>
-              )}
+              {!hasPendingReview && approvedAttempts.length > 0 && <p style={{ marginTop: '10px', color: '#4caf50', fontSize: '13px' }}>You can retake the assessment to improve your placement.</p>}
             </div>
           )}
           <p className="description">Discover your CEFR level with our adaptive placement test. The test adjusts to your ability level and typically takes 15-20 minutes.</p>
@@ -936,8 +942,28 @@ function StudentTest({ user, onComplete }) {
             {loading ? 'Loading...' : 'BEGIN ASSESSMENT →'}
           </button>
           {error && <div className="error-message">{error}</div>}
-          <p className="disclaimer">You can't retake this assessment. Take your time and answer honestly.</p>
+          <p className="disclaimer">You can retake after each submitted assessment (unless another attempt is pending review).</p>
         </div>
+
+        {selectedAttemptReview && (
+          <div className="modal-overlay" onClick={() => setSelectedAttemptReview(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <button className="modal-close" onClick={() => setSelectedAttemptReview(null)}>×</button>
+              <h2>Attempt Review</h2>
+              <p><strong>Score:</strong> {selectedAttemptReview.overall_score}% | <strong>CEFR:</strong> {selectedAttemptReview.determined_cefr_level}</p>
+              <div className="table-wrap"><table className="results-table">
+                <thead><tr><th>#</th><th>Your Answer</th><th>Correct</th><th>Status</th></tr></thead>
+                <tbody>
+                  {(JSON.parse(selectedAttemptReview.student_responses || '[]')).map((r, idx) => (
+                    <tr key={idx}>
+                      <td>{idx + 1}</td><td>{r.selected_answer || '-'}</td><td>{r.correct_answer || '-'}</td><td>{r.is_correct ? '✅' : '❌'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table></div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -989,7 +1015,7 @@ function StudentTest({ user, onComplete }) {
             <source src={currentQuestion.audio_url} type="audio/wav" />
           </audio>
         )}
-        {currentQuestion.passage && <div className="passage notranslate" translate="no" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none', pointerEvents: 'none' }}><p>{currentQuestion.passage}</p></div>}
+        {currentQuestion.passage && currentQuestion.skill !== 'listening' && !currentQuestion.audio_url && <div className="passage notranslate" translate="no" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none', pointerEvents: 'none' }}><p>{currentQuestion.passage}</p></div>}
         <div className="options">
           {currentQuestion.options?.map((option, idx) => (
             <button key={idx} className="option-button notranslate" translate="no" onClick={() => handleAnswer(option)}>
@@ -1325,6 +1351,111 @@ function TeacherDashboard({ user, onLogout }) {
               </tbody>
             </table></div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'codes' && (
+        <div className="tab-content">
+          <h3 style={{ marginBottom: 12 }}>Teacher/Admin Registration Codes</h3>
+          {registrationCodeError && (
+            <div className="error-message" style={{ marginBottom: 12 }}>
+              {registrationCodeError}
+              <div style={{ marginTop: 8, fontSize: 12 }}>
+                Setup required: run migration <code>db/migrations/002_registration_codes.sql</code> in Supabase SQL editor.
+              </div>
+            </div>
+          )}
+          <div className="dashboard-toolbar">
+            <span className="status-chip approved">Active codes: {registrationCodes.filter(c => c.is_active).length}</span>
+            <button className="approve-button" onClick={() => setShowCreateCodeModal(true)}>+ Create Code</button>
+          </div>
+
+          <div className="table-wrap"><table className="results-table">
+            <thead>
+              <tr>
+                <th>Code</th><th>Created By</th><th>Used</th><th>Max</th><th>Expires</th><th>Status</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {registrationCodes.map((c) => (
+                <tr key={c.id}>
+                  <td><strong>{c.code}</strong></td>
+                  <td>{c.creator?.full_name || c.creator?.email || '-'}</td>
+                  <td>
+                    <button className="link-button" onClick={async () => {
+                      try {
+                        const usage = await api.getRegistrationCodeUsage(c.id);
+                        setUsageRows(usage);
+                        setUsageCodeLabel(c.code);
+                        setShowUsageModal(true);
+                      } catch (err) {
+                        setRegistrationCodeError(err.message || 'Unable to load usage history');
+                      }
+                    }}>{c.used_count || 0}</button>
+                  </td>
+                  <td>{c.max_uses || 0}</td>
+                  <td>{c.expires_at ? new Date(c.expires_at).toLocaleString() : 'No expiry'}</td>
+                  <td><span className={`status-chip ${c.is_active ? 'approved' : 'pending'}`}>{c.is_active ? 'Active' : 'Inactive'}</span></td>
+                  <td><button className="approve-button" onClick={async () => {
+                    await api.toggleRegistrationCode(c.id, !c.is_active);
+                    const codes = await api.getRegistrationCodes();
+                    setRegistrationCodes(codes);
+                  }}>{c.is_active ? 'Disable' : 'Enable'}</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        </div>
+      )}
+
+      {showCreateCodeModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateCodeModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowCreateCodeModal(false)}>×</button>
+            <h2>Create Registration Code</h2>
+            <div className="modal-section">
+              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Code</label>
+              <input className="dashboard-search" style={{ maxWidth: '100%' }} placeholder="e.g. MAY2026A" value={newRegCode} onChange={(e) => setNewRegCode(e.target.value.toUpperCase())} />
+              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Max Uses (0 = unlimited)</label>
+              <input className="dashboard-search" style={{ maxWidth: '100%' }} placeholder="0" value={newRegMaxUses} onChange={(e) => setNewRegMaxUses(e.target.value)} />
+              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Expiry (optional)</label>
+              <input className="dashboard-search" style={{ maxWidth: '100%' }} type="datetime-local" value={newRegExpiry} onChange={(e) => setNewRegExpiry(e.target.value)} />
+            </div>
+            <button className="primary-button" onClick={async () => {
+              try {
+                if (!newRegCode.trim()) throw new Error('Code is required');
+                await api.createRegistrationCode({ code: newRegCode.trim(), maxUses: Number(newRegMaxUses || 0), expiresAt: newRegExpiry || null });
+                setNewRegCode('');
+                setNewRegMaxUses('0');
+                setNewRegExpiry('');
+                setShowCreateCodeModal(false);
+                const codes = await api.getRegistrationCodes();
+                setRegistrationCodes(codes);
+                setRegistrationCodeError('');
+              } catch (err) {
+                setRegistrationCodeError(err.message || 'Unable to create code');
+              }
+            }}>Create Code</button>
+          </div>
+        </div>
+      )}
+
+      {showUsageModal && (
+        <div className="modal-overlay" onClick={() => setShowUsageModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowUsageModal(false)}>×</button>
+            <h2>Usage History: {usageCodeLabel}</h2>
+            {usageRows.length === 0 ? <p>No usage records yet.</p> : (
+              <div className="table-wrap"><table className="results-table">
+                <thead><tr><th>Email</th><th>Used At</th></tr></thead>
+                <tbody>
+                  {usageRows.map((u) => (
+                    <tr key={u.id}><td>{u.used_email || '-'}</td><td>{new Date(u.used_at).toLocaleString()}</td></tr>
+                  ))}
+                </tbody>
+              </table></div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1972,6 +2103,7 @@ function TeacherDashboard({ user, onLogout }) {
 // ============ MAIN APP ============
 export default function App() {
   const [user, setUser] = useState(null);
+  const [theme, setTheme] = useState(localStorage.getItem('ui-theme') || 'light');
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -1989,6 +2121,11 @@ export default function App() {
     document.body.classList.add('notranslate');
   }, []);
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('ui-theme', theme);
+  }, [theme]);
+
   return (
     <div className="app">
       <div className="header">
@@ -2005,6 +2142,9 @@ export default function App() {
           <h1>CEFR Placement</h1>
           <p className="subtitle">{COMPANY_NAME}</p>
         </div>
+        <button className="theme-toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
+          {theme === 'light' ? '🌙 Night' : '☀️ Day'}
+        </button>
       </div>
 
       {!user ? (
