@@ -103,6 +103,11 @@ const styles = `
   .results-table td { padding: 12px; border-bottom: 1px solid #ddd; }
   .results-table tbody tr:nth-child(even) { background-color: #fcfcfc; }
   .results-table tr:hover { background-color: #f9f9f9; }
+  .dashboard-toolbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; }
+  .dashboard-search { min-width: 260px; max-width: 380px; width: 100%; padding: 10px 12px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); }
+  .status-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .status-chip.pending { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
+  .status-chip.approved { background: #ecfdf5; color: #166534; border: 1px solid #bbf7d0; }
   .table-wrap { overflow-x: auto; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); }
   .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
   .modal { background: var(--bg-card); padding: 30px; border-radius: var(--radius-md); max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; border: 1px solid var(--border-soft); box-shadow: var(--shadow-soft); }
@@ -128,6 +133,9 @@ const styles = `
   @media (max-width: 900px) {
     .login-shell { grid-template-columns: 1fr; }
     .login-brand-panel { border-right: none; border-bottom: 1px solid var(--border-soft); }
+    .login-brand-panel img { margin: 0 auto; }
+    .brand-title, .brand-copy { text-align: center; }
+    .brand-list { justify-items: center; }
   }
 `;
 
@@ -562,9 +570,8 @@ function LoginScreen({ onLogin }) {
             <img
               src={LOGO_URL}
               alt="Premium Language Centre"
-              style={{ width: '220px', maxWidth: '100%', height: 'auto', objectFit: 'contain', display: 'block' }}
+              style={{ width: '220px', maxWidth: '100%', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }}
             />
-            <div className="brand-kicker">Premium Language Centre</div>
             <div className="brand-title">CEFR Placement Test</div>
             <div className="brand-copy">
               Modern English placement with teacher-reviewed outcomes and a secure testing workflow.
@@ -972,6 +979,8 @@ function TeacherDashboard({ user, onLogout }) {
   const [questionSkillFilter, setQuestionSkillFilter] = useState('');
   const [questionCefrFilter, setQuestionCefrFilter] = useState('');
   const [questionSort, setQuestionSort] = useState('recent');
+  const [pendingSearch, setPendingSearch] = useState('');
+  const [approvedSearch, setApprovedSearch] = useState('');
   const [managedUsers, setManagedUsers] = useState([]);
   const [userMgmtLoading, setUserMgmtLoading] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
@@ -1080,6 +1089,14 @@ function TeacherDashboard({ user, onLogout }) {
 
   const pendingResults = results.filter(r => !r.is_approved);
   const approvedResults = results.filter(r => r.is_approved);
+  const filteredPendingResults = pendingResults.filter((r) => {
+    const haystack = `${r.students?.full_name || r.student_name || ''} ${r.students?.country || ''} ${r.determined_cefr_level || ''}`.toLowerCase();
+    return haystack.includes(pendingSearch.toLowerCase());
+  });
+  const filteredApprovedResults = approvedResults.filter((r) => {
+    const haystack = `${r.students?.full_name || r.student_name || ''} ${r.students?.passport_id || r.student_passport || ''} ${r.determined_cefr_level || ''}`.toLowerCase();
+    return haystack.includes(approvedSearch.toLowerCase());
+  });
   
   // Filter and sort questions
   const filteredQuestions = questions
@@ -1140,10 +1157,14 @@ function TeacherDashboard({ user, onLogout }) {
 
       {activeTab === 'pending' && (
         <div className="tab-content">
-          {pendingResults.length === 0 ? (
+          <div className="dashboard-toolbar">
+            <span className="status-chip pending">Pending review: {filteredPendingResults.length}</span>
+            <input className="dashboard-search" placeholder="Search by student, country, or CEFR..." value={pendingSearch} onChange={(e) => setPendingSearch(e.target.value)} />
+          </div>
+          {filteredPendingResults.length === 0 ? (
             <p>No pending approvals.</p>
           ) : (
-            <table className="results-table">
+            <div className="table-wrap"><table className="results-table">
               <thead>
                 <tr>
                   <th>Student Name</th>
@@ -1154,7 +1175,7 @@ function TeacherDashboard({ user, onLogout }) {
                 </tr>
               </thead>
               <tbody>
-                {pendingResults.map(r => (
+                {filteredPendingResults.map(r => (
                   <tr key={r.id}>
                     <td>{r.students?.full_name || r.student_name || 'N/A'} {r.students?.country ? `(${r.students.country})` : ''}</td>
                     <td>{r.overall_score?.toFixed(1)}%</td>
@@ -1168,17 +1189,21 @@ function TeacherDashboard({ user, onLogout }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}
 
       {activeTab === 'approved' && (
         <div className="tab-content">
-          {approvedResults.length === 0 ? (
+          <div className="dashboard-toolbar">
+            <span className="status-chip approved">Approved results: {filteredApprovedResults.length}</span>
+            <input className="dashboard-search" placeholder="Search by student, passport, or CEFR..." value={approvedSearch} onChange={(e) => setApprovedSearch(e.target.value)} />
+          </div>
+          {filteredApprovedResults.length === 0 ? (
             <p>No approved results yet.</p>
           ) : (
-            <table className="results-table">
+            <div className="table-wrap"><table className="results-table">
               <thead>
                 <tr>
                   <th>Student Name</th>
@@ -1190,7 +1215,7 @@ function TeacherDashboard({ user, onLogout }) {
                 </tr>
               </thead>
               <tbody>
-                {approvedResults.map(r => (
+                {filteredApprovedResults.map(r => (
                   <tr key={r.id}>
                     <td>{r.students?.full_name || r.student_name || 'N/A'}</td>
                     <td>{r.students?.passport_id || r.student_passport || 'N/A'}</td>
@@ -1237,7 +1262,7 @@ function TeacherDashboard({ user, onLogout }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </div>
       )}
