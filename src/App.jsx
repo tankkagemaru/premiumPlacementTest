@@ -593,9 +593,6 @@ function LoginScreen({ onLogin }) {
               {isSignup && (
                 <div className="form-section">
                   <div className="form-section-title">Registration Code</div>
-                  <label className="code-label">
-                    Student code format: PREMIUM + first 2 letters of country + last 2 digits of Passport/ID.
-                  </label>
                   <input type="text" placeholder="Registration Code *" value={registrationCode} onChange={(e) => setRegistrationCode(e.target.value)} className="code-input" required={isSignup} />
                 </div>
               )}
