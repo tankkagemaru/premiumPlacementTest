@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
-const SUPERADMIN_EMAIL = process.env.REACT_APP_SUPERADMIN_EMAIL || '';
+const SUPERADMIN_EMAIL = (process.env.REACT_APP_SUPERADMIN_EMAIL || 'mrosani22@premium.edu.my').trim().toLowerCase();
 const COMPANY_NAME = 'Premium Language Centre';
 const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/public/pictures/plc-logo.png';
 
@@ -479,8 +479,7 @@ function LoginScreen({ onLogin }) {
 
       localStorage.setItem('sb-token', result.access_token);
       const normalizedLoginEmail = email.trim().toLowerCase();
-      const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
-      const role = normalizedLoginEmail === normalizedSuperAdminEmail
+      const role = normalizedLoginEmail === SUPERADMIN_EMAIL
         ? 'superadmin'
         : await api.getUserRole(result.user.id);
       onLogin({ ...result.user, role });
@@ -922,8 +921,7 @@ function TeacherDashboard({ user, onLogout }) {
   const [showPassword, setShowPassword] = useState(false);
   const [adminError, setAdminError] = useState('');
   const normalizedDashboardEmail = (user.email || '').trim().toLowerCase();
-  const normalizedSuperAdminEmail = SUPERADMIN_EMAIL.trim().toLowerCase();
-  const isSuperAdmin = normalizedDashboardEmail === normalizedSuperAdminEmail || user.role === 'superadmin';
+  const isSuperAdmin = normalizedDashboardEmail === SUPERADMIN_EMAIL || user.role === 'superadmin';
   const passwordStrength = newUserPassword.length >= 12 && /[A-Z]/.test(newUserPassword) && /[a-z]/.test(newUserPassword) && /\d/.test(newUserPassword) && /[^A-Za-z0-9]/.test(newUserPassword)
     ? 'Strong'
     : newUserPassword.length >= 8
@@ -1369,7 +1367,7 @@ function TeacherDashboard({ user, onLogout }) {
                     ) : (
                       <button
                         className="approve-button"
-                        disabled={userMgmtLoading || u.email?.toLowerCase() === SUPERADMIN_EMAIL}
+                        disabled={userMgmtLoading || String(u.email || '').toLowerCase() === SUPERADMIN_EMAIL}
                         onClick={() => {
                           setEditingUserId(u.id);
                           setEditingUserRole(u.role || 'student');
@@ -1385,7 +1383,7 @@ function TeacherDashboard({ user, onLogout }) {
                     )}
                     <button
                       className="logout-button"
-                      disabled={userMgmtLoading || u.email?.toLowerCase() === SUPERADMIN_EMAIL}
+                      disabled={userMgmtLoading || String(u.email || '').toLowerCase() === SUPERADMIN_EMAIL}
                       onClick={async () => {
                         if (!window.confirm(`Delete user ${u.email}? This cannot be undone.`)) return;
                         try {
