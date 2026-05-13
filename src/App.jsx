@@ -1400,6 +1400,97 @@ function TeacherDashboard({ user, onLogout }) {
               </tbody>
             </table></div>
           )}
+          <div className="dashboard-toolbar">
+            <span className="status-chip approved">Active codes: {registrationCodes.filter(c => c.is_active).length}</span>
+            <button className="approve-button" onClick={() => setShowCreateCodeModal(true)}>+ Create Code</button>
+          </div>
+
+          <div className="table-wrap"><table className="results-table">
+            <thead>
+              <tr>
+                <th>Code</th><th>Created By</th><th>Used</th><th>Max</th><th>Expires</th><th>Status</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {registrationCodes.map((c) => (
+                <tr key={c.id}>
+                  <td><strong>{c.code}</strong></td>
+                  <td>{c.creator?.full_name || c.creator?.email || '-'}</td>
+                  <td>
+                    <button className="link-button" onClick={async () => {
+                      try {
+                        const usage = await api.getRegistrationCodeUsage(c.id);
+                        setUsageRows(usage);
+                        setUsageCodeLabel(c.code);
+                        setShowUsageModal(true);
+                      } catch (err) {
+                        setRegistrationCodeError(err.message || 'Unable to load usage history');
+                      }
+                    }}>{c.used_count || 0}</button>
+                  </td>
+                  <td>{c.max_uses || 0}</td>
+                  <td>{c.expires_at ? new Date(c.expires_at).toLocaleString() : 'No expiry'}</td>
+                  <td><span className={`status-chip ${c.is_active ? 'approved' : 'pending'}`}>{c.is_active ? 'Active' : 'Inactive'}</span></td>
+                  <td><button className="approve-button" onClick={async () => {
+                    await api.toggleRegistrationCode(c.id, !c.is_active);
+                    const codes = await api.getRegistrationCodes();
+                    setRegistrationCodes(codes);
+                  }}>{c.is_active ? 'Disable' : 'Enable'}</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>
+        </div>
+      )}
+
+      {showCreateCodeModal && (
+        <div className="modal-overlay" onClick={() => setShowCreateCodeModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowCreateCodeModal(false)}>×</button>
+            <h2>Create Registration Code</h2>
+            <div className="modal-section">
+              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Code</label>
+              <input className="dashboard-search" style={{ maxWidth: '100%' }} placeholder="e.g. MAY2026A" value={newRegCode} onChange={(e) => setNewRegCode(e.target.value.toUpperCase())} />
+              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Max Uses (0 = unlimited)</label>
+              <input className="dashboard-search" style={{ maxWidth: '100%' }} placeholder="0" value={newRegMaxUses} onChange={(e) => setNewRegMaxUses(e.target.value)} />
+              <label style={{ fontSize: 12, fontWeight: 'bold' }}>Expiry (optional)</label>
+              <input className="dashboard-search" style={{ maxWidth: '100%' }} type="datetime-local" value={newRegExpiry} onChange={(e) => setNewRegExpiry(e.target.value)} />
+            </div>
+            <button className="primary-button" onClick={async () => {
+              try {
+                if (!newRegCode.trim()) throw new Error('Code is required');
+                await api.createRegistrationCode({ code: newRegCode.trim(), maxUses: Number(newRegMaxUses || 0), expiresAt: newRegExpiry || null });
+                setNewRegCode('');
+                setNewRegMaxUses('0');
+                setNewRegExpiry('');
+                setShowCreateCodeModal(false);
+                const codes = await api.getRegistrationCodes();
+                setRegistrationCodes(codes);
+                setRegistrationCodeError('');
+              } catch (err) {
+                setRegistrationCodeError(err.message || 'Unable to create code');
+              }
+            }}>Create Code</button>
+          </div>
+        </div>
+      )}
+
+      {showUsageModal && (
+        <div className="modal-overlay" onClick={() => setShowUsageModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowUsageModal(false)}>×</button>
+            <h2>Usage History: {usageCodeLabel}</h2>
+            {usageRows.length === 0 ? <p>No usage records yet.</p> : (
+              <div className="table-wrap"><table className="results-table">
+                <thead><tr><th>Email</th><th>Used At</th></tr></thead>
+                <tbody>
+                  {usageRows.map((u) => (
+                    <tr key={u.id}><td>{u.used_email || '-'}</td><td>{new Date(u.used_at).toLocaleString()}</td></tr>
+                  ))}
+                </tbody>
+              </table></div>
+            )}
+          </div>
         </div>
       )}
 
