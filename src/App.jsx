@@ -45,6 +45,18 @@ const styles = `
   }
   [data-theme='dark'] .auth-chip.active { background: #1f2937; color: #f3f4f6; }
   [data-theme='dark'] .auth-mode-switch { background: #0b1220; border-color: #374151; }
+  [data-theme='dark'] .results-table th { background: #1f2937; color: #e5e7eb; border-bottom-color: #374151; }
+  [data-theme='dark'] .results-table td { color: #e5e7eb; border-bottom-color: #374151; }
+  [data-theme='dark'] .results-table tbody tr:nth-child(even) { background: #0b1220; }
+  [data-theme='dark'] .results-table tr:hover { background: #1e293b; }
+  [data-theme='dark'] .question-box h3,
+  [data-theme='dark'] .progress-text,
+  [data-theme='dark'] .progress-title { color: #e5e7eb; }
+  [data-theme='dark'] .passage { background: #1f2937; color: #e5e7eb; }
+  [data-theme='dark'] .option-button { background: #111827; color: #f3f4f6; border-color: #374151; }
+  [data-theme='dark'] .option-button:hover { background: #1f2937; border-color: #ef4444; }
+  [data-theme='dark'] .timer-box { background: #1f2937; border-color: #f59e0b; }
+  [data-theme='dark'] .timer-display { color: #fbbf24; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: var(--bg-app); color: var(--text-primary); }
   .app { min-height: 100vh; background-color: var(--bg-app); }
@@ -136,6 +148,10 @@ const styles = `
   .modal { background: var(--bg-card); padding: 30px; border-radius: var(--radius-md); max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; border: 1px solid var(--border-soft); box-shadow: var(--shadow-soft); }
   .modal h2 { color: var(--brand-500); margin-bottom: 20px; }
   .modal-section { margin-bottom: 20px; }
+  .student-dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .student-stat { background: var(--bg-app); border: 1px solid var(--border-soft); border-radius: 8px; padding: 12px; text-align: left; }
+  .student-stat .label { font-size: 12px; color: var(--text-muted); }
+  .student-stat .value { font-size: 20px; font-weight: 700; margin-top: 4px; }
   .modal-section h3 { color: #333; margin-bottom: 10px; font-size: 16px; }
   .modal-close { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
   .question-item { background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; }
@@ -321,8 +337,14 @@ const api = {
   getStudentResults(userId) {
     return this.request('GET', `/rest/v1/students?user_id=eq.${userId}&select=id`).then(async (students) => {
       const studentId = students?.[0]?.id;
-      if (!studentId) return [];
-      return this.request('GET', `/rest/v1/test_results?student_id=eq.${studentId}&select=id,overall_score,determined_cefr_level,is_approved,completed_at,approved_at,teacher_comment,status,attempt_no,official_for_placement,student_responses&order=completed_at.desc`);
+      const select = 'id,student_id,overall_score,determined_cefr_level,is_approved,completed_at,approved_at,teacher_comment,status,attempt_no,official_for_placement,student_responses';
+      const [byStudentId, byUserId] = await Promise.all([
+        studentId ? this.request('GET', `/rest/v1/test_results?student_id=eq.${studentId}&select=${select}&order=completed_at.desc`) : Promise.resolve([]),
+        this.request('GET', `/rest/v1/test_results?student_id=eq.${userId}&select=${select}&order=completed_at.desc`).catch(() => [])
+      ]);
+      const merged = [...(byStudentId || []), ...(byUserId || [])];
+      const unique = Array.from(new Map(merged.map(r => [r.id, r])).values());
+      return unique.sort((a, b) => new Date(b.completed_at || 0) - new Date(a.completed_at || 0));
     });
   },
   updateTestResult(id, updates) {
@@ -922,7 +944,14 @@ function StudentTest({ user, onComplete }) {
           {attemptsLoading ? (
             <p className="description">Loading your attempt history...</p>
           ) : (
-            <div style={{ marginBottom: '20px', textAlign: 'left', backgroundColor: 'var(--bg-card)', padding: '15px', borderRadius: '6px' }}>
+            <>
+            <div className="student-dashboard-grid">
+              <div className="student-stat"><div className="label">Total Attempts</div><div className="value">{attempts.length}</div></div>
+              <div className="student-stat"><div className="label">Approved Attempts</div><div className="value">{approvedAttempts.length}</div></div>
+              <div className="student-stat"><div className="label">Pending Review</div><div className="value">{hasPendingReview ? 'Yes' : 'No'}</div></div>
+              <div className="student-stat"><div className="label">Latest CEFR</div><div className="value">{approvedAttempts[0]?.determined_cefr_level || '-'}</div></div>
+            </div>
+            <div style={{ marginBottom: '20px', textAlign: 'left', backgroundColor: 'var(--bg-card)', padding: '15px', borderRadius: '6px', border: '1px solid var(--border-soft)' }}>
               <h3 style={{ marginBottom: '10px', color: '#CC0000' }}>Approved Attempts</h3>
               {approvedAttempts.length === 0 ? (
                 <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>No approved attempts yet.</p>
@@ -950,6 +979,7 @@ function StudentTest({ user, onComplete }) {
               )}
               {!hasPendingReview && approvedAttempts.length > 0 && <p style={{ marginTop: '10px', color: '#4caf50', fontSize: '13px' }}>You can retake the assessment to improve your placement.</p>}
             </div>
+            </>
           )}
           <p className="description">Discover your CEFR level with our adaptive placement test. The test adjusts to your ability level and typically takes 15-20 minutes.</p>
           <div className="test-info">
