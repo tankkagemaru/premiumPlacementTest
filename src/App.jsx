@@ -322,12 +322,6 @@ const api = {
       }));
     });
   },
-  createTestSession(payload) {
-    return this.request('POST', '/rest/v1/test_sessions', payload);
-  },
-  updateTestSession(id, payload) {
-    return this.request('PATCH', `/rest/v1/test_sessions?id=eq.${id}`, payload);
-  },
   // Resolves the user's students.id; falls back to userId for legacy rows
   // not yet migrated to the new FK pattern.
   async resolveStudentId(userId) {
@@ -850,7 +844,6 @@ function StudentTest({ user, onComplete }) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [attempts, setAttempts] = useState([]);
   const [attemptsLoading, setAttemptsLoading] = useState(true);
-  const [sessionId, setSessionId] = useState(null);
   const [selectedAttemptReview, setSelectedAttemptReview] = useState(null);
 
   useEffect(() => {
@@ -891,34 +884,12 @@ function StudentTest({ user, onComplete }) {
       setQuestionStartTime(Date.now()); // Start timing this question
       setCurrentDifficulty(randomStart.difficulty_score || 5);
       setTestState('testing');
-
-      // Create test session record (best effort)
-      try {
-        const studentData = await api.request('GET', `/rest/v1/students?user_id=eq.${user.id}&select=id`);
-        const studentId = studentData?.[0]?.id || user.id;
-        const sessionInsert = await api.createTestSession({
-          student_id: studentId,
-          started_at: new Date().toISOString(),
-          status: 'in_progress'
-        });
-        if (Array.isArray(sessionInsert) && sessionInsert[0]?.id) {
-          setSessionId(sessionInsert[0].id);
-        } else {
-          const latestSession = await api.request(
-            'GET',
-            `/rest/v1/test_sessions?student_id=eq.${studentId}&order=started_at.desc&limit=1&select=id`
-          );
-          if (latestSession?.[0]?.id) setSessionId(latestSession[0].id);
-        }
-      } catch (err) {
-        console.warn('Unable to create test session record:', err);
-      }
     } catch (err) {
       setError(`Error loading questions: ${err?.message || 'unknown error'}`);
       setTestStarted(false);
     }
     setLoading(false);
-  }, [user.id]);
+  }, []);
 
   useEffect(() => {
     if (testStarted && questionsBank.length === 0) loadQuestions();
@@ -972,19 +943,6 @@ function StudentTest({ user, onComplete }) {
             student_responses: responses
           });
 
-          if (sessionId) {
-            try {
-              await api.updateTestSession(sessionId, {
-                ended_at: new Date().toISOString(),
-                status: 'completed',
-                total_questions_answered: responses.length,
-                score: score,
-                determined_cefr_level: cefrLevel
-              });
-            } catch (err) {
-              console.warn('Unable to update test session:', err);
-            }
-          }
           return true;
         } catch (err) {
           console.error(`Attempt ${attempt} failed:`, err);
