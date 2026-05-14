@@ -1411,8 +1411,6 @@ function TeacherDashboard({ user, onLogout }) {
 
   const statusOf = (r) => (r?.status || '').toLowerCase();
   const pendingResults = results.filter(r => statusOf(r) === 'pending');
-  const approvedResults = results.filter(r => statusOf(r) === 'approved');
-  const rejectedResults = results.filter(r => statusOf(r) === 'rejected');
   const reviewedResults = results.filter(r => statusOf(r) === 'approved' || statusOf(r) === 'rejected');
   const filteredPendingResults = pendingResults.filter((r) => {
     const haystack = `${r.students?.full_name || ''} ${r.students?.country || ''} ${r.determined_cefr_level || ''}`.toLowerCase();
