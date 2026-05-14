@@ -143,6 +143,7 @@ const styles = `
   .status-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
   .status-chip.pending { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
   .status-chip.approved { background: #ecfdf5; color: #166534; border: 1px solid #bbf7d0; }
+  .status-chip.rejected { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
   .table-wrap { overflow-x: auto; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); }
   .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
   .modal { background: var(--bg-card); padding: 30px; border-radius: var(--radius-md); max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; border: 1px solid var(--border-soft); box-shadow: var(--shadow-soft); }
@@ -321,33 +322,90 @@ const api = {
       }));
     });
   },
-  saveTestResult(result) {
-    return this.request('POST', '/rest/v1/test_results', result);
-  },
   createTestSession(payload) {
     return this.request('POST', '/rest/v1/test_sessions', payload);
   },
   updateTestSession(id, payload) {
     return this.request('PATCH', `/rest/v1/test_sessions?id=eq.${id}`, payload);
   },
-  getStudentResults(userId) {
-    return this.request('GET', `/rest/v1/students?user_id=eq.${userId}&select=id`).then(async (students) => {
-      const studentId = students?.[0]?.id;
-      const select = 'id,student_id,overall_score,determined_cefr_level,is_approved,completed_at,approved_at,teacher_comment,status,attempt_no,official_for_placement,student_responses';
-      const [byStudentId, byUserId] = await Promise.all([
-        studentId ? this.request('GET', `/rest/v1/test_results?student_id=eq.${studentId}&select=${select}&order=completed_at.desc`) : Promise.resolve([]),
-        this.request('GET', `/rest/v1/test_results?student_id=eq.${userId}&select=${select}&order=completed_at.desc`).catch(() => [])
-      ]);
-      const merged = [...(byStudentId || []), ...(byUserId || [])];
-      const unique = Array.from(new Map(merged.map(r => [r.id, r])).values());
-      return unique.sort((a, b) => new Date(b.completed_at || 0) - new Date(a.completed_at || 0));
+  // Resolves the user's students.id; falls back to userId for legacy rows
+  // not yet migrated to the new FK pattern.
+  async resolveStudentId(userId) {
+    try {
+      const rows = await this.request('GET', `/rest/v1/students?user_id=eq.${userId}&select=id`);
+      return rows?.[0]?.id || userId;
+    } catch {
+      return userId;
+    }
+  },
+  ATTEMPT_FIELDS: 'id,student_id,attempt_no,status,overall_score,determined_cefr_level,ability_estimate,submitted_at,reviewed_at,reviewed_by,teacher_comment,official_for_placement,retake_granted,retake_granted_at,student_responses',
+  async getStudentAttempts(userId) {
+    const studentId = await this.resolveStudentId(userId);
+    const select = this.ATTEMPT_FIELDS;
+    const [byStudentId, byUserId] = await Promise.all([
+      this.request('GET', `/rest/v1/test_results?student_id=eq.${studentId}&select=${select}&order=attempt_no.desc`).catch(() => []),
+      studentId !== userId
+        ? this.request('GET', `/rest/v1/test_results?student_id=eq.${userId}&select=${select}&order=attempt_no.desc`).catch(() => [])
+        : Promise.resolve([])
+    ]);
+    const merged = [...(byStudentId || []), ...(byUserId || [])];
+    const unique = Array.from(new Map(merged.map(r => [r.id, r])).values());
+    return unique.sort((a, b) => (b.attempt_no || 0) - (a.attempt_no || 0));
+  },
+  async submitAttempt({ studentId, overall_score, determined_cefr_level, ability_estimate, student_responses }) {
+    const existing = await this.request('GET', `/rest/v1/test_results?student_id=eq.${studentId}&select=attempt_no&order=attempt_no.desc&limit=1`).catch(() => []);
+    const nextAttemptNo = ((existing?.[0]?.attempt_no) || 0) + 1;
+    const payload = {
+      student_id: studentId,
+      attempt_no: nextAttemptNo,
+      status: 'pending',
+      overall_score,
+      determined_cefr_level,
+      ability_estimate,
+      student_responses,
+      submitted_at: new Date().toISOString()
+    };
+    return this.request('POST', '/rest/v1/test_results', payload);
+  },
+  approveAttempt(id, { comment, reviewerId, makeOfficial }) {
+    return this.request('PATCH', `/rest/v1/test_results?id=eq.${id}`, {
+      status: 'approved',
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: reviewerId,
+      teacher_comment: comment || null,
+      ...(makeOfficial ? { official_for_placement: true } : {})
     });
   },
-  updateTestResult(id, updates) {
-    return this.request('PATCH', `/rest/v1/test_results?id=eq.${id}`, updates);
+  rejectAttempt(id, { comment, reviewerId }) {
+    return this.request('PATCH', `/rest/v1/test_results?id=eq.${id}`, {
+      status: 'rejected',
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: reviewerId,
+      teacher_comment: comment,
+      retake_granted: true,
+      retake_granted_by: reviewerId,
+      retake_granted_at: new Date().toISOString()
+    });
+  },
+  grantRetake(id, reviewerId) {
+    return this.request('PATCH', `/rest/v1/test_results?id=eq.${id}`, {
+      retake_granted: true,
+      retake_granted_by: reviewerId,
+      retake_granted_at: new Date().toISOString()
+    });
+  },
+  // The partial unique index uniq_test_results_one_official_per_student rejects
+  // two trues for the same student, so clear all siblings before setting the new one.
+  async setOfficial(id, studentId) {
+    await this.request('PATCH', `/rest/v1/test_results?student_id=eq.${studentId}&official_for_placement=eq.true`, {
+      official_for_placement: false
+    });
+    return this.request('PATCH', `/rest/v1/test_results?id=eq.${id}`, {
+      official_for_placement: true
+    });
   },
   getAllResults() {
-    return this.request('GET', '/rest/v1/test_results?select=*,students(id,email,full_name,passport_id,country)&order=completed_at.desc');
+    return this.request('GET', `/rest/v1/test_results?select=*,students(id,email,full_name,passport_id,country)&order=attempt_no.desc`);
   },
   getQuestionBank() {
     return this.request('GET', '/rest/v1/questions?select=*');
@@ -564,6 +622,49 @@ function formatTime(seconds) {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+// student_responses is jsonb on the new schema and PostgREST returns it as an
+// array directly. Legacy rows persisted it as a JSON-encoded string. Accept either.
+function parseResponses(raw) {
+  if (Array.isArray(raw)) return raw;
+  if (!raw) return [];
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return []; }
+  }
+  return [];
+}
+
+// Single source of truth for "can this student start a new attempt?"
+// Latest attempt (highest attempt_no) determines the gate:
+//   pending                          → locked, waiting on teacher
+//   approved + retake_granted=false  → locked, must request retake
+//   approved + retake_granted=true   → unlocked
+//   rejected                         → unlocked (auto-granted retake)
+//   no attempts                      → unlocked (first attempt)
+function computeStudentLockState(attempts) {
+  const list = Array.isArray(attempts) ? attempts : [];
+  const sorted = [...list].sort((a, b) => (b.attempt_no || 0) - (a.attempt_no || 0));
+  const latest = sorted[0] || null;
+  const official = list.find(a => a.official_for_placement) || null;
+
+  if (!latest) {
+    return { locked: false, reason: 'first_attempt', latest: null, official: null };
+  }
+  const status = (latest.status || '').toLowerCase();
+  if (status === 'pending') {
+    return { locked: true, reason: 'pending_review', latest, official };
+  }
+  if (status === 'approved') {
+    if (latest.retake_granted) {
+      return { locked: false, reason: 'retake_granted', latest, official };
+    }
+    return { locked: true, reason: 'approved_awaiting_retake', latest, official };
+  }
+  if (status === 'rejected') {
+    return { locked: false, reason: 'rejected_retake_auto', latest, official };
+  }
+  return { locked: false, reason: 'unknown', latest, official };
+}
+
 // ============ LOGIN SCREEN WITH FULL REGISTRATION ============
 function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -755,7 +856,7 @@ function StudentTest({ user, onComplete }) {
   useEffect(() => {
     const loadAttempts = async () => {
       try {
-        const data = await api.getStudentResults(user.id);
+        const data = await api.getStudentAttempts(user.id);
         setAttempts(data || []);
       } catch {
         setAttempts([]);
@@ -856,49 +957,21 @@ function StudentTest({ user, onComplete }) {
   const completeTest = async (responses) => {
     const correctCount = responses.filter(r => r.is_correct).length;
     const score = (correctCount / responses.length) * 100;
-    const { cefrLevel, abilityEstimate, needsTeacherReview } = determineCEFRLevel(responses);
+    const { cefrLevel, abilityEstimate } = determineCEFRLevel(responses);
     setTestState('pending');
 
-    const saveTestResult = async (retries = 3) => {
+    const persistAttempt = async (retries = 3) => {
       for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-          // Get the correct student_id from students table
-          const studentData = await api.request('GET', `/rest/v1/students?user_id=eq.${user.id}&select=id`);
-          const studentId = studentData?.[0]?.id || user.id;
-
-          const resultData = {
-            student_id: studentId,
-            student_name: user.email,
-            student_passport: 'N/A',
+          const studentId = await api.resolveStudentId(user.id);
+          await api.submitAttempt({
+            studentId,
             overall_score: score,
             determined_cefr_level: cefrLevel,
             ability_estimate: abilityEstimate,
-            needs_teacher_review: needsTeacherReview,
-            completed_at: new Date().toISOString(),
-            notes: `Completed 30 questions. Score: ${score.toFixed(1)}%. Time: ${formatTime(elapsedTime)}`,
-            is_approved: false,
-            student_responses: JSON.stringify(responses)
-          };
-          try {
-            await api.saveTestResult(resultData);
-          } catch (primaryErr) {
-            // Fallback for older schemas missing newer columns
-            const fallbackResultData = {
-              student_id: studentId,
-              student_name: user.email,
-              student_passport: 'N/A',
-              overall_score: score,
-              determined_cefr_level: cefrLevel,
-              completed_at: new Date().toISOString(),
-              notes: `Completed 30 questions. Score: ${score.toFixed(1)}%. Time: ${formatTime(elapsedTime)}`,
-              is_approved: false,
-              student_responses: JSON.stringify(responses)
-            };
-            await api.saveTestResult(fallbackResultData);
-            console.warn('Saved result via fallback schema:', primaryErr);
-          }
+            student_responses: responses
+          });
 
-          // Update session record (best effort)
           if (sessionId) {
             try {
               await api.updateTestSession(sessionId, {
@@ -923,15 +996,38 @@ function StudentTest({ user, onComplete }) {
       return false;
     };
 
-    await saveTestResult();
+    await persistAttempt();
   };
 
   const progressPercentage = (userResponses.length / 30) * 100;
 
   if (!testStarted) {
-    const approvedAttempts = attempts.filter(a => a.is_approved || a.approved_at || String(a.status || '').toLowerCase() === 'approved');
-    const hasPendingReview = attempts.some(a => !(a.is_approved || a.approved_at || String(a.status || '').toLowerCase() === 'approved'));
-    const canStart = !hasPendingReview;
+    const lockState = computeStudentLockState(attempts);
+    const approvedCount = attempts.filter(a => (a.status || '').toLowerCase() === 'approved').length;
+    const canStart = !lockState.locked;
+    const officialCefr = lockState.official?.determined_cefr_level;
+    const bannerCopy = (() => {
+      switch (lockState.reason) {
+        case 'first_attempt':
+          return { tone: 'info', text: 'Welcome — start your first placement attempt below.' };
+        case 'pending_review':
+          return { tone: 'pending', text: 'Your most recent attempt is under teacher review. New attempts are locked until it has been reviewed.' };
+        case 'approved_awaiting_retake':
+          return { tone: 'approved', text: `Your placement: ${officialCefr || lockState.latest?.determined_cefr_level || '—'}. To take another attempt, ask your teacher to grant a retake.` };
+        case 'retake_granted':
+          return { tone: 'approved', text: `Your placement: ${officialCefr || lockState.latest?.determined_cefr_level || '—'}. Retake unlocked — you can take a new attempt now.` };
+        case 'rejected_retake_auto':
+          return { tone: 'rejected', text: 'Your last attempt was not approved. You can take a new attempt now.' };
+        default:
+          return { tone: 'info', text: '' };
+      }
+    })();
+    const bannerStyle = {
+      info: { background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e3a8a' },
+      pending: { background: '#fff7ed', borderColor: '#fed7aa', color: '#9a3412' },
+      approved: { background: '#ecfdf5', borderColor: '#bbf7d0', color: '#166534' },
+      rejected: { background: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }
+    }[bannerCopy.tone];
 
     return (
       <div className="test-screen">
@@ -941,39 +1037,51 @@ function StudentTest({ user, onComplete }) {
             <p className="description">Loading your attempt history...</p>
           ) : (
             <>
+            <div style={{ ...bannerStyle, border: '1px solid', borderRadius: '8px', padding: '14px 16px', marginBottom: '18px', textAlign: 'left', fontSize: '14px', lineHeight: 1.5 }}>
+              {bannerCopy.text}
+              {lockState.latest?.teacher_comment && (lockState.reason === 'rejected_retake_auto' || lockState.reason === 'approved_awaiting_retake' || lockState.reason === 'retake_granted') && (
+                <div style={{ marginTop: '8px', fontSize: '13px' }}>
+                  <strong>Teacher note:</strong> {lockState.latest.teacher_comment}
+                </div>
+              )}
+            </div>
             <div className="student-dashboard-grid">
               <div className="student-stat"><div className="label">Total Attempts</div><div className="value">{attempts.length}</div></div>
-              <div className="student-stat"><div className="label">Approved Attempts</div><div className="value">{approvedAttempts.length}</div></div>
-              <div className="student-stat"><div className="label">Pending Review</div><div className="value">{hasPendingReview ? 'Yes' : 'No'}</div></div>
-              <div className="student-stat"><div className="label">Latest CEFR</div><div className="value">{approvedAttempts[0]?.determined_cefr_level || '-'}</div></div>
+              <div className="student-stat"><div className="label">Approved Attempts</div><div className="value">{approvedCount}</div></div>
+              <div className="student-stat"><div className="label">Latest Status</div><div className="value" style={{ textTransform: 'capitalize' }}>{lockState.latest?.status || '—'}</div></div>
+              <div className="student-stat"><div className="label">Official CEFR ⭐</div><div className="value">{officialCefr || '—'}</div></div>
             </div>
             <div style={{ marginBottom: '20px', textAlign: 'left', backgroundColor: 'var(--bg-card)', padding: '15px', borderRadius: '6px', border: '1px solid var(--border-soft)' }}>
-              <h3 style={{ marginBottom: '10px', color: '#CC0000' }}>Approved Attempts</h3>
-              {approvedAttempts.length === 0 ? (
-                <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>No approved attempts yet.</p>
+              <h3 style={{ marginBottom: '10px', color: '#CC0000' }}>Attempt History</h3>
+              {attempts.length === 0 ? (
+                <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>No attempts yet. Start your first below.</p>
               ) : (
-                <table className="results-table">
+                <div className="table-wrap"><table className="results-table">
                   <thead>
-                    <tr><th>Date</th><th>Score</th><th>CEFR</th><th>Review</th></tr>
+                    <tr><th>#</th><th>Date</th><th>Score</th><th>CEFR</th><th>Status</th><th>Official</th><th></th></tr>
                   </thead>
                   <tbody>
-                    {approvedAttempts.map(a => (
-                      <tr key={a.id}>
-                        <td>{new Date(a.approved_at || a.completed_at).toLocaleDateString()}</td>
-                        <td>{a.overall_score?.toFixed?.(1) || a.overall_score}%</td>
-                        <td>{a.determined_cefr_level}</td>
-                        <td><button className="link-button" onClick={() => setSelectedAttemptReview(a)}>View</button></td>
-                      </tr>
-                    ))}
+                    {attempts.map(a => {
+                      const status = (a.status || '').toLowerCase();
+                      const chipClass = status === 'approved' ? 'status-chip approved'
+                        : status === 'rejected' ? 'status-chip rejected'
+                        : 'status-chip pending';
+                      const date = a.reviewed_at || a.submitted_at;
+                      return (
+                        <tr key={a.id}>
+                          <td>{a.attempt_no}</td>
+                          <td>{date ? new Date(date).toLocaleDateString() : '—'}</td>
+                          <td>{a.overall_score?.toFixed?.(1) || a.overall_score}%</td>
+                          <td>{a.determined_cefr_level}</td>
+                          <td><span className={chipClass} style={{ textTransform: 'capitalize' }}>{a.status}</span></td>
+                          <td style={{ textAlign: 'center' }}>{a.official_for_placement ? '⭐' : ''}</td>
+                          <td><button className="link-button" onClick={() => setSelectedAttemptReview(a)}>View</button></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
-                </table>
+                </table></div>
               )}
-              {hasPendingReview && (
-                <p style={{ marginTop: '10px', color: '#ff9800', fontSize: '13px' }}>
-                  You have a pending attempt under teacher review. New attempts are locked.
-                </p>
-              )}
-              {!hasPendingReview && approvedAttempts.length > 0 && <p style={{ marginTop: '10px', color: '#4caf50', fontSize: '13px' }}>You can retake the assessment to improve your placement.</p>}
             </div>
             </>
           )}
@@ -991,21 +1099,30 @@ function StudentTest({ user, onComplete }) {
             {loading ? 'Loading...' : 'BEGIN ASSESSMENT →'}
           </button>
           {error && <div className="error-message">{error}</div>}
-          <p className="disclaimer">You can retake after each submitted assessment (unless another attempt is pending review).</p>
+          <p className="disclaimer">After each attempt your teacher reviews the result. Retakes require teacher permission once an attempt has been approved.</p>
         </div>
 
         {selectedAttemptReview && (
           <div className="modal-overlay" onClick={() => setSelectedAttemptReview(null)}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
               <button className="modal-close" onClick={() => setSelectedAttemptReview(null)}>×</button>
-              <h2>Attempt Review</h2>
+              <h2>Attempt #{selectedAttemptReview.attempt_no} Details</h2>
+              <p>
+                <strong>Status:</strong> <span style={{ textTransform: 'capitalize' }}>{selectedAttemptReview.status}</span>
+                {selectedAttemptReview.official_for_placement ? ' ⭐ Official' : ''}
+              </p>
               <p><strong>Score:</strong> {selectedAttemptReview.overall_score}% | <strong>CEFR:</strong> {selectedAttemptReview.determined_cefr_level}</p>
-              <div className="table-wrap"><table className="results-table">
+              {selectedAttemptReview.teacher_comment && (
+                <p style={{ marginTop: '12px', background: '#fff9e6', padding: '10px', borderLeft: '4px solid #ffc107', borderRadius: '4px' }}>
+                  <strong>Teacher comment:</strong> {selectedAttemptReview.teacher_comment}
+                </p>
+              )}
+              <div className="table-wrap" style={{ marginTop: '12px' }}><table className="results-table">
                 <thead><tr><th>#</th><th>Your Answer</th><th>Correct</th><th>Status</th></tr></thead>
                 <tbody>
-                  {(JSON.parse(selectedAttemptReview.student_responses || '[]')).map((r, idx) => (
+                  {parseResponses(selectedAttemptReview.student_responses).map((r, idx) => (
                     <tr key={idx}>
-                      <td>{idx + 1}</td><td>{r.selected_answer || '-'}</td><td>{r.correct_answer || '-'}</td><td>{r.is_correct ? '✅' : '❌'}</td>
+                      <td>{idx + 1}</td><td>{r.student_answer || r.selected_answer || '-'}</td><td>{r.correct_answer || '-'}</td><td>{r.is_correct ? '✅' : '❌'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1092,7 +1209,11 @@ function TeacherDashboard({ user, onLogout }) {
   const [questionCefrFilter, setQuestionCefrFilter] = useState('');
   const [questionSort, setQuestionSort] = useState('recent');
   const [pendingSearch, setPendingSearch] = useState('');
-  const [approvedSearch, setApprovedSearch] = useState('');
+  const [reviewedSearch, setReviewedSearch] = useState('');
+  const [reviewedFilter, setReviewedFilter] = useState('all'); // 'all' | 'approved' | 'rejected'
+  const [makeOfficialOnApprove, setMakeOfficialOnApprove] = useState(false);
+  const [rejecting, setRejecting] = useState(false);
+  const [actionError, setActionError] = useState('');
   const [registrationCodes, setRegistrationCodes] = useState([]);
   const [newRegCode, setNewRegCode] = useState('');
   const [newRegMaxUses, setNewRegMaxUses] = useState('0');
@@ -1158,76 +1279,151 @@ function TeacherDashboard({ user, onLogout }) {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 5000);
+    const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, [loadData]);
+
+  // Open the review modal: pre-set Make Official to true when the student has no other official attempt yet.
+  const openReview = (r) => {
+    setSelectedResult(r);
+    setComment('');
+    setActionError('');
+    const studentHasOfficial = results.some(x => x.student_id === r.student_id && x.official_for_placement && x.id !== r.id);
+    setMakeOfficialOnApprove(!studentHasOfficial);
+  };
+
+  const sendResultEmail = async ({ recipient, studentName, kind, cefrLevel, score, teacherComment, responses }) => {
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentEmail: recipient,
+          studentName,
+          kind,
+          cefrLevel,
+          score,
+          comment: teacherComment || '',
+          responses,
+          questions
+        })
+      });
+      const result = await response.json();
+      if (!response.ok) console.error('Email send failed:', result);
+      else console.log('Email sent:', result);
+    } catch (err) {
+      console.error('Email error:', err);
+    }
+  };
 
   const handleApprove = async () => {
     if (!selectedResult) return;
     setApproving(true);
+    setActionError('');
     try {
-      await api.updateTestResult(selectedResult.id, {
-        is_approved: true,
-        teacher_comment: comment || null,
-        approved_at: new Date().toISOString(),
-        approved_by: user.id
+      await api.approveAttempt(selectedResult.id, {
+        comment,
+        reviewerId: user.id,
+        makeOfficial: makeOfficialOnApprove
       });
-
-      // Send email via Vercel API endpoint (no CORS issues!)
+      // If marking official, clear other approved siblings' official flag to honor the unique index.
+      if (makeOfficialOnApprove) {
+        try { await api.setOfficial(selectedResult.id, selectedResult.student_id); }
+        catch (err) { console.warn('Could not enforce single-official:', err); }
+      }
       const studentEmail = selectedResult.students?.email;
       if (!studentEmail) {
-        console.error('Student email not found in results');
+        console.warn('Approval succeeded but no student email on record — skipping send.');
       } else {
-        const sendEmail = async () => {
-          try {
-            // For testing: send to your own email instead
-            // Once Resend is verified, change back to studentEmail
-            const recipientEmail = 'shiro@premium.edu.my'; // Change this back to studentEmail later
-            
-            const response = await fetch('/api/send-email', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                studentEmail: recipientEmail,
-                cefrLevel: selectedResult.determined_cefr_level,
-                score: selectedResult.overall_score,
-                comment: comment,
-                responses: selectedResult.student_responses ? JSON.parse(selectedResult.student_responses) : [],
-                questions: questions
-              })
-            });
-            const result = await response.json();
-            console.log('Email sent successfully:', result);
-          } catch (err) {
-            console.error('Email error:', err);
-          }
-        };
-        sendEmail();
+        await sendResultEmail({
+          recipient: studentEmail,
+          studentName: selectedResult.students?.full_name,
+          kind: 'approved',
+          cefrLevel: selectedResult.determined_cefr_level,
+          score: selectedResult.overall_score,
+          teacherComment: comment,
+          responses: parseResponses(selectedResult.student_responses)
+        });
       }
-
       setSelectedResult(null);
       setComment('');
       loadData();
     } catch (err) {
       console.error('Error approving:', err);
+      setActionError(err?.message || 'Failed to approve attempt.');
     }
     setApproving(false);
   };
 
+  const handleReject = async () => {
+    if (!selectedResult) return;
+    if (!comment.trim()) {
+      setActionError('A reason is required when rejecting an attempt.');
+      return;
+    }
+    setRejecting(true);
+    setActionError('');
+    try {
+      await api.rejectAttempt(selectedResult.id, { comment, reviewerId: user.id });
+      const studentEmail = selectedResult.students?.email;
+      if (studentEmail) {
+        await sendResultEmail({
+          recipient: studentEmail,
+          studentName: selectedResult.students?.full_name,
+          kind: 'rejected',
+          cefrLevel: selectedResult.determined_cefr_level,
+          score: selectedResult.overall_score,
+          teacherComment: comment,
+          responses: parseResponses(selectedResult.student_responses)
+        });
+      }
+      setSelectedResult(null);
+      setComment('');
+      loadData();
+    } catch (err) {
+      console.error('Error rejecting:', err);
+      setActionError(err?.message || 'Failed to reject attempt.');
+    }
+    setRejecting(false);
+  };
+
+  const handleMakeOfficial = async (row) => {
+    try {
+      await api.setOfficial(row.id, row.student_id);
+      loadData();
+    } catch (err) {
+      console.error('Error setting official:', err);
+      alert(err?.message || 'Failed to mark as official.');
+    }
+  };
+
+  const handleGrantRetake = async (row) => {
+    try {
+      await api.grantRetake(row.id, user.id);
+      loadData();
+    } catch (err) {
+      console.error('Error granting retake:', err);
+      alert(err?.message || 'Failed to grant retake.');
+    }
+  };
+
   if (loading) return <div className="dashboard"><p>Loading...</p></div>;
 
-  const pendingResults = results.filter(r => !r.is_approved);
-  const approvedResults = results.filter(r => r.is_approved);
+  const statusOf = (r) => (r?.status || '').toLowerCase();
+  const pendingResults = results.filter(r => statusOf(r) === 'pending');
+  const approvedResults = results.filter(r => statusOf(r) === 'approved');
+  const rejectedResults = results.filter(r => statusOf(r) === 'rejected');
+  const reviewedResults = results.filter(r => statusOf(r) === 'approved' || statusOf(r) === 'rejected');
   const filteredPendingResults = pendingResults.filter((r) => {
-    const haystack = `${r.students?.full_name || r.student_name || ''} ${r.students?.country || ''} ${r.determined_cefr_level || ''}`.toLowerCase();
+    const haystack = `${r.students?.full_name || ''} ${r.students?.country || ''} ${r.determined_cefr_level || ''}`.toLowerCase();
     return haystack.includes(pendingSearch.toLowerCase());
   });
-  const filteredApprovedResults = approvedResults.filter((r) => {
-    const haystack = `${r.students?.full_name || r.student_name || ''} ${r.students?.passport_id || r.student_passport || ''} ${r.determined_cefr_level || ''}`.toLowerCase();
-    return haystack.includes(approvedSearch.toLowerCase());
-  });
+  const filteredReviewedResults = reviewedResults
+    .filter(r => reviewedFilter === 'all' ? true : statusOf(r) === reviewedFilter)
+    .filter((r) => {
+      const haystack = `${r.students?.full_name || ''} ${r.students?.passport_id || ''} ${r.determined_cefr_level || ''}`.toLowerCase();
+      return haystack.includes(reviewedSearch.toLowerCase());
+    });
   
   // Filter and sort questions
   const filteredQuestions = questions
@@ -1265,8 +1461,8 @@ function TeacherDashboard({ user, onLogout }) {
         <button className={`tab ${activeTab === 'pending' ? 'active' : ''}`} onClick={() => setActiveTab('pending')}>
           Pending ({pendingResults.length})
         </button>
-        <button className={`tab ${activeTab === 'approved' ? 'active' : ''}`} onClick={() => setActiveTab('approved')}>
-          Approved ({approvedResults.length})
+        <button className={`tab ${activeTab === 'reviewed' ? 'active' : ''}`} onClick={() => setActiveTab('reviewed')}>
+          Reviewed ({reviewedResults.length})
         </button>
         <button className={`tab ${activeTab === 'questions' ? 'active' : ''}`} onClick={() => setActiveTab('questions')}>
           Questions
@@ -1295,7 +1491,10 @@ function TeacherDashboard({ user, onLogout }) {
         <div className="tab-content">
           <div className="dashboard-toolbar">
             <span className="status-chip pending">Pending review: {filteredPendingResults.length}</span>
-            <input className="dashboard-search" placeholder="Search by student, country, or CEFR..." value={pendingSearch} onChange={(e) => setPendingSearch(e.target.value)} />
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <input className="dashboard-search" placeholder="Search by student, country, or CEFR..." value={pendingSearch} onChange={(e) => setPendingSearch(e.target.value)} />
+              <button className="approve-button" onClick={loadData} style={{ padding: '8px 14px', fontSize: '13px' }}>Refresh</button>
+            </div>
           </div>
           {filteredPendingResults.length === 0 ? (
             <p>No pending approvals.</p>
@@ -1304,21 +1503,23 @@ function TeacherDashboard({ user, onLogout }) {
               <thead>
                 <tr>
                   <th>Student Name</th>
+                  <th>Attempt</th>
                   <th>Score</th>
                   <th>CEFR Level</th>
-                  <th>Date</th>
+                  <th>Submitted</th>
                   <th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredPendingResults.map(r => (
                   <tr key={r.id}>
-                    <td>{r.students?.full_name || r.student_name || 'N/A'} {r.students?.country ? `(${r.students.country})` : ''}</td>
+                    <td>{r.students?.full_name || 'N/A'} {r.students?.country ? `(${r.students.country})` : ''}</td>
+                    <td>#{r.attempt_no}</td>
                     <td>{r.overall_score?.toFixed(1)}%</td>
                     <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
-                    <td>{new Date(r.completed_at).toLocaleDateString()}</td>
+                    <td>{r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : '—'}</td>
                     <td>
-                      <button className="approve-button" onClick={() => { setSelectedResult(r); setComment(''); }}>
+                      <button className="approve-button" onClick={() => openReview(r)}>
                         Review
                       </button>
                     </td>
@@ -1330,116 +1531,97 @@ function TeacherDashboard({ user, onLogout }) {
         </div>
       )}
 
-      {activeTab === 'approved' && (
+      {activeTab === 'reviewed' && (
         <div className="tab-content">
           <div className="dashboard-toolbar">
-            <span className="status-chip approved">Approved results: {filteredApprovedResults.length}</span>
-            <input className="dashboard-search" placeholder="Search by student, passport, or CEFR..." value={approvedSearch} onChange={(e) => setApprovedSearch(e.target.value)} />
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span className="status-chip approved">Reviewed: {filteredReviewedResults.length}</span>
+              <div style={{ display: 'flex', gap: '6px', marginLeft: '10px' }}>
+                {['all', 'approved', 'rejected'].map(f => (
+                  <button
+                    key={f}
+                    className={`status-chip ${reviewedFilter === f ? (f === 'rejected' ? 'rejected' : 'approved') : 'pending'}`}
+                    onClick={() => setReviewedFilter(f)}
+                    style={{ cursor: 'pointer', textTransform: 'capitalize', border: 'none' }}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <input className="dashboard-search" placeholder="Search by student, passport, or CEFR..." value={reviewedSearch} onChange={(e) => setReviewedSearch(e.target.value)} />
+              <button className="approve-button" onClick={loadData} style={{ padding: '8px 14px', fontSize: '13px' }}>Refresh</button>
+            </div>
           </div>
-          {filteredApprovedResults.length === 0 ? (
-            <p>No approved results yet.</p>
+          {filteredReviewedResults.length === 0 ? (
+            <p>No reviewed attempts match this filter.</p>
           ) : (
             <div className="table-wrap"><table className="results-table">
               <thead>
                 <tr>
-                  <th>Student Name</th>
-                  <th>Passport/ID</th>
+                  <th>Student</th>
+                  <th>Attempt</th>
                   <th>Score</th>
-                  <th>CEFR Level</th>
-                  <th>Approved</th>
-                  <th>Action</th>
+                  <th>CEFR</th>
+                  <th>Status</th>
+                  <th>Reviewed</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredApprovedResults.map(r => (
-                  <tr key={r.id}>
-                    <td>{r.students?.full_name || r.student_name || 'N/A'}</td>
-                    <td>{r.students?.passport_id || r.student_passport || 'N/A'}</td>
-                    <td>{r.overall_score?.toFixed(1)}%</td>
-                    <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
-                    <td>{new Date(r.approved_at).toLocaleDateString()}</td>
-                    <td>
-                      <button 
-                        className="approve-button" 
-                        onClick={async () => {
-                          try {
-                            // For testing: send to your own email instead
-                            // Once Resend is verified, change back to student email
-                            const recipientEmail = 'shiro@premium.edu.my';
-
-                            const response = await fetch('/api/send-email', {
-                              method: 'POST',
-                              headers: { 
-                                'Content-Type': 'application/json'
-                              },
-                              body: JSON.stringify({
-                                studentEmail: recipientEmail,
-                                cefrLevel: r.determined_cefr_level,
-                                score: r.overall_score,
-                                comment: r.teacher_comment || '',
-                                responses: r.student_responses ? JSON.parse(r.student_responses) : [],
-                                questions: questions
-                              })
-                            });
-
-                            const result = await response.json();
-                            alert(`Email resent to ${recipientEmail}`);
-                            console.log('Email sent:', result);
-                          } catch (err) {
-                            alert('Error sending email. Check console.');
-                            console.error('Email error:', err);
-                          }
-                        }}
-                        style={{ fontSize: '12px', padding: '6px 12px' }}
-                      >
-                        Resend Email
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredReviewedResults.map(r => {
+                  const status = statusOf(r);
+                  const isApproved = status === 'approved';
+                  return (
+                    <tr key={r.id}>
+                      <td>
+                        {r.students?.full_name || 'N/A'}
+                        {r.students?.passport_id ? <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>{r.students.passport_id}</span> : null}
+                      </td>
+                      <td>#{r.attempt_no}</td>
+                      <td>{r.overall_score?.toFixed(1)}%</td>
+                      <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
+                      <td>
+                        <span className={`status-chip ${isApproved ? 'approved' : 'rejected'}`} style={{ textTransform: 'capitalize' }}>{r.status}</span>
+                        {r.official_for_placement ? <span style={{ marginLeft: '6px' }} title="Official placement">⭐</span> : null}
+                      </td>
+                      <td>{r.reviewed_at ? new Date(r.reviewed_at).toLocaleDateString() : '—'}</td>
+                      <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <button className="link-button" onClick={() => setSelectedResult(r)}>View</button>
+                        {isApproved && !r.official_for_placement && (
+                          <button className="approve-button" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => handleMakeOfficial(r)}>Make Official</button>
+                        )}
+                        {isApproved && !r.retake_granted && (
+                          <button className="approve-button" style={{ padding: '4px 10px', fontSize: '12px', backgroundColor: '#2563eb' }} onClick={() => handleGrantRetake(r)}>Grant Retake</button>
+                        )}
+                        {isApproved && r.retake_granted && (
+                          <span style={{ fontSize: '11px', color: '#16a34a' }}>Retake granted ✓</span>
+                        )}
+                        {isApproved && r.students?.email && (
+                          <button
+                            className="approve-button"
+                            style={{ padding: '4px 10px', fontSize: '12px', backgroundColor: '#6b7280' }}
+                            onClick={() => sendResultEmail({
+                              recipient: r.students.email,
+                              studentName: r.students?.full_name,
+                              kind: 'approved',
+                              cefrLevel: r.determined_cefr_level,
+                              score: r.overall_score,
+                              teacherComment: r.teacher_comment,
+                              responses: parseResponses(r.student_responses)
+                            }).then(() => alert(`Email resent to ${r.students.email}`))}
+                          >
+                            Resend Email
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table></div>
           )}
-          <div className="dashboard-toolbar">
-            <span className="status-chip approved">Active codes: {registrationCodes.filter(c => c.is_active).length}</span>
-            <button className="approve-button" onClick={() => setShowCreateCodeModal(true)}>+ Create Code</button>
-          </div>
-
-          <div className="table-wrap"><table className="results-table">
-            <thead>
-              <tr>
-                <th>Code</th><th>Created By</th><th>Used</th><th>Max</th><th>Expires</th><th>Status</th><th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {registrationCodes.map((c) => (
-                <tr key={c.id}>
-                  <td><strong>{c.code}</strong></td>
-                  <td>{c.creator?.full_name || c.creator?.email || '-'}</td>
-                  <td>
-                    <button className="link-button" onClick={async () => {
-                      try {
-                        const usage = await api.getRegistrationCodeUsage(c.id);
-                        setUsageRows(usage);
-                        setUsageCodeLabel(c.code);
-                        setShowUsageModal(true);
-                      } catch (err) {
-                        setRegistrationCodeError(err.message || 'Unable to load usage history');
-                      }
-                    }}>{c.used_count || 0}</button>
-                  </td>
-                  <td>{c.max_uses || 0}</td>
-                  <td>{c.expires_at ? new Date(c.expires_at).toLocaleString() : 'No expiry'}</td>
-                  <td><span className={`status-chip ${c.is_active ? 'approved' : 'pending'}`}>{c.is_active ? 'Active' : 'Inactive'}</span></td>
-                  <td><button className="approve-button" onClick={async () => {
-                    await api.toggleRegistrationCode(c.id, !c.is_active);
-                    const codes = await api.getRegistrationCodes();
-                    setRegistrationCodes(codes);
-                  }}>{c.is_active ? 'Disable' : 'Enable'}</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table></div>
         </div>
       )}
 
@@ -2078,30 +2260,43 @@ function TeacherDashboard({ user, onLogout }) {
         </div>
       )}
 
-      {selectedResult && (
+      {selectedResult && (() => {
+        const isPending = statusOf(selectedResult) === 'pending';
+        const submittedDate = selectedResult.submitted_at || selectedResult.reviewed_at;
+        return (
         <div className="modal-overlay" onClick={() => setSelectedResult(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" onClick={() => setSelectedResult(null)}>×</button>
-            <h2>Review Student Result</h2>
-            
+            <h2>{isPending ? 'Review Student Result' : 'Attempt Details'}</h2>
+
             <div className="modal-section">
               <h3>Student Information</h3>
-              <p><strong>Name:</strong> {selectedResult.students?.full_name || selectedResult.student_name || 'N/A'}</p>
-              <p><strong>Passport/ID:</strong> {selectedResult.students?.passport_id || selectedResult.student_passport || 'N/A'}</p>
+              <p><strong>Name:</strong> {selectedResult.students?.full_name || 'N/A'}</p>
+              <p><strong>Passport/ID:</strong> {selectedResult.students?.passport_id || 'N/A'}</p>
               <p><strong>Country:</strong> {selectedResult.students?.country || 'N/A'}</p>
+              <p><strong>Email:</strong> {selectedResult.students?.email || '—'}</p>
+              <p><strong>Attempt:</strong> #{selectedResult.attempt_no}</p>
               <p><strong>Score:</strong> {selectedResult.overall_score?.toFixed(1)}%</p>
               <p><strong>CEFR Level:</strong> <span style={{ color: '#CC0000', fontWeight: 'bold', fontSize: '18px' }}>{selectedResult.determined_cefr_level}</span></p>
-              <p><strong>Date:</strong> {new Date(selectedResult.completed_at).toLocaleString()}</p>
+              <p><strong>Submitted:</strong> {submittedDate ? new Date(submittedDate).toLocaleString() : '—'}</p>
+              {!isPending && (
+                <p><strong>Status:</strong> <span className={`status-chip ${statusOf(selectedResult) === 'approved' ? 'approved' : 'rejected'}`} style={{ textTransform: 'capitalize' }}>{selectedResult.status}</span>{selectedResult.official_for_placement ? ' ⭐ Official' : ''}</p>
+              )}
+              {!isPending && selectedResult.teacher_comment && (
+                <p style={{ marginTop: '10px', background: '#fff9e6', padding: '10px', borderLeft: '4px solid #ffc107', borderRadius: '4px' }}>
+                  <strong>Existing teacher comment:</strong> {selectedResult.teacher_comment}
+                </p>
+              )}
             </div>
 
             {selectedResult.student_responses && (
               <div className="modal-section">
                 <h3>Question Breakdown</h3>
-                {JSON.parse(selectedResult.student_responses).map((response, idx) => {
+                {parseResponses(selectedResult.student_responses).map((response, idx) => {
                   const question = questions.find(q => q.id === response.question_id);
                   return (
                     <div key={idx} className={`question-item ${response.is_correct ? 'question-correct' : 'question-wrong'}`}>
-                      <p><strong>Q{idx + 1}:</strong> {question?.question_text.substring(0, 100)}...</p>
+                      <p><strong>Q{idx + 1}:</strong> {question?.question_text?.substring(0, 100)}...</p>
                       <p><span className={response.is_correct ? 'correct-badge' : 'wrong-badge'}>
                         {response.is_correct ? '✓ Correct' : '✗ Wrong'}
                       </span></p>
@@ -2113,24 +2308,51 @@ function TeacherDashboard({ user, onLogout }) {
               </div>
             )}
 
-            <div className="modal-section">
-              <h3>Teacher Comment</h3>
-              <textarea
-                className="textarea"
-                placeholder="Enter comment to send to student..."
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
-            </div>
+            {isPending && (
+              <>
+                <div className="modal-section">
+                  <h3>Teacher Comment</h3>
+                  <textarea
+                    className="textarea"
+                    placeholder="Required when rejecting. Optional when approving."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                  />
+                </div>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-              <button className="approve-button" onClick={handleApprove} disabled={approving}>
-                {approving ? 'Approving...' : 'Approve & Send Email'}
-              </button>
-            </div>
+                <div className="modal-section">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
+                    <input
+                      type="checkbox"
+                      checked={makeOfficialOnApprove}
+                      onChange={(e) => setMakeOfficialOnApprove(e.target.checked)}
+                    />
+                    Mark as official placement attempt (replaces any previous official for this student)
+                  </label>
+                </div>
+
+                {actionError && <div className="error-message" style={{ marginBottom: '10px' }}>{actionError}</div>}
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
+                  <button className="approve-button" onClick={handleApprove} disabled={approving || rejecting}>
+                    {approving ? 'Approving...' : 'Approve & Email Student'}
+                  </button>
+                  <button
+                    className="approve-button"
+                    style={{ backgroundColor: '#b91c1c' }}
+                    onClick={handleReject}
+                    disabled={approving || rejecting || !comment.trim()}
+                    title={!comment.trim() ? 'Enter a reason before rejecting' : 'Reject this attempt'}
+                  >
+                    {rejecting ? 'Rejecting...' : 'Reject & Email Student'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
