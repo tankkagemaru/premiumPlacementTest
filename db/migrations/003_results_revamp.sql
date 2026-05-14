@@ -23,6 +23,7 @@ alter table public.test_results
   add column if not exists retake_granted_at timestamptz,
   add column if not exists reviewed_at timestamptz,
   add column if not exists reviewed_by uuid,
+  add column if not exists ability_estimate numeric,
   add column if not exists status text;
 
 -- 3. Backfill status from legacy fields.
