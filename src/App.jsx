@@ -144,6 +144,43 @@ const styles = `
   .status-chip.pending { background: #fff7ed; color: #9a3412; border: 1px solid #fed7aa; }
   .status-chip.approved { background: #ecfdf5; color: #166534; border: 1px solid #bbf7d0; }
   .status-chip.rejected { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .banner { border: 1px solid; border-radius: 8px; padding: 14px 16px; margin-bottom: 18px; text-align: left; font-size: 14px; line-height: 1.5; }
+  .banner.info { background: #eff6ff; border-color: #bfdbfe; color: #1e3a8a; }
+  .banner.pending { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+  .banner.approved { background: #ecfdf5; border-color: #bbf7d0; color: #166534; }
+  .banner.rejected { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+  [data-theme='dark'] .banner.info { background: #172554; border-color: #1e3a8a; color: #dbeafe; }
+  [data-theme='dark'] .banner.pending { background: #431407; border-color: #7c2d12; color: #fed7aa; }
+  [data-theme='dark'] .banner.approved { background: #052e16; border-color: #14532d; color: #bbf7d0; }
+  [data-theme='dark'] .banner.rejected { background: #450a0a; border-color: #7f1d1d; color: #fecaca; }
+  [data-theme='dark'] .pending-box { background-color: #1a1a2e; border-color: #ff9800; }
+  [data-theme='dark'] .pending-box h3 { color: #fbbf24; }
+  [data-theme='dark'] .pending-box p { color: #d1d5db; }
+  [data-theme='dark'] .question-item { background-color: #1f2937; color: #e5e7eb; }
+  [data-theme='dark'] .question-item p { color: #e5e7eb; }
+  [data-theme='dark'] .modal-section h3 { color: #f3f4f6; }
+  [data-theme='dark'] .disclaimer { color: #94a3b8; }
+  [data-theme='dark'] .test-info { background-color: #0b1220; border-color: #ef4444; }
+  [data-theme='dark'] .test-info h3 { color: #fca5a5; }
+  [data-theme='dark'] .student-stat { background: #0b1220; border-color: #374151; }
+  [data-theme='dark'] .code-input { background-color: #1f2937 !important; border-color: #f59e0b !important; color: #fde68a !important; }
+  [data-theme='dark'] .error-message { background-color: #450a0a; color: #fecaca; }
+  .note-warning { background: #fff9e6; border-left: 4px solid #ffc107; color: #5a4604; padding: 10px; border-radius: 4px; }
+  [data-theme='dark'] .note-warning { background: #2b2614; border-left-color: #f59e0b; color: #fde68a; }
+  .note-info { background: #eff6ff; border: 1px solid #ffc107; color: #5a4604; padding: 12px 15px; border-radius: 4px; }
+  [data-theme='dark'] .note-info { background: #1a1a2e; border-color: #f59e0b; color: #fed7aa; }
+  .row-action-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .row-action { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; line-height: 1; border: 1px solid var(--border-soft); background: var(--bg-card); color: var(--text-primary); cursor: pointer; transition: background-color 0.15s, border-color 0.15s, color 0.15s; }
+  .row-action:hover { background: var(--bg-app); border-color: #9ca3af; }
+  .row-action:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row-action.success { background: #15803d; border-color: #15803d; color: #fff; }
+  .row-action.success:hover { background: #166534; border-color: #166534; }
+  .row-action.warning { background: #b45309; border-color: #b45309; color: #fff; }
+  .row-action.warning:hover { background: #92400e; border-color: #92400e; }
+  .row-state { display: inline-flex; align-items: center; gap: 4px; padding: 6px 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  .row-state.success { color: #15803d; }
+  .results-table tr.row-official td { background: linear-gradient(to right, rgba(250, 204, 21, 0.08), transparent 30%); }
+  [data-theme='dark'] .results-table tr.row-official td { background: linear-gradient(to right, rgba(250, 204, 21, 0.18), transparent 30%); }
   .table-wrap { overflow-x: auto; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); }
   .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
   .modal { background: var(--bg-card); padding: 30px; border-radius: var(--radius-md); max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; border: 1px solid var(--border-soft); box-shadow: var(--shadow-soft); }
@@ -154,7 +191,8 @@ const styles = `
   .student-stat .label { font-size: 12px; color: var(--text-muted); }
   .student-stat .value { font-size: 20px; font-weight: 700; margin-top: 4px; }
   .modal-section h3 { color: #333; margin-bottom: 10px; font-size: 16px; }
-  .modal-close { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
+  .modal-close { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); }
+  .modal-close:hover { color: var(--text-primary); }
   .question-item { background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; }
   .question-correct { border-left: 4px solid #4caf50; }
   .question-wrong { border-left: 4px solid #f44336; }
@@ -980,22 +1018,23 @@ function StudentTest({ user, onComplete }) {
           return { tone: 'info', text: '' };
       }
     })();
-    const bannerStyle = {
-      info: { background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e3a8a' },
-      pending: { background: '#fff7ed', borderColor: '#fed7aa', color: '#9a3412' },
-      approved: { background: '#ecfdf5', borderColor: '#bbf7d0', color: '#166534' },
-      rejected: { background: '#fef2f2', borderColor: '#fecaca', color: '#991b1b' }
-    }[bannerCopy.tone];
 
     return (
       <div className="test-screen">
+        <div className="dashboard-header" style={{ marginBottom: '20px' }}>
+          <h1 style={{ fontSize: '20px' }}>Student Portal</h1>
+          <div className="header-actions">
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{user.email}</span>
+            <button className="logout-button" onClick={onComplete}>Sign Out</button>
+          </div>
+        </div>
         <div className="test-intro">
           <h1>English Level Assessment</h1>
           {attemptsLoading ? (
             <p className="description">Loading your attempt history...</p>
           ) : (
             <>
-            <div style={{ ...bannerStyle, border: '1px solid', borderRadius: '8px', padding: '14px 16px', marginBottom: '18px', textAlign: 'left', fontSize: '14px', lineHeight: 1.5 }}>
+            <div className={`banner ${bannerCopy.tone}`}>
               {bannerCopy.text}
               {lockState.latest?.teacher_comment && (lockState.reason === 'rejected_retake_auto' || lockState.reason === 'approved_awaiting_retake' || lockState.reason === 'retake_granted') && (
                 <div style={{ marginTop: '8px', fontSize: '13px' }}>
@@ -1071,7 +1110,7 @@ function StudentTest({ user, onComplete }) {
               </p>
               <p><strong>Score:</strong> {selectedAttemptReview.overall_score}% | <strong>CEFR:</strong> {selectedAttemptReview.determined_cefr_level}</p>
               {selectedAttemptReview.teacher_comment && (
-                <p style={{ marginTop: '12px', background: '#fff9e6', padding: '10px', borderLeft: '4px solid #ffc107', borderRadius: '4px' }}>
+                <p className="note-warning" style={{ marginTop: '12px' }}>
                   <strong>Teacher comment:</strong> {selectedAttemptReview.teacher_comment}
                 </p>
               )}
@@ -1104,7 +1143,7 @@ function StudentTest({ user, onComplete }) {
               Your instructor will review your answers and send you detailed results via email once approved.
             </p>
           </div>
-          <button className="primary-button" onClick={() => onComplete()}>Exit</button>
+          <button className="primary-button" onClick={() => onComplete()}>Sign Out</button>
         </div>
       </div>
     );
@@ -1346,6 +1385,12 @@ function TeacherDashboard({ user, onLogout }) {
   };
 
   const handleMakeOfficial = async (row) => {
+    const name = row.students?.full_name || 'this student';
+    const hasOther = results.some(x => x.student_id === row.student_id && x.official_for_placement && x.id !== row.id);
+    const confirmMsg = hasOther
+      ? `Mark attempt #${row.attempt_no} as the official placement for ${name}? This will replace their current official attempt.`
+      : `Mark attempt #${row.attempt_no} as the official placement for ${name}?`;
+    if (!window.confirm(confirmMsg)) return;
     try {
       await api.setOfficial(row.id, row.student_id);
       loadData();
@@ -1356,12 +1401,33 @@ function TeacherDashboard({ user, onLogout }) {
   };
 
   const handleGrantRetake = async (row) => {
+    const name = row.students?.full_name || 'this student';
+    if (!window.confirm(`Allow ${name} to take a new attempt? They will be able to start a fresh test immediately.`)) return;
     try {
       await api.grantRetake(row.id, user.id);
       loadData();
     } catch (err) {
       console.error('Error granting retake:', err);
       alert(err?.message || 'Failed to grant retake.');
+    }
+  };
+
+  const handleResendEmail = async (row) => {
+    if (!row.students?.email) return;
+    try {
+      await sendResultEmail({
+        recipient: row.students.email,
+        studentName: row.students.full_name,
+        kind: 'approved',
+        cefrLevel: row.determined_cefr_level,
+        score: row.overall_score,
+        teacherComment: row.teacher_comment,
+        responses: parseResponses(row.student_responses)
+      });
+      alert(`Email resent to ${row.students.email}`);
+    } catch (err) {
+      console.error('Resend failed:', err);
+      alert('Failed to resend email. See console.');
     }
   };
 
@@ -1436,8 +1502,8 @@ function TeacherDashboard({ user, onLogout }) {
       </div>
 
       {!isSuperAdmin && ['teacher', 'admin'].includes(user.role) && (
-        <div className="tab-content" style={{ marginBottom: '20px', backgroundColor: '#fff9e6', border: '1px solid #ffc107' }}>
-          <p style={{ margin: 0, fontSize: '13px', color: '#8a6d3b' }}>
+        <div className="note-info" style={{ marginBottom: '20px' }}>
+          <p style={{ margin: 0, fontSize: '13px' }}>
             Admin Management is only visible for superadmin ({SUPERADMIN_EMAIL}).
           </p>
         </div>
@@ -1530,7 +1596,7 @@ function TeacherDashboard({ user, onLogout }) {
                   const status = statusOf(r);
                   const isApproved = status === 'approved';
                   return (
-                    <tr key={r.id}>
+                    <tr key={r.id} className={r.official_for_placement ? 'row-official' : ''}>
                       <td>
                         {r.students?.full_name || 'N/A'}
                         {r.students?.passport_id ? <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>{r.students.passport_id}</span> : null}
@@ -1543,34 +1609,37 @@ function TeacherDashboard({ user, onLogout }) {
                         {r.official_for_placement ? <span style={{ marginLeft: '6px' }} title="Official placement">⭐</span> : null}
                       </td>
                       <td>{r.reviewed_at ? new Date(r.reviewed_at).toLocaleDateString() : '—'}</td>
-                      <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        <button className="link-button" onClick={() => setSelectedResult(r)}>View</button>
-                        {isApproved && !r.official_for_placement && (
-                          <button className="approve-button" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={() => handleMakeOfficial(r)}>Make Official</button>
-                        )}
-                        {isApproved && !r.retake_granted && (
-                          <button className="approve-button" style={{ padding: '4px 10px', fontSize: '12px', backgroundColor: '#2563eb' }} onClick={() => handleGrantRetake(r)}>Grant Retake</button>
-                        )}
-                        {isApproved && r.retake_granted && (
-                          <span style={{ fontSize: '11px', color: '#16a34a' }}>Retake granted ✓</span>
-                        )}
-                        {isApproved && r.students?.email && (
-                          <button
-                            className="approve-button"
-                            style={{ padding: '4px 10px', fontSize: '12px', backgroundColor: '#6b7280' }}
-                            onClick={() => sendResultEmail({
-                              recipient: r.students.email,
-                              studentName: r.students?.full_name,
-                              kind: 'approved',
-                              cefrLevel: r.determined_cefr_level,
-                              score: r.overall_score,
-                              teacherComment: r.teacher_comment,
-                              responses: parseResponses(r.student_responses)
-                            }).then(() => alert(`Email resent to ${r.students.email}`))}
-                          >
-                            Resend Email
+                      <td>
+                        <div className="row-action-group">
+                          <button className="row-action" onClick={() => setSelectedResult(r)} title="View attempt details">
+                            <span aria-hidden="true">👁</span> View
                           </button>
-                        )}
+                          {isApproved && !r.official_for_placement && (
+                            <button className="row-action success" onClick={() => handleMakeOfficial(r)} title="Mark this attempt as the student's official placement (replaces any previous official)">
+                              <span aria-hidden="true">⭐</span> Make Official
+                            </button>
+                          )}
+                          {isApproved && r.official_for_placement && (
+                            <span className="row-state success" title="This is the student's official placement attempt">
+                              <span aria-hidden="true">⭐</span> Official
+                            </span>
+                          )}
+                          {isApproved && !r.retake_granted && (
+                            <button className="row-action warning" onClick={() => handleGrantRetake(r)} title="Allow this student to take a new attempt">
+                              <span aria-hidden="true">🔁</span> Grant Retake
+                            </button>
+                          )}
+                          {isApproved && r.retake_granted && (
+                            <span className="row-state success" title="Student can take a new attempt">
+                              <span aria-hidden="true">✓</span> Retake granted
+                            </span>
+                          )}
+                          {isApproved && r.students?.email && (
+                            <button className="row-action" onClick={() => handleResendEmail(r)} title={`Resend approval email to ${r.students.email}`}>
+                              <span aria-hidden="true">✉</span> Resend
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -2239,7 +2308,7 @@ function TeacherDashboard({ user, onLogout }) {
                 <p><strong>Status:</strong> <span className={`status-chip ${statusOf(selectedResult) === 'approved' ? 'approved' : 'rejected'}`} style={{ textTransform: 'capitalize' }}>{selectedResult.status}</span>{selectedResult.official_for_placement ? ' ⭐ Official' : ''}</p>
               )}
               {!isPending && selectedResult.teacher_comment && (
-                <p style={{ marginTop: '10px', background: '#fff9e6', padding: '10px', borderLeft: '4px solid #ffc107', borderRadius: '4px' }}>
+                <p className="note-warning" style={{ marginTop: '10px' }}>
                   <strong>Existing teacher comment:</strong> {selectedResult.teacher_comment}
                 </p>
               )}
