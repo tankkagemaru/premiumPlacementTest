@@ -294,13 +294,24 @@ const api = {
       throw error;
     }
   },
-  async signup(email, password, role, fullName, passportId, country) {
+  async signup(email, password, role, fullName, passportId, country, registrationCode = null) {
     // Normalize email to lowercase BEFORE the auth call so the auth.users row
     // and the public.users / public.students rows agree on casing. Supabase
     // Auth normalizes internally too, but doing it up-front prevents any
     // mismatch from downstream exact-match queries.
     const normalizedEmail = String(email || '').trim().toLowerCase();
-    const result = await this.request('POST', '/auth/v1/signup', { email: normalizedEmail, password });
+
+    // Pass registration_code in user metadata so the auth.users INSERT trigger
+    // (migration 005) can atomically consume the code in the same transaction
+    // as the signup. This replaces the old client-side /api/consume-registration-code
+    // round-trip, which was vulnerable to stale browser caches skipping the
+    // call entirely.
+    const signupBody = { email: normalizedEmail, password };
+    const metadata = {};
+    if (registrationCode) metadata.registration_code = String(registrationCode).trim();
+    if (fullName)         metadata.full_name        = fullName;
+    if (Object.keys(metadata).length > 0) signupBody.data = metadata;
+    const result = await this.request('POST', '/auth/v1/signup', signupBody);
 
     if (!result?.user?.id) {
       throw new Error('Authentication failed: signup returned no user.');
@@ -827,7 +838,7 @@ function LoginScreen({ onLogin }) {
       const resolvedCountry = country === 'Other' ? countryOther.trim() : country;
 
       const result = isSignup
-        ? await api.signup(normalizedLoginEmail, password, 'student', fullName, passportId, resolvedCountry)
+        ? await api.signup(normalizedLoginEmail, password, 'student', fullName, passportId, resolvedCountry, trimmedCode)
         : await api.login(normalizedLoginEmail, password);
 
       if (!result?.access_token) {
@@ -836,18 +847,9 @@ function LoginScreen({ onLogin }) {
         return;
       }
 
-      // Only NOW that we have a real authenticated student do we increment
-      // the registration code's used_count. If this fails (e.g., the code
-      // hit max_uses between check and consume), the student is still
-      // created — they should be allowed to sit the test. Log loudly so the
-      // teacher can rebalance the code on the admin side.
-      if (isSignup) {
-        try {
-          await api.consumeRegistrationCode(trimmedCode, normalizedLoginEmail);
-        } catch (err) {
-          console.error('consumeRegistrationCode failed after successful signup:', err);
-        }
-      }
+      // Registration-code consumption now happens server-side via the
+      // auth.users INSERT trigger (migration 005). We pass the code in
+      // signup metadata above; no separate client round-trip is needed.
 
       localStorage.setItem('sb-token', result.access_token);
       const role = normalizedLoginEmail === SUPERADMIN_EMAIL
