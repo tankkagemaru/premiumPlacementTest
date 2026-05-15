@@ -1,0 +1,149 @@
+========================================================================
+Premium Language Centre — CEFR Placement Test (PLC-CPT)
+C1 LISTENING TRANSCRIPTS — for AI Studio audio generation
+========================================================================
+
+Seven multi-speaker dialogues at C1+ level. Each is approximately
+100–150 seconds at natural-to-fast pace per spec §2.2. Cast notes
+at the top of each clip suggest accent and gender — adjust voice
+assignments in AI Studio to match. Per spec §4.3, no single voice
+should represent more than 35% of items across the seven clips, so
+rotate voices rather than treating these cast suggestions as fixed.
+
+Filename pattern for upload: C1_listen_01.wav … C1_listen_07.wav
+
+
+------------------------------------------------------------------------
+CLIP 1 of 7  —  output file: C1_listen_01.wav
+------------------------------------------------------------------------
+
+Cast: Speaker A = female, British (RP); Speaker B = female, Malaysian English. Context: two friends in a café discussing whether B should accept a job offer. Approx. 290 words; natural pace; ~110 sec.
+
+A: So, are you going to take it then?
+B: Honestly, I keep flip-flopping. Last week I was certain. This week I'm not.
+A: What changed?
+B: I had lunch with someone who'd made the same move five years ago. He didn't regret it exactly, but he said the first eighteen months were brutal. You're not just learning the role, you're rebuilding your whole professional identity.
+A: That's discouraging.
+B: It wasn't meant to be. He was actually trying to be helpful. He said the people who struggle most are the ones who romanticise the change beforehand — picture themselves arriving at the new firm and finding everything different and better. And then it's just... a different set of meetings.
+A: Mm. And you've been romanticising it?
+B: Have I ever. I'd built up this whole story in my head where the new place fixes everything I find frustrating about the current one.
+A: So what's tipping you back toward going?
+B: The fact that I keep telling myself not to. If I'm spending this much energy talking myself out of it, that's information too. If it really weren't right for me, I think I'd have walked away by now without all this internal debate.
+A: That's surprisingly sensible.
+B: Don't sound so shocked.
+A: I just meant — most people would take the indecision as a sign to stay put.
+B: Yeah, I know. But indecision and reluctance are different things. I think I'm not indecisive about wanting it. I'm just frightened of the part where it hurts.
+
+
+------------------------------------------------------------------------
+CLIP 2 of 7  —  output file: C1_listen_02.wav
+------------------------------------------------------------------------
+
+Cast: Speaker A = male, Australian; Speaker B = female, American. Context: two neighbours, mid-thirties, walking past the site of a recently-demolished printworks. Approx. 310 words; natural pace; ~125 sec.
+
+A: Have you been past the old printworks lately?
+B: I walked through last Saturday. They've started the demolition?
+A: Yeah, the hoardings went up Monday. I have to say, I'm more affected by it than I expected to be.
+B: I get that. I didn't think I cared, and then I drove past and there was just this sort of pang.
+A: It's strange because the building wasn't beautiful. It wasn't even particularly historic. It was a printworks that had been empty for nine years.
+B: But it was the thing on the corner. It located us.
+A: Exactly. And whatever they put there — and I've seen the renderings, it's fine, it's perfectly adequate residential — it won't have that quality of having been there before us.
+B: You know what I keep thinking about? My grandmother used to say that you don't realise how much you depended on something until somebody removes it.
+A: She wasn't wrong.
+B: She was talking about her husband when she said it, but I think it applies to neighbourhoods too. The texture is made of all these things you weren't paying attention to.
+A: Have you been to any of the community meetings about what's coming next?
+B: I went to the first one and it felt performative, like the decisions had already been made. I haven't been back.
+A: Same. I've decided to channel the energy into the residents' association instead. Smaller scale, but at least the meetings actually shape something.
+B: That sounds healthier than driving past the demolition site and feeling melancholy on a Saturday.
+A: One does not preclude the other.
+
+
+------------------------------------------------------------------------
+CLIP 3 of 7  —  output file: C1_listen_03.wav
+------------------------------------------------------------------------
+
+Cast: Speaker A = male, British (RP), a professor; Speaker B = female, American, a graduate student. Context: office hours, discussion of a dissertation chapter draft. Approx. 320 words; natural pace; ~130 sec.
+
+B: Thanks for seeing me on short notice. I wanted to talk about the dissertation chapter.
+A: Yes, I read the draft you sent over the weekend. Take a seat. Look, the argument is — it's there. The structure is sensible. My concern is something a bit harder to point at. May I just put it as a question first?
+B: Please do.
+A: Reading your chapter, I had the strong impression that you'd decided on the conclusion before you read the sources. Is that fair?
+B: ... That's a hard thing to hear, but I think it's probably accurate.
+A: It's not necessarily a fatal problem. Almost everyone starts with a working thesis. The question is whether the sources, once you really sit with them, are allowed to push back. And in your draft, when a source pushes back, it gets — I won't say dismissed, but very quickly absorbed.
+B: I see what you mean. There's a passage at the end of chapter two where I do that with the Hartford paper.
+A: That was the one I had underlined, actually.
+B: Ouch.
+A: It's a salvageable issue. What I'd suggest is this: take the three sources you find most uncomfortable — the ones whose conclusions least support yours — and write a paragraph for each, taking them at their strongest. Then see what's left of your argument.
+B: And if it doesn't survive?
+A: Then you have a different and more interesting argument to make. The strongest dissertations are not the ones that survive every challenge. They're the ones that are visibly aware of the challenges and have absorbed them honestly.
+B: That makes sense. Painful, but it makes sense.
+A: It usually does.
+
+
+------------------------------------------------------------------------
+CLIP 4 of 7  —  output file: C1_listen_04.wav
+------------------------------------------------------------------------
+
+Cast: Speaker A = female, American (chair); Speaker B = male, Malaysian English (Faisal, project lead); Speaker C = female, British RP (Camilla, finance). Context: budget meeting for a regional product rollout. Approx. 290 words; natural pace; ~120 sec.
+
+A: OK, before we move on to the timeline, I want to flag something about the budget revision. Faisal, you mentioned in the pre-read that we'd need an additional fifteen percent for the regional rollout. Help me understand that.
+B: Sure. The original number assumed we'd reuse the training materials from the pilot. After looking at it more carefully, I don't think we can. The regulatory environment in two of the three new regions is substantially different, and the materials would need real adaptation — not cosmetic changes.
+C: How confident are you in the fifteen percent? Is that an upper bound or are we likely to overshoot?
+B: It's my central estimate. The upper bound is closer to twenty-five. I deliberately gave the central rather than the conservative figure because I didn't want to anchor the conversation on the worst case.
+C: That's fair, but I'd actually rather we discussed the upper bound. We can always come in below it, but if we approve the central estimate and then it slides, we look as though we didn't do our homework.
+A: I lean toward Camilla on this. Let's plan to the upper bound and treat anything saved as a bonus. Faisal, would that feel like we're throwing money at the regions?
+B: A little, but I take the point. I'd rather plan to the realistic worst case than have this conversation again in three months.
+A: Right. Camilla, can you redo the cashflow model with the upper figure by Thursday?
+C: Yes, but I'll need the revised training-cost breakdown from Faisal by Tuesday.
+B: You'll have it Monday.
+A: Good. Let's move on to the timeline.
+
+
+------------------------------------------------------------------------
+CLIP 5 of 7  —  output file: C1_listen_05.wav
+------------------------------------------------------------------------
+
+Cast: Speaker A = male, American (journalist host); Speaker B = female, British RP (Dr. Lawrence, urban ecologist). Context: interview segment on urban green-space policy. Approx. 340 words; natural pace; ~135 sec.
+
+A: Dr. Lawrence, thanks for joining us. You've spent twenty years studying urban green spaces. What's the single most common misconception you encounter?
+B: That trees in cities are essentially decoration. Pleasant to have, but not infrastructure. That framing affects how they're funded, maintained, and replaced — or, more often, not replaced.
+A: And the reality?
+B: The reality is that a mature street tree is doing significant infrastructural work. It's modulating temperature on the pavement beneath it by several degrees, capturing particulate pollution, retaining stormwater, and slowing heavy rain so the drains don't get overwhelmed. None of that shows up on the city's books. So when a budget tightens, the tree-maintenance line is one of the first to be cut.
+A: You're suggesting cities are systematically undervaluing them.
+B: I'd go further. They're undervaluing them in a way that's actively cost-shifting. The work the tree was doing for free — temperature regulation, water absorption — has to be done by something else when the tree is gone, and that something else is almost always more expensive.
+A: Is there a city that gets this right, in your view?
+B: A few are starting to. Melbourne assigns each significant street tree an explicit dollar value based on the services it provides — its cooling, its stormwater capture, its carbon sequestration. That value goes into the same accounting system as the road and the streetlights. When someone proposes a development that removes a tree, the cost shows up the same way removing a streetlight would.
+A: That seems like such a small accounting change.
+B: It's small in implementation. It's significant in what it reveals. Most cities I've worked with are quietly horrified when they first run the numbers — not because the trees are worthless, but because they had been pretending they were.
+
+
+------------------------------------------------------------------------
+CLIP 6 of 7  —  output file: C1_listen_06.wav
+------------------------------------------------------------------------
+
+Cast: Speaker A = male, British RP (podcast host); Speaker B = female, Australian (privacy researcher guest). Context: tech podcast on digital privacy. Approx. 310 words; natural pace; ~125 sec.
+
+A: One thing I've heard you push back on quite firmly is the framing that people 'don't care' about privacy because they keep using free services. Why do you reject that framing?
+B: Because it confuses behaviour under constrained choice with revealed preference. If the only way to keep in touch with your family is on a platform that harvests your data, and the alternative is to lose contact with your family, your continued use of that platform tells me almost nothing about how much you value privacy.
+A: That's a fair point. So if not 'people don't care', what would you say?
+B: I'd say people care but feel trapped. And the platforms have designed it that way. The friction of leaving is enormous; the friction of staying is invisible.
+A: You used the phrase 'designed it that way'. Is that a deliberate, conscious design choice by the platforms, or just an emergent property of the business model?
+B: Honestly, the distinction matters less than people think. Whether a particular engineer sat down and decided to make the export tool slow, or whether it's slow because no one with influence inside the company has any incentive to make it fast, the outcome is the same. From the user's side, the effect is identical: leaving is hard, staying is easy.
+A: And what would you suggest individual users do, given that constraint?
+B: This is where I get less popular. I think individual action mostly doesn't matter at the scale of the problem. This is a regulatory question, not a personal-virtue question. Telling people to read their privacy settings is like telling them to negotiate individually with the electricity company.
+
+
+------------------------------------------------------------------------
+CLIP 7 of 7  —  output file: C1_listen_07.wav
+------------------------------------------------------------------------
+
+Cast: Speaker A = female, American (moderator); Speaker B = male, Malaysian English (Aidan, energy industry); Speaker C = female, Australian (Nazneen, climate NGO). Context: panel discussion on the path to net-zero emissions. Approx. 290 words; natural pace; ~120 sec.
+
+A: Let me put the question to the panel. We have a target of net zero by 2050. We're broadly agreed on that. Where the conversation tends to break down is on the path. Aidan, can I start with you?
+B: Sure. I'd argue the path matters less than people pretend. We agree on the destination. There are multiple credible routes. What we need is investment certainty so any of those routes can actually be funded.
+A: Nazneen, would you agree?
+C: I'd push back. The framing that the path doesn't matter conflates two different things. Yes, multiple paths could in principle reach net zero. But some paths front-load the costs on the same communities that have the least capacity to absorb them, and others don't. That's not a technical question. That's a distributional one.
+B: I take that point, but if we hold up investment over distributional questions, we miss the deadline entirely. Surely a fair path that arrives twenty years late is worse than a less fair path that arrives on time?
+C: That's a familiar argument and I don't accept the framing. It treats the unfairness as the price of speed. In practice, the unfairness is more often what produces the political backlash that slows the whole thing down. The 'fast and unfair' option is not actually fast, it just looks fast for the first eighteen months.
+A: That's an interesting reframe — that you see fairness and speed as more aligned than the standard debate suggests.
+C: Yes. People treat them as a trade-off because that's how the loudest voices present it. The evidence on the ground is messier and more encouraging.
