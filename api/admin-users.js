@@ -60,18 +60,63 @@ export default async function handler(req, res) {
       });
       const data = await readResponseBody(response);
       if (!response.ok) return res.status(response.status).json({ error: data?.message || data?.error || data?.raw || 'Failed to load users.' });
-      const studentsResponse = await fetch(`${SUPABASE_URL}/rest/v1/students?select=user_id,passport_id,country,full_name,email`, {
+      const studentsResponse = await fetch(`${SUPABASE_URL}/rest/v1/students?select=id,user_id,passport_id,country,full_name,email`, {
         headers: getServiceHeaders()
       });
       const studentsRaw = studentsResponse.ok ? await readResponseBody(studentsResponse) : [];
       const students = Array.isArray(studentsRaw) ? studentsRaw : [];
       const users = Array.isArray(data) ? data : [];
       const studentMap = new Map(students.map(s => [s.user_id, s]));
-      const merged = users.map(u => ({
-        ...u,
-        passport_id: studentMap.get(u.id)?.passport_id || '',
-        country: studentMap.get(u.id)?.country || ''
-      }));
+
+      // Enrich with auth.users metadata (created_at, last_sign_in_at) — fetch
+      // all pages of the admin user list. Page size 200 keeps us under one
+      // request for typical PLC scale (~few hundred users).
+      const authUsersById = new Map();
+      let page = 1;
+      const perPage = 200;
+      for (;;) {
+        const authResp = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?page=${page}&per_page=${perPage}`, {
+          headers: getServiceHeaders()
+        });
+        if (!authResp.ok) break;
+        const authData = await readResponseBody(authResp);
+        const list = Array.isArray(authData?.users) ? authData.users : (Array.isArray(authData) ? authData : []);
+        if (list.length === 0) break;
+        for (const au of list) {
+          authUsersById.set(au.id, {
+            created_at: au.created_at || null,
+            last_sign_in_at: au.last_sign_in_at || null
+          });
+        }
+        if (list.length < perPage) break;
+        page += 1;
+        if (page > 50) break; // hard safety cap (10k users)
+      }
+
+      // Attempt counts per student. test_results has student_id (FK to
+      // public.students.id). Group on the client side.
+      const attemptsResp = await fetch(`${SUPABASE_URL}/rest/v1/test_results?select=student_id`, {
+        headers: getServiceHeaders()
+      });
+      const attemptsRaw = attemptsResp.ok ? await readResponseBody(attemptsResp) : [];
+      const attemptList = Array.isArray(attemptsRaw) ? attemptsRaw : [];
+      const attemptsByStudentId = new Map();
+      for (const a of attemptList) {
+        attemptsByStudentId.set(a.student_id, (attemptsByStudentId.get(a.student_id) || 0) + 1);
+      }
+
+      const merged = users.map(u => {
+        const studentRow = studentMap.get(u.id);
+        const authMeta = authUsersById.get(u.id) || {};
+        return {
+          ...u,
+          passport_id: studentRow?.passport_id || '',
+          country: studentRow?.country || '',
+          created_at: authMeta.created_at || null,
+          last_sign_in_at: authMeta.last_sign_in_at || null,
+          attempt_count: studentRow ? (attemptsByStudentId.get(studentRow.id) || 0) : 0
+        };
+      });
       return res.status(200).json({ users: merged });
     }
 

@@ -1525,11 +1525,6 @@ function TeacherDashboard({ user, onLogout }) {
   const [usageCodeLabel, setUsageCodeLabel] = useState('');
   const [managedUsers, setManagedUsers] = useState([]);
   const [userMgmtLoading, setUserMgmtLoading] = useState(false);
-  const [editingUserId, setEditingUserId] = useState(null);
-  const [editingUserRole, setEditingUserRole] = useState('student');
-  const [editingUserName, setEditingUserName] = useState('');
-  const [editingPassportId, setEditingPassportId] = useState('');
-  const [editingCountry, setEditingCountry] = useState('');
   const [newUser, setNewUser] = useState({ email: '', fullName: '', role: 'student', passportId: '', country: '' });
   const [showAddUserModal, setShowAddUserModal] = useState(false);
   const [newUserPassword, setNewUserPassword] = useState('');
@@ -1538,13 +1533,41 @@ function TeacherDashboard({ user, onLogout }) {
   const [adminError, setAdminError] = useState('');
   const normalizedDashboardEmail = (user.email || '').trim().toLowerCase();
   const isSuperAdmin = normalizedDashboardEmail === SUPERADMIN_EMAIL || user.role === 'superadmin';
-  const passwordStrength = newUserPassword.length >= 12 && /[A-Z]/.test(newUserPassword) && /[a-z]/.test(newUserPassword) && /\d/.test(newUserPassword) && /[^A-Za-z0-9]/.test(newUserPassword)
-    ? 'Strong'
-    : newUserPassword.length >= 8
-      ? 'Medium'
-      : newUserPassword.length > 0
-        ? 'Weak'
-        : 'Not set';
+  const passwordStrengthScore = (() => {
+    const p = newUserPassword || '';
+    if (!p) return 0;
+    if (p.length >= 12 && /[A-Z]/.test(p) && /[a-z]/.test(p) && /\d/.test(p) && /[^A-Za-z0-9]/.test(p)) return 4;
+    if (p.length >= 8 && /[A-Z]/.test(p) && /\d/.test(p)) return 3;
+    if (p.length >= 8) return 2;
+    return 1;
+  })();
+  const passwordStrengthLabel = ['Not set', 'Weak', 'Fair', 'Good', 'Strong'][passwordStrengthScore];
+  const passwordStrengthColor = ['#9ca3af', '#dc2626', '#f59e0b', '#65a30d', '#16a34a'][passwordStrengthScore];
+
+  // Admin Management — new UI state for search, filter, sort, pagination, edit modal, etc.
+  const [adminSearch, setAdminSearch] = useState('');
+  const [adminRoleFilter, setAdminRoleFilter] = useState('all'); // all | student | teacher | admin | superadmin
+  const [adminSort, setAdminSort] = useState({ key: 'email', dir: 'asc' });
+  const [adminPage, setAdminPage] = useState(0);
+  const ADMIN_PAGE_SIZE = 25;
+  const [adminSelectedIds, setAdminSelectedIds] = useState(new Set());
+  const [editUserModal, setEditUserModal] = useState(null); // { ...user } when open
+  const [editUserBusy, setEditUserBusy] = useState(false);
+  const [deleteUserTarget, setDeleteUserTarget] = useState(null); // single user being deleted
+  const [deleteUserConfirm, setDeleteUserConfirm] = useState('');
+  const [bulkDeleteTargets, setBulkDeleteTargets] = useState(null); // array of users
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState('');
+  const [bulkDeleteBusy, setBulkDeleteBusy] = useState(false);
+  const [resetLinkModal, setResetLinkModal] = useState(null); // { email, link } when open
+  const [resetLinkBusy, setResetLinkBusy] = useState(false);
+  const [adminToast, setAdminToast] = useState(null); // { tone, text }
+
+  // Auto-dismiss toast after 4 seconds; user can click to dismiss earlier.
+  useEffect(() => {
+    if (!adminToast) return;
+    const t = setTimeout(() => setAdminToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [adminToast]);
 
   const loadData = useCallback(async () => {
     try {
@@ -2373,122 +2396,274 @@ function TeacherDashboard({ user, onLogout }) {
         </div>
       )}
 
-      {activeTab === 'admins' && isSuperAdmin && (
+      {activeTab === 'admins' && isSuperAdmin && (() => {
+        // Helpers — local to this tab block to keep the render readable.
+        const roleColors = {
+          student:    { bg: '#eff6ff', fg: '#1e40af', border: '#bfdbfe' },
+          teacher:    { bg: '#ecfdf5', fg: '#047857', border: '#a7f3d0' },
+          admin:      { bg: '#fef3c7', fg: '#92400e', border: '#fcd34d' },
+          superadmin: { bg: '#fce7f3', fg: '#9d174d', border: '#fbcfe8' }
+        };
+        const roleStyle = (r) => roleColors[String(r || 'student').toLowerCase()] || roleColors.student;
+        const timeAgo = (iso) => {
+          if (!iso) return 'never';
+          const diff = Date.now() - new Date(iso).getTime();
+          if (diff < 0) return 'in the future';
+          const mins = Math.floor(diff / 60000);
+          if (mins < 1) return 'just now';
+          if (mins < 60) return `${mins}m ago`;
+          const hours = Math.floor(mins / 60);
+          if (hours < 24) return `${hours}h ago`;
+          const days = Math.floor(hours / 24);
+          if (days < 30) return `${days}d ago`;
+          return new Date(iso).toLocaleDateString();
+        };
+
+        // Filter → search → sort → paginate
+        const lowerSearch = adminSearch.trim().toLowerCase();
+        const isSuperRow = (u) => String(u.email || '').toLowerCase() === SUPERADMIN_EMAIL;
+        const filtered = managedUsers.filter(u => {
+          const userRole = isSuperRow(u) ? 'superadmin' : (u.role || 'student');
+          if (adminRoleFilter !== 'all' && userRole !== adminRoleFilter) return false;
+          if (!lowerSearch) return true;
+          return [u.email, u.full_name, u.passport_id, u.country]
+            .filter(Boolean).some(v => String(v).toLowerCase().includes(lowerSearch));
+        });
+        const sorted = [...filtered].sort((a, b) => {
+          const k = adminSort.key;
+          const av = k === 'attempt_count' ? (a.attempt_count || 0) : String(a?.[k] ?? '').toLowerCase();
+          const bv = k === 'attempt_count' ? (b.attempt_count || 0) : String(b?.[k] ?? '').toLowerCase();
+          if (av < bv) return adminSort.dir === 'asc' ? -1 : 1;
+          if (av > bv) return adminSort.dir === 'asc' ? 1 : -1;
+          return 0;
+        });
+        const totalPages = Math.max(1, Math.ceil(sorted.length / ADMIN_PAGE_SIZE));
+        const safePage = Math.min(adminPage, totalPages - 1);
+        const pageRows = sorted.slice(safePage * ADMIN_PAGE_SIZE, (safePage + 1) * ADMIN_PAGE_SIZE);
+        const setSort = (key) => {
+          setAdminPage(0);
+          setAdminSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
+        };
+        const sortIndicator = (key) => adminSort.key === key ? (adminSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+
+        // Role counts for the filter chips (always reflect the underlying data,
+        // not the current filter)
+        const roleCount = (r) => managedUsers.filter(u => r === 'all'
+          ? true
+          : r === 'superadmin'
+            ? isSuperRow(u)
+            : (u.role || 'student') === r && !isSuperRow(u)
+        ).length;
+
+        // Selection helpers — only non-superadmin rows are selectable
+        const selectablePageIds = pageRows.filter(u => !isSuperRow(u)).map(u => u.id);
+        const allOnPageSelected = selectablePageIds.length > 0 && selectablePageIds.every(id => adminSelectedIds.has(id));
+        const toggleAllOnPage = () => {
+          const next = new Set(adminSelectedIds);
+          if (allOnPageSelected) selectablePageIds.forEach(id => next.delete(id));
+          else selectablePageIds.forEach(id => next.add(id));
+          setAdminSelectedIds(next);
+        };
+        const toggleSelected = (id) => {
+          const next = new Set(adminSelectedIds);
+          if (next.has(id)) next.delete(id); else next.add(id);
+          setAdminSelectedIds(next);
+        };
+        const selectedUsers = managedUsers.filter(u => adminSelectedIds.has(u.id) && !isSuperRow(u));
+
+        return (
         <div className="tab-content">
-          <h3>Super Admin User Role Management</h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '15px' }}>
-            Promote users to admin or revert to student. Admin self-signup remains disabled.
-          </p>
+          <div style={{ marginBottom: '8px' }}>
+            <h3 style={{ margin: 0 }}>User Management</h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+              Search, filter, edit, and delete all users in the system. Superadmin account is protected from modification.
+            </p>
+          </div>
+
           {adminError && (
             <div className="error-message" style={{ marginBottom: '12px' }}>
-              {adminError} Please verify `SUPABASE_SERVICE_ROLE_KEY` in Vercel and redeploy.
+              {adminError} Verify <code>SUPABASE_SERVICE_ROLE_KEY</code> is set in Vercel and redeploy.
             </div>
           )}
-          <div style={{ marginBottom: '12px', display: 'flex', justifyContent: 'flex-end' }}>
+
+          {/* Toolbar: search + filter chips + add button */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', marginBottom: '12px' }}>
+            <input
+              type="text"
+              placeholder="Search by email, name, passport, country…"
+              value={adminSearch}
+              onChange={(e) => { setAdminSearch(e.target.value); setAdminPage(0); }}
+              style={{ flex: '1 1 260px', minWidth: '220px', padding: '8px 12px', border: '1px solid var(--border-soft)', borderRadius: '6px' }}
+            />
             <button className="approve-button" onClick={() => setShowAddUserModal(true)}>+ Add User</button>
           </div>
-          <table className="results-table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Full Name</th>
-                <th>Role</th>
-                <th>Passport/ID</th>
-                <th>Country</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {managedUsers.length === 0 && (
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+            {[
+              { id: 'all',        label: 'All' },
+              { id: 'student',    label: 'Students' },
+              { id: 'teacher',    label: 'Teachers' },
+              { id: 'admin',      label: 'Admins' },
+              { id: 'superadmin', label: 'Superadmin' }
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => { setAdminRoleFilter(id); setAdminPage(0); }}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '999px',
+                  border: `1px solid ${adminRoleFilter === id ? '#b91c1c' : 'var(--border-soft)'}`,
+                  background: adminRoleFilter === id ? '#b91c1c' : 'transparent',
+                  color: adminRoleFilter === id ? '#fff' : 'var(--text-primary)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                {label} ({roleCount(id)})
+              </button>
+            ))}
+          </div>
+
+          {/* Bulk action bar — visible only when something is selected */}
+          {selectedUsers.length > 0 && (
+            <div className="note-warning" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+              <div><strong>{selectedUsers.length}</strong> user{selectedUsers.length !== 1 ? 's' : ''} selected.</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => setAdminSelectedIds(new Set())} style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 4, background: 'transparent', cursor: 'pointer', fontSize: 12 }}>Clear</button>
+                <button
+                  onClick={() => { setBulkDeleteTargets(selectedUsers); setBulkDeleteConfirm(''); }}
+                  style={{ padding: '6px 12px', border: 'none', borderRadius: 4, background: '#b91c1c', color: 'white', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                >
+                  Delete {selectedUsers.length} selected
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="table-wrap">
+            <table className="results-table">
+              <thead>
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px' }}>
-                    No users loaded. Check Admin API configuration or Supabase permissions.
-                  </td>
+                  <th style={{ width: 30 }}>
+                    <input type="checkbox" checked={allOnPageSelected} onChange={toggleAllOnPage} disabled={selectablePageIds.length === 0} />
+                  </th>
+                  <th onClick={() => setSort('email')}      style={{ cursor: 'pointer' }}>Email{sortIndicator('email')}</th>
+                  <th onClick={() => setSort('full_name')}  style={{ cursor: 'pointer' }}>Full Name{sortIndicator('full_name')}</th>
+                  <th onClick={() => setSort('role')}       style={{ cursor: 'pointer' }}>Role{sortIndicator('role')}</th>
+                  <th onClick={() => setSort('created_at')} style={{ cursor: 'pointer' }}>Joined{sortIndicator('created_at')}</th>
+                  <th onClick={() => setSort('last_sign_in_at')} style={{ cursor: 'pointer' }}>Last login{sortIndicator('last_sign_in_at')}</th>
+                  <th onClick={() => setSort('attempt_count')} style={{ cursor: 'pointer', textAlign: 'center' }}>Attempts{sortIndicator('attempt_count')}</th>
+                  <th>Country</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
-              )}
-              {managedUsers.map(u => (
-                <tr key={u.id}>
-                  <td>{u.email}</td>
-                  <td>
-                    {editingUserId === u.id ? (
-                      <input
-                        value={editingUserName}
-                        onChange={(e) => setEditingUserName(e.target.value)}
-                        style={{ padding: '6px', border: '1px solid #ddd', borderRadius: '4px', width: '100%' }}
-                      />
-                    ) : (u.full_name || 'N/A')}
-                  </td>
-                  <td style={{ textTransform: 'capitalize', fontWeight: 'bold' }}>
-                    {editingUserId === u.id ? (
-                      <select value={editingUserRole} onChange={(e) => setEditingUserRole(e.target.value)} style={{ padding: '6px', border: '1px solid #ddd', borderRadius: '4px' }}>
-                        <option value="student">student</option>
-                        <option value="teacher">teacher</option>
-                        <option value="admin">admin</option>
-                      </select>
-                    ) : (u.role || 'student')}
-                  </td>
-                  <td>{editingUserId === u.id ? <input value={editingPassportId} onChange={(e) => setEditingPassportId(e.target.value)} /> : (u.passport_id || '-')}</td>
-                  <td>{editingUserId === u.id ? <input value={editingCountry} onChange={(e) => setEditingCountry(e.target.value)} /> : (u.country || '-')}</td>
-                  <td>
-                    {editingUserId === u.id ? (
-                      <>
-                        <button className="approve-button" disabled={userMgmtLoading} onClick={async () => {
-                          try {
-                            setUserMgmtLoading(true);
-                            await api.updateManagedUserRole(u.id, editingUserRole, editingUserName, editingPassportId, editingCountry);
-                            setEditingUserId(null);
-                            await loadData();
-                          } catch (err) {
-                            alert(err.message || 'Failed to update user');
-                          } finally {
-                            setUserMgmtLoading(false);
-                          }
-                        }} style={{ fontSize: '12px', padding: '6px 12px', marginRight: '8px' }}>Save</button>
-                        <button className="logout-button" onClick={() => setEditingUserId(null)} style={{ fontSize: '12px', padding: '6px 12px' }}>Cancel</button>
-                      </>
-                    ) : (
-                      <button
-                        className="approve-button"
-                        disabled={userMgmtLoading || String(u.email || '').toLowerCase() === SUPERADMIN_EMAIL}
-                        onClick={() => {
-                          setEditingUserId(u.id);
-                          setEditingUserRole(u.role || 'student');
-                          setEditingUserName(u.full_name || '');
-                          setEditingPassportId(u.passport_id || '');
-                          setEditingCountry(u.country || '');
-                        }}
-                        style={{ fontSize: '12px', padding: '6px 12px' }}
-                      >
-                        Edit
-                      </button>
-                      
-                    )}
-                    <button
-                      className="logout-button"
-                      disabled={userMgmtLoading || String(u.email || '').toLowerCase() === SUPERADMIN_EMAIL}
-                      onClick={async () => {
-                        if (!window.confirm(`Delete user ${u.email}? This cannot be undone.`)) return;
-                        try {
-                          setUserMgmtLoading(true);
-                          await api.deleteManagedUser(u.id);
-                          await loadData();
-                        } catch (err) {
-                          alert(err.message || 'Failed to delete user');
-                        } finally {
-                          setUserMgmtLoading(false);
-                        }
-                      }}
-                      style={{ fontSize: '12px', padding: '6px 12px', marginLeft: '8px', backgroundColor: '#b00020' }}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {managedUsers.length === 0 && (
+                  <tr>
+                    <td colSpan="9" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px' }}>
+                      No users loaded. Check that <code>SUPABASE_SERVICE_ROLE_KEY</code> is configured.
+                    </td>
+                  </tr>
+                )}
+                {managedUsers.length > 0 && pageRows.length === 0 && (
+                  <tr>
+                    <td colSpan="9" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px' }}>
+                      No users match the current search / filter.
+                    </td>
+                  </tr>
+                )}
+                {pageRows.map(u => {
+                  const isSuper = isSuperRow(u);
+                  const effectiveRole = isSuper ? 'superadmin' : (u.role || 'student');
+                  const chip = roleStyle(effectiveRole);
+                  return (
+                    <tr key={u.id}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          disabled={isSuper}
+                          checked={adminSelectedIds.has(u.id)}
+                          onChange={() => toggleSelected(u.id)}
+                        />
+                      </td>
+                      <td>{u.email}</td>
+                      <td>{u.full_name || '—'}</td>
+                      <td>
+                        <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 999, background: chip.bg, color: chip.fg, border: `1px solid ${chip.border}`, fontSize: 12, fontWeight: 600, textTransform: 'capitalize' }}>
+                          {effectiveRole}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }} title={u.created_at || ''}>{timeAgo(u.created_at)}</td>
+                      <td style={{ fontSize: 12, color: 'var(--text-muted)' }} title={u.last_sign_in_at || ''}>{timeAgo(u.last_sign_in_at)}</td>
+                      <td style={{ textAlign: 'center', fontWeight: 600 }}>{u.attempt_count ?? 0}</td>
+                      <td>{u.country || '—'}</td>
+                      <td>
+                        <div className="row-action-group" style={{ justifyContent: 'flex-end' }}>
+                          <button
+                            className="row-action"
+                            disabled={userMgmtLoading || isSuper}
+                            onClick={() => setEditUserModal({ ...u })}
+                            title={isSuper ? 'Superadmin cannot be edited' : 'Edit this user'}
+                          >
+                            ✎ Edit
+                          </button>
+                          <button
+                            className="row-action"
+                            disabled={resetLinkBusy}
+                            onClick={async () => {
+                              setResetLinkBusy(true);
+                              try {
+                                const data = await api.sendUserResetLink(u.email);
+                                if (data?.resetLink) {
+                                  setResetLinkModal({ email: u.email, link: data.resetLink });
+                                } else {
+                                  setAdminToast({ tone: 'approved', text: `Reset link sent to ${u.email}.` });
+                                }
+                              } catch (err) {
+                                setAdminToast({ tone: 'rejected', text: err.message || 'Failed to generate reset link.' });
+                              } finally {
+                                setResetLinkBusy(false);
+                              }
+                            }}
+                            title="Generate a password reset link for this user"
+                          >
+                            🔑 Reset
+                          </button>
+                          <button
+                            className="row-action"
+                            disabled={userMgmtLoading || isSuper}
+                            onClick={() => { setDeleteUserTarget(u); setDeleteUserConfirm(''); }}
+                            title={isSuper ? 'Superadmin cannot be deleted' : 'Delete this user'}
+                            style={{ color: '#b91c1c' }}
+                          >
+                            🗑 Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {sorted.length > ADMIN_PAGE_SIZE && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, fontSize: 13 }}>
+              <span style={{ color: 'var(--text-muted)' }}>
+                Showing {safePage * ADMIN_PAGE_SIZE + 1}–{Math.min((safePage + 1) * ADMIN_PAGE_SIZE, sorted.length)} of {sorted.length}
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={() => setAdminPage(p => Math.max(0, p - 1))} disabled={safePage === 0} style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 4, background: 'transparent', cursor: safePage === 0 ? 'not-allowed' : 'pointer' }}>← Prev</button>
+                <span style={{ alignSelf: 'center', padding: '0 8px' }}>Page {safePage + 1} of {totalPages}</span>
+                <button onClick={() => setAdminPage(p => Math.min(totalPages - 1, p + 1))} disabled={safePage >= totalPages - 1} style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 4, background: 'transparent', cursor: safePage >= totalPages - 1 ? 'not-allowed' : 'pointer' }}>Next →</button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+        );
+      })()}
 
       {showAddUserModal && (
         <div className="modal-overlay" onClick={() => setShowAddUserModal(false)}>
@@ -2513,45 +2688,307 @@ function TeacherDashboard({ user, onLogout }) {
               <input style={{ padding: '12px', fontSize: '15px' }} type={showPassword ? 'text' : 'password'} placeholder="Password (leave blank = auto)" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} />
               <input style={{ padding: '12px', fontSize: '15px' }} type={showPassword ? 'text' : 'password'} placeholder="Confirm Password" value={newUserPasswordConfirm} onChange={(e) => setNewUserPasswordConfirm(e.target.value)} />
             </div>
-            <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-              <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} />
-                Show passwords
-              </label>
-              <span>Password strength: <strong>{passwordStrength}</strong></span>
+            <div style={{ marginTop: '12px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <input type="checkbox" checked={showPassword} onChange={(e) => setShowPassword(e.target.checked)} />
+                  Show passwords
+                </label>
+                <span>Password strength: <strong style={{ color: passwordStrengthColor }}>{passwordStrengthLabel}</strong></span>
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[1, 2, 3, 4].map(seg => (
+                  <div key={seg} style={{
+                    flex: 1,
+                    height: 6,
+                    borderRadius: 3,
+                    background: passwordStrengthScore >= seg ? passwordStrengthColor : 'var(--bg-app)'
+                  }} />
+                ))}
+              </div>
+              {newUserPassword.length > 0 && passwordStrengthScore < 3 && (
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                  Stronger passwords use 8+ characters with a mix of uppercase, lowercase, numbers, and symbols.
+                </p>
+              )}
             </div>
             <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button className="logout-button" onClick={() => setShowAddUserModal(false)}>Cancel</button>
               <button className="approve-button" onClick={async () => {
                 try {
                   if (newUserPassword && newUserPassword !== newUserPasswordConfirm) {
-                    alert('Password and confirmation do not match.');
+                    setAdminToast({ tone: 'rejected', text: 'Password and confirmation do not match.' });
                     return;
                   }
                   if (newUser.role === 'student' && (!newUser.passportId.trim() || !newUser.country.trim())) {
-                    alert('Passport/ID and Country are required for student.');
+                    setAdminToast({ tone: 'rejected', text: 'Passport/ID and Country are required for student.' });
                     return;
                   }
                   const result = await api.createManagedUser({ ...newUser, password: newUserPassword || undefined });
-                  alert(newUserPassword ? 'User created successfully.' : `User created. Temporary password: ${result.tempPassword}`);
-                  if (!newUserPassword) {
-                    const shouldGenerateReset = window.confirm('Generate reset link now for this user?');
-                    if (shouldGenerateReset) {
-                      const resetData = await api.sendUserResetLink(newUser.email);
-                      if (resetData?.resetLink) window.prompt('Copy and send this reset link:', resetData.resetLink);
-                    }
-                  }
+                  const createdEmail = newUser.email;
                   setNewUser({ email: '', fullName: '', role: 'student', passportId: '', country: '' });
                   setNewUserPassword('');
                   setNewUserPasswordConfirm('');
                   setShowAddUserModal(false);
                   await loadData();
+                  if (newUserPassword) {
+                    setAdminToast({ tone: 'approved', text: `User ${createdEmail} created successfully.` });
+                  } else {
+                    // Auto-generated password — surface it via the reset-link modal pattern
+                    // (with a copy button) instead of alert/prompt.
+                    setResetLinkModal({
+                      email: createdEmail,
+                      link: null,
+                      tempPassword: result.tempPassword,
+                      title: 'User created — temporary password',
+                      hint: 'Share this temporary password with the user. They should change it after first login.'
+                    });
+                  }
                 } catch (err) {
-                  alert(err.message || 'Failed to create user');
+                  setAdminToast({ tone: 'rejected', text: err.message || 'Failed to create user.' });
                 }
               }}>Create User</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Edit User modal — replaces inline-row editing for room and validation */}
+      {editUserModal && (
+        <div className="modal-overlay" onClick={() => { if (!editUserBusy) setEditUserModal(null); }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <button className="modal-close" onClick={() => { if (!editUserBusy) setEditUserModal(null); }}>×</button>
+            <h2>Edit user</h2>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 0 }}>
+              {editUserModal.email}
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600 }}>Full Name *</label>
+                <input value={editUserModal.full_name || ''} onChange={(e) => setEditUserModal({ ...editUserModal, full_name: e.target.value })} style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 4 }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600 }}>Role *</label>
+                <select value={editUserModal.role || 'student'} onChange={(e) => setEditUserModal({ ...editUserModal, role: e.target.value })} style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 4 }}>
+                  <option value="student">student</option>
+                  <option value="teacher">teacher</option>
+                  <option value="admin">admin</option>
+                </select>
+              </div>
+              <div />
+              {editUserModal.role === 'student' && (
+                <>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600 }}>Passport / ID</label>
+                    <input value={editUserModal.passport_id || ''} onChange={(e) => setEditUserModal({ ...editUserModal, passport_id: e.target.value })} style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 4 }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600 }}>Country</label>
+                    <input value={editUserModal.country || ''} onChange={(e) => setEditUserModal({ ...editUserModal, country: e.target.value })} style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 4 }} />
+                  </div>
+                </>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button onClick={() => setEditUserModal(null)} disabled={editUserBusy} style={{ padding: '8px 14px', border: '1px solid #ddd', borderRadius: 4, background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+              <button
+                className="approve-button"
+                disabled={editUserBusy || !editUserModal.full_name?.trim()}
+                onClick={async () => {
+                  setEditUserBusy(true);
+                  try {
+                    await api.updateManagedUserRole(editUserModal.id, editUserModal.role || 'student', editUserModal.full_name, editUserModal.passport_id, editUserModal.country);
+                    setEditUserModal(null);
+                    await loadData();
+                    setAdminToast({ tone: 'approved', text: `Saved changes for ${editUserModal.email}.` });
+                  } catch (err) {
+                    setAdminToast({ tone: 'rejected', text: err.message || 'Save failed.' });
+                  } finally {
+                    setEditUserBusy(false);
+                  }
+                }}
+              >
+                {editUserBusy ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Single user delete with typed-DELETE confirmation */}
+      {deleteUserTarget && (() => {
+        const expected = 'DELETE';
+        const canDelete = !userMgmtLoading && deleteUserConfirm.trim().toUpperCase() === expected;
+        return (
+          <div className="modal-overlay" onClick={() => { if (!userMgmtLoading) { setDeleteUserTarget(null); setDeleteUserConfirm(''); } }}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
+              <button className="modal-close" onClick={() => { if (!userMgmtLoading) { setDeleteUserTarget(null); setDeleteUserConfirm(''); } }}>×</button>
+              <h2 style={{ color: '#b91c1c', marginTop: 0 }}>Delete this user?</h2>
+              <p>This permanently removes the auth account, role record, student record (if any), and any test attempts. <strong>This cannot be undone.</strong></p>
+              <div className="note-warning" style={{ marginTop: 12 }}>
+                <div><strong>Email:</strong> {deleteUserTarget.email}</div>
+                <div><strong>Name:</strong> {deleteUserTarget.full_name || '—'}</div>
+                <div><strong>Role:</strong> {deleteUserTarget.role || 'student'}</div>
+                {(deleteUserTarget.attempt_count > 0) && (
+                  <div style={{ color: '#b91c1c', marginTop: 6, fontWeight: 600 }}>⚠ This user has {deleteUserTarget.attempt_count} test attempt{deleteUserTarget.attempt_count === 1 ? '' : 's'} that will also be deleted.</div>
+                )}
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600 }}>
+                  Type <code style={{ background: 'var(--bg-app)', padding: '0 4px', borderRadius: 3 }}>DELETE</code> to confirm:
+                </label>
+                <input
+                  value={deleteUserConfirm}
+                  onChange={(e) => setDeleteUserConfirm(e.target.value)}
+                  autoFocus
+                  disabled={userMgmtLoading}
+                  style={{ width: '100%', padding: 10, border: '1px solid #b91c1c', borderRadius: 4, fontFamily: 'monospace' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+                <button onClick={() => { setDeleteUserTarget(null); setDeleteUserConfirm(''); }} disabled={userMgmtLoading} style={{ padding: '8px 14px', border: '1px solid #ddd', borderRadius: 4, background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+                <button
+                  disabled={!canDelete}
+                  onClick={async () => {
+                    setUserMgmtLoading(true);
+                    try {
+                      await api.deleteManagedUser(deleteUserTarget.id);
+                      const email = deleteUserTarget.email;
+                      setDeleteUserTarget(null);
+                      setDeleteUserConfirm('');
+                      await loadData();
+                      setAdminToast({ tone: 'approved', text: `Deleted ${email}.` });
+                    } catch (err) {
+                      setAdminToast({ tone: 'rejected', text: err.message || 'Delete failed.' });
+                    } finally {
+                      setUserMgmtLoading(false);
+                    }
+                  }}
+                  style={{ padding: '8px 14px', border: 'none', borderRadius: 4, background: canDelete ? '#b91c1c' : '#9ca3af', color: 'white', cursor: canDelete ? 'pointer' : 'not-allowed', fontWeight: 600 }}
+                >
+                  {userMgmtLoading ? 'Deleting…' : 'Delete permanently'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Bulk delete modal */}
+      {bulkDeleteTargets && (() => {
+        const expected = 'DELETE ALL';
+        const canDelete = !bulkDeleteBusy && bulkDeleteConfirm.trim().toUpperCase() === expected;
+        return (
+          <div className="modal-overlay" onClick={() => { if (!bulkDeleteBusy) { setBulkDeleteTargets(null); setBulkDeleteConfirm(''); } }}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+              <button className="modal-close" onClick={() => { if (!bulkDeleteBusy) { setBulkDeleteTargets(null); setBulkDeleteConfirm(''); } }}>×</button>
+              <h2 style={{ color: '#b91c1c', marginTop: 0 }}>Delete {bulkDeleteTargets.length} users?</h2>
+              <p>This permanently removes the auth accounts, role records, student records, and all test attempts for these users. <strong>This cannot be undone.</strong></p>
+              <div className="note-warning" style={{ marginTop: 12, maxHeight: 200, overflowY: 'auto' }}>
+                {bulkDeleteTargets.map(u => (
+                  <div key={u.id} style={{ fontSize: 13, padding: '2px 0' }}>
+                    {u.email} <span style={{ color: 'var(--text-muted)' }}>({u.role || 'student'}{u.attempt_count > 0 ? `, ${u.attempt_count} attempts` : ''})</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <label style={{ display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 600 }}>
+                  Type <code style={{ background: 'var(--bg-app)', padding: '0 4px', borderRadius: 3 }}>DELETE ALL</code> to confirm:
+                </label>
+                <input
+                  value={bulkDeleteConfirm}
+                  onChange={(e) => setBulkDeleteConfirm(e.target.value)}
+                  autoFocus
+                  disabled={bulkDeleteBusy}
+                  style={{ width: '100%', padding: 10, border: '1px solid #b91c1c', borderRadius: 4, fontFamily: 'monospace' }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+                <button onClick={() => { setBulkDeleteTargets(null); setBulkDeleteConfirm(''); }} disabled={bulkDeleteBusy} style={{ padding: '8px 14px', border: '1px solid #ddd', borderRadius: 4, background: 'transparent', cursor: 'pointer' }}>Cancel</button>
+                <button
+                  disabled={!canDelete}
+                  onClick={async () => {
+                    setBulkDeleteBusy(true);
+                    let ok = 0, fail = 0;
+                    for (const u of bulkDeleteTargets) {
+                      try { await api.deleteManagedUser(u.id); ok += 1; }
+                      catch (err) { fail += 1; console.error('Bulk delete failed for', u.email, err); }
+                    }
+                    setBulkDeleteTargets(null);
+                    setBulkDeleteConfirm('');
+                    setAdminSelectedIds(new Set());
+                    setBulkDeleteBusy(false);
+                    await loadData();
+                    setAdminToast({
+                      tone: fail === 0 ? 'approved' : 'rejected',
+                      text: `Deleted ${ok}/${ok + fail} users${fail > 0 ? ` — ${fail} failed (see console)` : ''}.`
+                    });
+                  }}
+                  style={{ padding: '8px 14px', border: 'none', borderRadius: 4, background: canDelete ? '#b91c1c' : '#9ca3af', color: 'white', cursor: canDelete ? 'pointer' : 'not-allowed', fontWeight: 600 }}
+                >
+                  {bulkDeleteBusy ? 'Deleting…' : `Delete ${bulkDeleteTargets.length} permanently`}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Reset link / temp password modal — replaces window.prompt for share-link UX */}
+      {resetLinkModal && (
+        <div className="modal-overlay" onClick={() => setResetLinkModal(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <button className="modal-close" onClick={() => setResetLinkModal(null)}>×</button>
+            <h2 style={{ marginTop: 0 }}>{resetLinkModal.title || 'Password reset link'}</h2>
+            <p style={{ marginTop: 0, fontSize: 13, color: 'var(--text-muted)' }}>
+              {resetLinkModal.hint || `Share this with ${resetLinkModal.email}. They can click the link to set a new password.`}
+            </p>
+            {resetLinkModal.tempPassword && (
+              <div className="note-warning" style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Temporary password</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <code style={{ flex: 1, padding: 8, background: 'var(--bg-app)', borderRadius: 4, fontSize: 14, fontFamily: 'monospace', wordBreak: 'break-all' }}>{resetLinkModal.tempPassword}</code>
+                  <button onClick={() => navigator.clipboard?.writeText(resetLinkModal.tempPassword).then(() => setAdminToast({ tone: 'approved', text: 'Password copied to clipboard.' }))} className="approve-button" style={{ padding: '6px 12px', fontSize: 12 }}>Copy</button>
+                </div>
+              </div>
+            )}
+            {resetLinkModal.link && (
+              <div className="note-warning">
+                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Reset link for {resetLinkModal.email}</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <code style={{ flex: 1, padding: 8, background: 'var(--bg-app)', borderRadius: 4, fontSize: 12, fontFamily: 'monospace', wordBreak: 'break-all' }}>{resetLinkModal.link}</code>
+                  <button onClick={() => navigator.clipboard?.writeText(resetLinkModal.link).then(() => setAdminToast({ tone: 'approved', text: 'Link copied to clipboard.' }))} className="approve-button" style={{ padding: '6px 12px', fontSize: 12 }}>Copy</button>
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <button onClick={() => setResetLinkModal(null)} className="approve-button">Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast notifications — replaces alert() for save/delete results */}
+      {adminToast && (
+        <div
+          onClick={() => setAdminToast(null)}
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            padding: '12px 18px',
+            borderRadius: 6,
+            background: adminToast.tone === 'approved' ? '#065f46' : '#b91c1c',
+            color: 'white',
+            fontWeight: 600,
+            fontSize: 13,
+            boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+            cursor: 'pointer',
+            maxWidth: 360,
+            zIndex: 9999
+          }}
+        >
+          {adminToast.text} <span style={{ marginLeft: 8, opacity: 0.7, fontWeight: 400 }}>(click to dismiss)</span>
         </div>
       )}
 
