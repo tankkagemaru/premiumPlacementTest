@@ -563,6 +563,28 @@ const api = {
     return data;
   }
   ,
+  async adminCreateStudents(registrationCode, students) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-create-student', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ registrationCode, students })
+    });
+    const data = await this.parseResponse(response);
+    if (!response.ok) throw new Error(data?.error || 'Unable to create students.');
+    return data.results || [];
+  },
+  async adminDeleteAttempt(attemptId) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-delete-attempt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ attemptId })
+    });
+    const data = await this.parseResponse(response);
+    if (!response.ok) throw new Error(data?.error || 'Unable to delete attempt.');
+    return data;
+  },
   async getRegistrationCodes() {
     const token = localStorage.getItem('sb-token');
     const response = await fetch('/api/registration-codes', { method: 'GET', headers: { Authorization: `Bearer ${token}` } });
@@ -1337,6 +1359,19 @@ function TeacherDashboard({ user, onLogout }) {
   const [results, setResults] = useState([]);
   const [questions, setQuestions] = useState([]);
   const [activeTab, setActiveTab] = useState('pending');
+  // Add Students tab state
+  const [addStudentCode, setAddStudentCode] = useState('');
+  const [addStudentEmail, setAddStudentEmail] = useState('');
+  const [addStudentPassword, setAddStudentPassword] = useState('');
+  const [addStudentFullName, setAddStudentFullName] = useState('');
+  const [addStudentPassportId, setAddStudentPassportId] = useState('');
+  const [addStudentCountry, setAddStudentCountry] = useState('');
+  const [addStudentBusy, setAddStudentBusy] = useState(false);
+  const [addStudentLog, setAddStudentLog] = useState([]);
+  // Delete-attempt confirmation modal state
+  const [pendingDeleteAttempt, setPendingDeleteAttempt] = useState(null);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+  const [deleting, setDeleting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selectedResult, setSelectedResult] = useState(null);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
@@ -1615,6 +1650,14 @@ function TeacherDashboard({ user, onLogout }) {
       <div className="dashboard-header">
         <h1>Teacher Dashboard</h1>
         <div className="header-actions">
+          <button
+            onClick={loadData}
+            disabled={loading}
+            title="Reload pending attempts, reviewed attempts, questions, and codes"
+            style={{ padding: '6px 14px', border: '1px solid var(--border-soft)', borderRadius: '6px', background: 'var(--bg-card)', color: 'var(--text-primary)', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 600 }}
+          >
+            {loading ? 'Refreshing…' : '↻ Refresh'}
+          </button>
           <span>{user.email} ({isSuperAdmin ? 'superadmin' : (user.role || 'student')})</span>
           <button className="logout-button" onClick={onLogout}>Sign Out</button>
         </div>
@@ -1633,6 +1676,11 @@ function TeacherDashboard({ user, onLogout }) {
         {['teacher', 'admin', 'superadmin'].includes((user.role || '').toLowerCase()) || isSuperAdmin ? (
           <button className={`tab ${activeTab === 'codes' ? 'active' : ''}`} onClick={() => setActiveTab('codes')}>
             Registration Codes
+          </button>
+        ) : null}
+        {['teacher', 'admin', 'superadmin'].includes((user.role || '').toLowerCase()) || isSuperAdmin ? (
+          <button className={`tab ${activeTab === 'students' ? 'active' : ''}`} onClick={() => setActiveTab('students')}>
+            Add Students
           </button>
         ) : null}
         {isSuperAdmin && (
@@ -1689,9 +1737,19 @@ function TeacherDashboard({ user, onLogout }) {
                     </td>
                     <td>{r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : '—'}</td>
                     <td>
-                      <button className="approve-button" onClick={() => openReview(r)}>
-                        Review
-                      </button>
+                      <div className="row-action-group">
+                        <button className="approve-button" onClick={() => openReview(r)}>
+                          Review
+                        </button>
+                        <button
+                          className="row-action"
+                          onClick={() => { setPendingDeleteAttempt(r); setDeleteConfirmInput(''); }}
+                          title="Delete this attempt"
+                          style={{ color: '#b91c1c' }}
+                        >
+                          🗑 Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1794,6 +1852,14 @@ function TeacherDashboard({ user, onLogout }) {
                               <span aria-hidden="true">✉</span> Resend
                             </button>
                           )}
+                          <button
+                            className="row-action"
+                            onClick={() => { setPendingDeleteAttempt(r); setDeleteConfirmInput(''); }}
+                            title="Delete this attempt (requires typed confirmation)"
+                            style={{ color: '#b91c1c' }}
+                          >
+                            <span aria-hidden="true">🗑</span> Delete
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1958,6 +2024,109 @@ function TeacherDashboard({ user, onLogout }) {
               </table></div>
             )}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'students' && (
+        <div className="tab-content">
+          <div style={{ marginBottom: '20px' }}>
+            <h3 style={{ margin: 0 }}>Add Students</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '6px' }}>
+              Use this form to create student accounts directly. Each created student counts against the registration code's usage exactly once — the consumption is server-enforced, so this is the safe way to bulk-add students without relying on the self-signup form.
+            </p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '13px' }}>Registration code *</label>
+              <select value={addStudentCode} onChange={(e) => setAddStudentCode(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}>
+                <option value="">Select an active code…</option>
+                {registrationCodes.filter(c => c.is_active).map(c => {
+                  const remaining = c.max_uses && c.max_uses > 0 ? `${c.max_uses - (c.used_count || 0)} left` : 'unlimited';
+                  return <option key={c.id} value={c.code}>{c.code} ({remaining})</option>;
+                })}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '13px' }}>Email *</label>
+              <input type="email" value={addStudentEmail} onChange={(e) => setAddStudentEmail(e.target.value)} placeholder="student@example.com" style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '13px' }}>Temporary password (min 6 chars) *</label>
+              <input type="text" value={addStudentPassword} onChange={(e) => setAddStudentPassword(e.target.value)} placeholder="e.g. Premium2026!" style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '13px' }}>Full name *</label>
+              <input type="text" value={addStudentFullName} onChange={(e) => setAddStudentFullName(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '13px' }}>Passport / ID *</label>
+              <input type="text" value={addStudentPassportId} onChange={(e) => setAddStudentPassportId(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', fontSize: '13px' }}>Country *</label>
+              <input type="text" value={addStudentCountry} onChange={(e) => setAddStudentCountry(e.target.value)} placeholder="e.g. Malaysia" style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button
+              className="approve-button"
+              disabled={addStudentBusy || !addStudentCode || !addStudentEmail || !addStudentPassword || !addStudentFullName || !addStudentPassportId || !addStudentCountry}
+              onClick={async () => {
+                setAddStudentBusy(true);
+                try {
+                  const res = await api.adminCreateStudents(addStudentCode, [{
+                    email: addStudentEmail,
+                    password: addStudentPassword,
+                    fullName: addStudentFullName,
+                    passportId: addStudentPassportId,
+                    country: addStudentCountry
+                  }]);
+                  const r = res[0];
+                  const entry = r?.ok
+                    ? { ok: true, email: r.email, message: 'Created successfully.', at: new Date().toISOString() }
+                    : { ok: false, email: r?.email || addStudentEmail, message: `${r?.error || 'error'}: ${r?.message || 'unknown'}`, at: new Date().toISOString() };
+                  setAddStudentLog((log) => [entry, ...log].slice(0, 20));
+                  if (r?.ok) {
+                    // Clear PII fields only; keep code/password so admin can churn through a class quickly.
+                    setAddStudentEmail('');
+                    setAddStudentFullName('');
+                    setAddStudentPassportId('');
+                    setAddStudentCountry('');
+                    await loadData();
+                  }
+                } catch (err) {
+                  setAddStudentLog((log) => [{ ok: false, email: addStudentEmail, message: err.message || 'Request failed.', at: new Date().toISOString() }, ...log].slice(0, 20));
+                } finally {
+                  setAddStudentBusy(false);
+                }
+              }}
+            >
+              {addStudentBusy ? 'Creating…' : 'Create Student'}
+            </button>
+            <button
+              onClick={() => { setAddStudentEmail(''); setAddStudentPassword(''); setAddStudentFullName(''); setAddStudentPassportId(''); setAddStudentCountry(''); }}
+              style={{ padding: '8px 14px', border: '1px solid #ddd', borderRadius: '4px', background: 'transparent', cursor: 'pointer', fontSize: '13px' }}
+            >
+              Clear form
+            </button>
+          </div>
+          {addStudentLog.length > 0 && (
+            <div style={{ marginTop: '24px' }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '14px' }}>Recent activity</h4>
+              <div className="table-wrap"><table className="results-table">
+                <thead><tr><th>Email</th><th>Result</th><th>Time</th></tr></thead>
+                <tbody>
+                  {addStudentLog.map((e, idx) => (
+                    <tr key={idx}>
+                      <td>{e.email || '—'}</td>
+                      <td><span className={`status-chip ${e.ok ? 'approved' : 'rejected'}`}>{e.ok ? 'Created' : e.message}</span></td>
+                      <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{new Date(e.at).toLocaleTimeString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table></div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2540,6 +2709,84 @@ function TeacherDashboard({ user, onLogout }) {
             )}
           </div>
         </div>
+        );
+      })()}
+
+      {pendingDeleteAttempt && (() => {
+        const studentName = pendingDeleteAttempt.students?.full_name || 'Unknown student';
+        const expectedToken = 'DELETE';
+        const canDelete = !deleting && deleteConfirmInput.trim().toUpperCase() === expectedToken;
+        return (
+          <div className="modal-overlay" onClick={() => { if (!deleting) { setPendingDeleteAttempt(null); setDeleteConfirmInput(''); } }}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+              <button className="modal-close" onClick={() => { if (!deleting) { setPendingDeleteAttempt(null); setDeleteConfirmInput(''); } }}>×</button>
+              <h2 style={{ color: '#b91c1c', marginTop: 0 }}>Delete this attempt?</h2>
+              <p style={{ marginTop: '8px' }}>
+                This will permanently remove the following attempt and the student's saved responses.
+                <strong> This cannot be undone.</strong>
+              </p>
+              <div className="note-warning" style={{ marginTop: '12px' }}>
+                <div><strong>Student:</strong> {studentName}</div>
+                <div><strong>Email:</strong> {pendingDeleteAttempt.students?.email || '—'}</div>
+                <div><strong>Attempt:</strong> #{pendingDeleteAttempt.attempt_no}</div>
+                <div><strong>Score:</strong> {pendingDeleteAttempt.overall_score?.toFixed?.(1) ?? '—'}%</div>
+                <div><strong>CEFR:</strong> {pendingDeleteAttempt.determined_cefr_level || '—'}</div>
+                <div><strong>Status:</strong> {pendingDeleteAttempt.status || '—'}</div>
+                {pendingDeleteAttempt.official_for_placement && (
+                  <div style={{ marginTop: 6, color: '#b91c1c', fontWeight: 600 }}>⚠ This is the student's OFFICIAL placement attempt. Deleting it removes their placement record.</div>
+                )}
+              </div>
+              <div style={{ marginTop: '16px' }}>
+                <label style={{ display: 'block', marginBottom: 6, fontSize: '13px', fontWeight: 600 }}>
+                  Type <code style={{ background: 'var(--bg-app)', padding: '0 4px', borderRadius: 3 }}>DELETE</code> to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmInput}
+                  onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                  autoFocus
+                  disabled={deleting}
+                  style={{ width: '100%', padding: '10px', border: '1px solid #b91c1c', borderRadius: '4px', fontFamily: 'monospace' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '16px', justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => { setPendingDeleteAttempt(null); setDeleteConfirmInput(''); }}
+                  disabled={deleting}
+                  style={{ padding: '8px 14px', border: '1px solid #ddd', borderRadius: '4px', background: 'transparent', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setDeleting(true);
+                    try {
+                      await api.adminDeleteAttempt(pendingDeleteAttempt.id);
+                      setPendingDeleteAttempt(null);
+                      setDeleteConfirmInput('');
+                      await loadData();
+                    } catch (err) {
+                      alert(`Delete failed: ${err.message || 'unknown error'}`);
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                  disabled={!canDelete}
+                  style={{
+                    padding: '8px 14px',
+                    border: 'none',
+                    borderRadius: '4px',
+                    background: canDelete ? '#b91c1c' : '#9ca3af',
+                    color: 'white',
+                    cursor: canDelete ? 'pointer' : 'not-allowed',
+                    fontWeight: 600
+                  }}
+                >
+                  {deleting ? 'Deleting…' : 'Delete permanently'}
+                </button>
+              </div>
+            </div>
+          </div>
         );
       })()}
     </div>
