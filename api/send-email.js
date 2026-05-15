@@ -39,6 +39,8 @@ export default async function handler(req, res) {
     let subject;
     let emailBody;
 
+    const isC1Plus = cefrLevel === 'C1+' || cefrLevel === 'C1' || cefrLevel === 'C2';
+
     if (kind === 'approved') {
       subject = `Your CEFR Placement Test Results - ${cefrLevel} Level`;
       const resultRows = responses.map((r, idx) => {
@@ -77,6 +79,10 @@ export default async function handler(req, res) {
     <p>Your English placement test has been reviewed and approved.</p>
     <h2>Your CEFR Level: <span class="level">${cefrLevel}</span></h2>
     <p class="score">Score: ${scoreText}</p>
+    ${isC1Plus ? `<div style="background: #fff9e6; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+      <strong>Next step: short oral interview.</strong><br>
+      Premium Language Centre reports a soft ceiling at C1+ and confirms placements at this level with a brief oral interview before assigning your course. The Academic Office will be in touch to arrange this.
+    </div>` : ''}
     ${comment ? `<div style="background: #fff9e6; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
       <strong>Teacher's Comment:</strong><br>${comment}
     </div>` : ''}

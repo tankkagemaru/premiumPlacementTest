@@ -295,47 +295,84 @@ const api = {
     }
   },
   async signup(email, password, role, fullName, passportId, country) {
-    const result = await this.request('POST', '/auth/v1/signup', { email, password });
-    
-    if (result?.user?.id && result?.access_token) {
-      try {
-        await this.request('POST', '/rest/v1/users', {
-          id: result.user.id,
-          email: email,
-          role,
-          full_name: fullName
-        }, result.access_token);
-      } catch (err) {
-        console.error('Error creating user role record:', err);
-      }
+    // Normalize email to lowercase BEFORE the auth call so the auth.users row
+    // and the public.users / public.students rows agree on casing. Supabase
+    // Auth normalizes internally too, but doing it up-front prevents any
+    // mismatch from downstream exact-match queries.
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const result = await this.request('POST', '/auth/v1/signup', { email: normalizedEmail, password });
 
-      // Create student record only for student role
-      if (role === 'student') {
-        try {
-          await this.request('POST', '/rest/v1/students', {
-            user_id: result.user.id,
-            email: email,
-            full_name: fullName,
-            passport_id: passportId,
-            country: country
-          }, result.access_token);
-        } catch (err) {
-          console.error('Error creating student record:', err);
-        }
+    if (!result?.user?.id) {
+      throw new Error('Authentication failed: signup returned no user.');
+    }
+    if (!result?.access_token) {
+      // Most likely cause: Supabase Auth "Confirm email" is enabled. The user
+      // exists but cannot be authenticated until they click the confirmation
+      // link. Surface this clearly rather than silently leaving them with no
+      // public.users / public.students rows.
+      throw new Error('Account created, but email confirmation is required. Please check your inbox, click the confirmation link, then return here to sign in. If you do not see the email, contact your teacher.');
+    }
+
+    // Helper: run a request with one retry on transient failure so a brief
+    // network blip during signup doesn't leave us with an orphaned auth user.
+    const withRetry = async (fn) => {
+      try { return await fn(); }
+      catch (err) {
+        await new Promise((r) => setTimeout(r, 500));
+        return await fn();
+      }
+    };
+
+    try {
+      await withRetry(() => this.request('POST', '/rest/v1/users', {
+        id: result.user.id,
+        email: normalizedEmail,
+        role,
+        full_name: fullName
+      }, result.access_token));
+    } catch (err) {
+      console.error('signup: failed to create users row after retry', err);
+      throw new Error('Account created but profile setup failed. Please contact your teacher with this message: users-row-insert-failed.');
+    }
+
+    if (role === 'student') {
+      try {
+        await withRetry(() => this.request('POST', '/rest/v1/students', {
+          user_id: result.user.id,
+          email: normalizedEmail,
+          full_name: fullName,
+          passport_id: passportId,
+          country: country
+        }, result.access_token));
+      } catch (err) {
+        console.error('signup: failed to create students row after retry', err);
+        throw new Error('Account created but student record setup failed. Please contact your teacher with this message: students-row-insert-failed.');
       }
     }
-    
+
     return result;
   },
-  async validateRegistration(role, registrationCode, email) {
+  async validateRegistration(role, registrationCode) {
     const response = await fetch('/api/validate-registration', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role, registrationCode, email })
+      body: JSON.stringify({ role, registrationCode })
     });
     const data = await response.json();
     if (!response.ok || !data?.valid) {
       throw new Error(data?.error || 'Registration is not allowed.');
+    }
+    return data;
+  },
+  async consumeRegistrationCode(registrationCode, email) {
+    const response = await fetch('/api/consume-registration-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ registrationCode, email })
+    });
+    const data = await response.json();
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || 'Unable to record registration code usage.');
     }
     return data;
   },
@@ -570,7 +607,17 @@ function selectNextQuestion(questionsBank, currentDifficulty, userResponses) {
   });
   const underTargetSkills = Object.keys(skillTargets).filter(skill => skillCounts[skill] < skillTargets[skill]);
 
-  const minDiff = Math.max(1, currentDifficulty - 1.5);
+  // Late-test ceiling probe: in items 21+, strong test-takers get items pinned
+  // ABOVE their running ability instead of within the symmetric ±1.5 band.
+  // Without this, the 30-item budget can run out before a true C1 candidate
+  // ever sees difficulty 8+ content, leaving them mis-placed at B2.
+  const correctSoFar = userResponses.filter(r => r.is_correct).length;
+  const accuracy = userResponses.length > 0 ? correctSoFar / userResponses.length : 0;
+  const forceCeilingProbe = userResponses.length >= 20 && currentDifficulty >= 6.5 && accuracy >= 0.6;
+
+  const minDiff = forceCeilingProbe
+    ? Math.max(1, currentDifficulty + 0.3)
+    : Math.max(1, currentDifficulty - 1.5);
   const maxDiff = Math.min(10, currentDifficulty + 1.5);
   const suitable = questionsBank.filter(q => {
     if (!q.id || answeredIds.has(q.id)) return false;
@@ -642,8 +689,15 @@ function determineCEFRLevel(responses) {
   if (abilityEstimate < 4.0) return { cefrLevel: 'A2', abilityEstimate, needsTeacherReview: false };
   if (abilityEstimate < 5.5) return { cefrLevel: 'B1', abilityEstimate, needsTeacherReview: false };
   if (abilityEstimate < 7.5) return { cefrLevel: 'B2', abilityEstimate, needsTeacherReview: false };
-  if (abilityEstimate < 8.5) return { cefrLevel: 'C1', abilityEstimate, needsTeacherReview: false };
-  return { cefrLevel: 'C2', abilityEstimate, needsTeacherReview: false };
+  // Soft ceiling at C1+ per spec §6.5: PLC-CPT does not distinguish C1 from C2.
+  // Any result at or above C1 is referred for oral interview confirmation.
+  return { cefrLevel: 'C1+', abilityEstimate, needsTeacherReview: true };
+}
+
+// True for any result requiring oral-interview confirmation per spec §6.5.
+// Accepts legacy 'C1' / 'C2' labels persisted before the soft-ceiling change.
+function isC1Plus(level) {
+  return level === 'C1+' || level === 'C1' || level === 'C2';
 }
 
 function formatTime(seconds) {
@@ -751,13 +805,19 @@ function LoginScreen({ onLogin }) {
         return;
       }
 
+      const normalizedLoginEmail = email.trim().toLowerCase();
+      const trimmedCode = registrationCode.trim();
+
       if (isSignup) {
-        await api.validateRegistration('student', registrationCode.trim(), email.trim());
+        // CHECK only — does not increment used_count. The code is consumed
+        // after Supabase Auth signup succeeds, so failed signups don't burn
+        // slots.
+        await api.validateRegistration('student', trimmedCode);
       }
 
-      const result = isSignup 
-        ? await api.signup(email, password, 'student', fullName, passportId, country)
-        : await api.login(email, password);
+      const result = isSignup
+        ? await api.signup(normalizedLoginEmail, password, 'student', fullName, passportId, country)
+        : await api.login(normalizedLoginEmail, password);
 
       if (!result?.access_token) {
         setError('Authentication failed.');
@@ -765,8 +825,20 @@ function LoginScreen({ onLogin }) {
         return;
       }
 
+      // Only NOW that we have a real authenticated student do we increment
+      // the registration code's used_count. If this fails (e.g., the code
+      // hit max_uses between check and consume), the student is still
+      // created — they should be allowed to sit the test. Log loudly so the
+      // teacher can rebalance the code on the admin side.
+      if (isSignup) {
+        try {
+          await api.consumeRegistrationCode(trimmedCode, normalizedLoginEmail);
+        } catch (err) {
+          console.error('consumeRegistrationCode failed after successful signup:', err);
+        }
+      }
+
       localStorage.setItem('sb-token', result.access_token);
-      const normalizedLoginEmail = email.trim().toLowerCase();
       const role = normalizedLoginEmail === SUPERADMIN_EMAIL
         ? 'superadmin'
         : await api.getUserRole(result.user.id);
@@ -1069,7 +1141,14 @@ function StudentTest({ user, onComplete }) {
                           <td>{a.attempt_no}</td>
                           <td>{date ? new Date(date).toLocaleDateString() : '—'}</td>
                           <td>{a.overall_score?.toFixed?.(1) || a.overall_score}%</td>
-                          <td>{a.determined_cefr_level}</td>
+                          <td>
+                            {a.determined_cefr_level}
+                            {isC1Plus(a.determined_cefr_level) && (
+                              <span style={{ display: 'inline-block', marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#fff9e6', color: '#5a4604', border: '1px solid #ffc107' }} title="Oral interview required per placement policy">
+                                INTERVIEW
+                              </span>
+                            )}
+                          </td>
                           <td><span className={chipClass} style={{ textTransform: 'capitalize' }}>{a.status}</span></td>
                           <td style={{ textAlign: 'center' }}>{a.official_for_placement ? '⭐' : ''}</td>
                           <td><button className="link-button" onClick={() => setSelectedAttemptReview(a)}>View</button></td>
@@ -1463,7 +1542,7 @@ function TeacherDashboard({ user, onLogout }) {
       } else if (questionSort === 'difficulty-desc') {
         return (b.difficulty_score || 0) - (a.difficulty_score || 0);
       } else if (questionSort === 'level') {
-        const levelOrder = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4 };
+        const levelOrder = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
         return (levelOrder[a.cefr_level] || 0) - (levelOrder[b.cefr_level] || 0);
       }
       return 0;
@@ -1538,7 +1617,14 @@ function TeacherDashboard({ user, onLogout }) {
                     <td>{r.students?.full_name || 'N/A'} {r.students?.country ? `(${r.students.country})` : ''}</td>
                     <td>#{r.attempt_no}</td>
                     <td>{r.overall_score?.toFixed(1)}%</td>
-                    <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
+                    <td style={{ fontWeight: 'bold', color: '#CC0000' }}>
+                      {r.determined_cefr_level}
+                      {isC1Plus(r.determined_cefr_level) && (
+                        <span style={{ display: 'inline-block', marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#fff9e6', color: '#5a4604', border: '1px solid #ffc107' }} title="Oral interview required per placement policy">
+                          INTERVIEW
+                        </span>
+                      )}
+                    </td>
                     <td>{r.submitted_at ? new Date(r.submitted_at).toLocaleDateString() : '—'}</td>
                     <td>
                       <button className="approve-button" onClick={() => openReview(r)}>
@@ -1603,7 +1689,14 @@ function TeacherDashboard({ user, onLogout }) {
                       </td>
                       <td>#{r.attempt_no}</td>
                       <td>{r.overall_score?.toFixed(1)}%</td>
-                      <td style={{ fontWeight: 'bold', color: '#CC0000' }}>{r.determined_cefr_level}</td>
+                      <td style={{ fontWeight: 'bold', color: '#CC0000' }}>
+                        {r.determined_cefr_level}
+                        {isC1Plus(r.determined_cefr_level) && (
+                          <span style={{ display: 'inline-block', marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#fff9e6', color: '#5a4604', border: '1px solid #ffc107' }} title="Oral interview required per placement policy">
+                            INTERVIEW
+                          </span>
+                        )}
+                      </td>
                       <td>
                         <span className={`status-chip ${isApproved ? 'approved' : 'rejected'}`} style={{ textTransform: 'capitalize' }}>{r.status}</span>
                         {r.official_for_placement ? <span style={{ marginLeft: '6px' }} title="Official placement">⭐</span> : null}
@@ -1821,7 +1914,7 @@ function TeacherDashboard({ user, onLogout }) {
           <div style={{ marginTop: '15px', marginBottom: '20px' }}>
             <p><strong>Total Questions: {questions.length}</strong></p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
-              {['A1', 'A2', 'B1', 'B2'].map(level => (
+              {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(level => (
                 <div key={level} style={{ backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '4px', textAlign: 'center', fontWeight: 'bold' }}>
                   <div style={{ fontSize: '20px', color: '#CC0000', marginBottom: '5px' }}>
                     {questions.filter(q => q.cefr_level === level).length}
@@ -1867,6 +1960,8 @@ function TeacherDashboard({ user, onLogout }) {
                 <option value="A2">A2</option>
                 <option value="B1">B1</option>
                 <option value="B2">B2</option>
+                <option value="C1">C1</option>
+                <option value="C2">C2</option>
               </select>
             </div>
             <div>
@@ -2160,6 +2255,8 @@ function TeacherDashboard({ user, onLogout }) {
                     <option>A2</option>
                     <option>B1</option>
                     <option>B2</option>
+                    <option>C1</option>
+                    <option>C2</option>
                   </select>
                 </div>
                 <div>
@@ -2303,6 +2400,11 @@ function TeacherDashboard({ user, onLogout }) {
               <p><strong>Attempt:</strong> #{selectedResult.attempt_no}</p>
               <p><strong>Score:</strong> {selectedResult.overall_score?.toFixed(1)}%</p>
               <p><strong>CEFR Level:</strong> <span style={{ color: '#CC0000', fontWeight: 'bold', fontSize: '18px' }}>{selectedResult.determined_cefr_level}</span></p>
+              {isC1Plus(selectedResult.determined_cefr_level) && (
+                <div className="note-warning" style={{ marginTop: '10px' }}>
+                  <strong>Oral interview required.</strong> Per PLC placement policy, any C1+ result must be confirmed by an oral interview with the Academic Office before final placement. The test reports a soft ceiling at C1+ and does not distinguish C1 from C2.
+                </div>
+              )}
               <p><strong>Submitted:</strong> {submittedDate ? new Date(submittedDate).toLocaleString() : '—'}</p>
               {!isPending && (
                 <p><strong>Status:</strong> <span className={`status-chip ${statusOf(selectedResult) === 'approved' ? 'approved' : 'rejected'}`} style={{ textTransform: 'capitalize' }}>{selectedResult.status}</span>{selectedResult.official_for_placement ? ' ⭐ Official' : ''}</p>

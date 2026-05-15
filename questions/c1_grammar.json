@@ -1,0 +1,294 @@
+{
+  "skill": "grammar",
+  "cefr_level": "C1",
+  "created_by": "f6437a33-0282-476a-8dfa-7dc981319961",
+  "notes": "35 C1 grammar items targeting English Grammar Profile (EGP) C1 competencies. Difficulty 7.5-9.5. Items 1-30 are the original draft. Items 31-35 added to provide boundary-difficulty (9.0+) coverage that the original lacked - the original was 12/12/6/0 across entry/solid/high/boundary buckets. After top-up the distribution is 12/12/8/3 (34/34/23/9 percent), close to the spec calibration target of 30/35/25/10. Items 31-35 carry writer's self-rated 'confidence' (1-5); the original 30 do not, as they precede this convention. Status: provisional per spec section 6.6, awaiting peer review per section 5.2.",
+  "items": [
+    {
+      "egp_target": "Inversion after negative adverbial (hardly...when)",
+      "difficulty": 7.8,
+      "stem": "___ the meeting begun when the fire alarm forced everyone outside.",
+      "options": ["Hardly had", "Hardly was", "Hardly did", "Hardly has"],
+      "key": "Hardly had",
+      "explanation": "After the negative adverbial 'hardly' at the start of a clause, the auxiliary is inverted with the subject. Past perfect ('had begun') is required because the action of beginning preceded the alarm."
+    },
+    {
+      "egp_target": "Inversion after 'only by'",
+      "difficulty": 7.7,
+      "stem": "Only by reviewing the data carefully ___ identify the source of the error.",
+      "options": ["could we", "we could", "we were able to", "did we could"],
+      "key": "could we",
+      "explanation": "'Only by + means' at the front of a clause triggers subject-auxiliary inversion. 'We could' (no inversion) is incorrect in this fronted structure."
+    },
+    {
+      "egp_target": "Inversion after 'no sooner...than'",
+      "difficulty": 8.1,
+      "stem": "No sooner ___ the door than the dog ran out.",
+      "options": ["had she opened", "she opened", "did she open", "she had opened"],
+      "key": "had she opened",
+      "explanation": "'No sooner' at the start of a clause requires inversion plus past perfect to describe the earlier of two past actions. 'Than' (not 'when') is the correct correlative."
+    },
+    {
+      "egp_target": "Subjunctive after 'demand/insist/recommend'",
+      "difficulty": 8.2,
+      "stem": "The committee demanded that the report ___ submitted by Friday.",
+      "options": ["be", "is", "was", "will be"],
+      "key": "be",
+      "explanation": "After verbs of demand, insistence, or recommendation in formal English, the that-clause takes the bare subjunctive (base form of the verb). 'Is/was/will be' are indicative and incorrect in this register."
+    },
+    {
+      "egp_target": "Mixed conditional (past condition, present result)",
+      "difficulty": 8.4,
+      "stem": "If she ___ the warning email last week, she wouldn't be in this mess now.",
+      "options": ["had read", "read", "would have read", "would read"],
+      "key": "had read",
+      "explanation": "Mixed conditional: a past condition ('had read', third conditional form) with a present consequence ('wouldn't be', second conditional form). Standard third conditional 'wouldn't have been' would refer to a past consequence, which doesn't fit 'now'."
+    },
+    {
+      "egp_target": "Mixed conditional (present condition, past result)",
+      "difficulty": 8.5,
+      "stem": "If he ___ more reliable, we would have given him the project months ago.",
+      "options": ["were", "had been", "is", "would be"],
+      "key": "were",
+      "explanation": "Mixed conditional combining a present/general state ('were', second conditional) with a past result ('would have given', third conditional). 'Had been' would imply the unreliability was only in the past, which contradicts the sense."
+    },
+    {
+      "egp_target": "It-cleft for emphasis",
+      "difficulty": 7.6,
+      "stem": "___ the rising cost of materials that finally forced the company to raise prices.",
+      "options": ["It was", "There was", "What was", "That was"],
+      "key": "It was",
+      "explanation": "It-cleft structure: 'It + be + emphasised element + that-clause'. 'There was' would not match the cleft frame; 'What was' would require a different structure ('What forced the company...was...')."
+    },
+    {
+      "egp_target": "Pseudo-cleft (what-cleft)",
+      "difficulty": 8.0,
+      "stem": "What I find most frustrating ___ that nobody warned us in advance.",
+      "options": ["is", "are", "was being", "has"],
+      "key": "is",
+      "explanation": "In a pseudo-cleft, the verb in the main clause agrees with the singular 'what'-clause subject. The complement here is a single proposition ('that nobody warned us'), so 'is' is correct."
+    },
+    {
+      "egp_target": "Reduced relative clause with past participle",
+      "difficulty": 8.0,
+      "stem": "The proposals ___ at last month's meeting have all been implemented.",
+      "options": ["discussed", "discussing", "having discussed", "to discuss"],
+      "key": "discussed",
+      "explanation": "Reduced relative clause: 'that were discussed' is shortened to the past participle 'discussed'. 'Discussing' would imply the proposals were doing the discussing."
+    },
+    {
+      "egp_target": "Reduced relative clause with present participle",
+      "difficulty": 7.8,
+      "stem": "Any candidate ___ to attend the second interview should confirm by Friday.",
+      "options": ["wishing", "wished", "to wish", "who wishes for"],
+      "key": "wishing",
+      "explanation": "Reduced relative: 'who wishes' shortens to the present participle 'wishing'. 'Wished' would be passive and incorrect."
+    },
+    {
+      "egp_target": "Passive with reporting verb (raising structure)",
+      "difficulty": 8.3,
+      "stem": "The minister ___ to have known about the proposal weeks before it was announced.",
+      "options": ["is said", "is saying", "has said", "says"],
+      "key": "is said",
+      "explanation": "Reporting-verb passive: 'It is said that the minister knew...' restructured as 'The minister is said to have known...' The perfect infinitive 'to have known' is required because the knowing preceded the saying."
+    },
+    {
+      "egp_target": "Passive with reporting verb (past)",
+      "difficulty": 8.2,
+      "stem": "Until recently the painting ___ to be the work of an unknown student.",
+      "options": ["was thought", "was thinking", "had thinking", "thinking"],
+      "key": "was thought",
+      "explanation": "Passive of the reporting verb 'think' in the past: 'People thought the painting was...' becomes 'The painting was thought to be...'"
+    },
+    {
+      "egp_target": "Modal perfect: needn't have",
+      "difficulty": 7.8,
+      "stem": "You ___ brought your laptop - there are spare ones in the conference room.",
+      "options": ["needn't have", "didn't need", "mustn't have", "couldn't have"],
+      "key": "needn't have",
+      "explanation": "'Needn't have + past participle' means an action was done but turned out to be unnecessary. 'Didn't need to bring' would imply the bringing didn't happen; 'mustn't have' is a deduction about a past event."
+    },
+    {
+      "egp_target": "Modal perfect: must have been + -ing",
+      "difficulty": 8.7,
+      "stem": "Given the state of the office, the cleaners ___ on strike for at least a week.",
+      "options": ["must have been", "ought to be", "should be", "could be having"],
+      "key": "must have been",
+      "explanation": "Strong deduction about an ongoing past state. 'Must have been (on strike)' is the only option that combines past-time reference with confident inference."
+    },
+    {
+      "egp_target": "Modal perfect: should have been doing",
+      "difficulty": 8.8,
+      "stem": "When the inspector arrived, the chef ___ for over an hour, but the kitchen was empty.",
+      "options": ["should have been working", "should work", "should be working", "should have worked"],
+      "key": "should have been working",
+      "explanation": "'Should have been + -ing' expresses a past expectation (continuous) that wasn't met. The continuous aspect is needed because the duration 'for over an hour' implies an ongoing action."
+    },
+    {
+      "egp_target": "Discourse marker: granted (that)",
+      "difficulty": 8.0,
+      "stem": "___ the proposal is ambitious, the timeline simply isn't realistic.",
+      "options": ["Granted that", "Provided that", "Now that", "Seeing that"],
+      "key": "Granted that",
+      "explanation": "'Granted (that)' concedes a point before introducing a counter-argument. 'Provided that' is conditional; 'now that' and 'seeing that' express cause, not concession."
+    },
+    {
+      "egp_target": "Cohesive device: whereby",
+      "difficulty": 8.3,
+      "stem": "The university has introduced a scheme ___ students can defer payment until after graduation.",
+      "options": ["whereby", "whereas", "wherein", "whereof"],
+      "key": "whereby",
+      "explanation": "'Whereby' means 'by which (means)' and introduces the mechanism of a scheme or system. 'Whereas' is contrastive; 'wherein' (formal/legal) means 'in which'; 'whereof' is archaic."
+    },
+    {
+      "egp_target": "Cohesive device: thereby",
+      "difficulty": 8.5,
+      "stem": "The new software encrypts each file locally, ___ reducing the risk of data exposure in transit.",
+      "options": ["thereby", "thereof", "hereby", "wherein"],
+      "key": "thereby",
+      "explanation": "'Thereby' means 'as a consequence of that' and links a method to its effect. 'Hereby' is used for declarations (I hereby resign); 'thereof' means 'of that'; 'wherein' means 'in which'."
+    },
+    {
+      "egp_target": "Concessive: be that as it may",
+      "difficulty": 8.6,
+      "stem": "Costs are higher this year. ___ , our profit margin is up by 6%.",
+      "options": ["Be that as it may", "By the same token", "On the contrary", "What is more"],
+      "key": "Be that as it may",
+      "explanation": "'Be that as it may' acknowledges a preceding point while introducing a contrasting fact. 'By the same token' adds a similar point; 'on the contrary' denies; 'what is more' adds emphasis."
+    },
+    {
+      "egp_target": "Concessive marker: all the same",
+      "difficulty": 7.7,
+      "stem": "I know you didn't mean to upset her, but ___ , an apology wouldn't go amiss.",
+      "options": ["all the same", "all the more", "all in all", "all but"],
+      "key": "all the same",
+      "explanation": "'All the same' is an informal concessive meaning 'nevertheless'. The other phrases mean 'even more so' / 'in summary' / 'almost', none of which fit."
+    },
+    {
+      "egp_target": "Hedging: it could be argued that",
+      "difficulty": 7.5,
+      "stem": "___ the policy has failed to address the underlying inequality.",
+      "options": ["It could be argued that", "It can argue that", "There argues that", "It is argued"],
+      "key": "It could be argued that",
+      "explanation": "Standard hedging frame in academic writing to advance a claim tentatively. The structure 'it could be argued + that-clause' is fixed; 'it is argued' alone requires no 'that' here but is less tentative."
+    },
+    {
+      "egp_target": "Inverted condition (formal): Had + subject",
+      "difficulty": 8.0,
+      "stem": "___ the engineer noticed the leak earlier, the damage would have been minimal.",
+      "options": ["Had", "If", "Should", "Were"],
+      "key": "Had",
+      "explanation": "Formal inverted third conditional drops 'if' and inverts the auxiliary: 'Had + subject + past participle'. 'If' would require 'If the engineer had noticed'; 'should' and 'were' don't fit a past condition."
+    },
+    {
+      "egp_target": "Inverted condition: Were + subject + to-inf",
+      "difficulty": 8.6,
+      "stem": "___ the central bank to raise rates again, mortgage payments would rise sharply.",
+      "options": ["Were", "Was", "Would", "Had"],
+      "key": "Were",
+      "explanation": "Formal inverted second conditional with a hypothetical future: 'Were + subject + to + infinitive'. 'Was' is ungrammatical in this formal frame; 'had' would suggest a past condition."
+    },
+    {
+      "egp_target": "Participle clause (perfect)",
+      "difficulty": 8.1,
+      "stem": "___ the brief twice, she still wasn't sure what the client actually wanted.",
+      "options": ["Having read", "Reading", "Having been read", "To have read"],
+      "key": "Having read",
+      "explanation": "Perfect participle clause to express completed prior action with the same subject as the main clause. 'Having been read' is passive (the brief did the reading); 'reading' loses the perfective sense."
+    },
+    {
+      "egp_target": "Participle clause expressing reason",
+      "difficulty": 7.9,
+      "stem": "___ of how the system worked, the new hire kept asking the same questions.",
+      "options": ["Being uncertain", "He is uncertain", "Having uncertain", "Uncertainly"],
+      "key": "Being uncertain",
+      "explanation": "Present participle clause expressing reason: 'Because he was uncertain' reduces to 'Being uncertain'. The other options either form a full clause or are ungrammatical."
+    },
+    {
+      "egp_target": "Embedded question with infinitive",
+      "difficulty": 7.9,
+      "stem": "She has yet to decide ___ accept the offer or wait for a better one.",
+      "options": ["whether to", "if to", "weather to", "that to"],
+      "key": "whether to",
+      "explanation": "'Whether + to-infinitive' is used in embedded questions giving alternatives. 'If to' is not standard; 'whether or not' would also work but doesn't appear."
+    },
+    {
+      "egp_target": "Subjunctive in formal recommendations",
+      "difficulty": 7.8,
+      "stem": "The auditor recommended that the company ___ its inventory records every quarter.",
+      "options": ["review", "reviews", "reviewed", "will review"],
+      "key": "review",
+      "explanation": "After 'recommend that' the verb takes the bare subjunctive (base form), regardless of the tense of the main verb. 'Reviews' is indicative and considered less formal/correct in this register."
+    },
+    {
+      "egp_target": "Ellipsis with auxiliary substitution",
+      "difficulty": 7.5,
+      "stem": "'She ought to have apologised by now.' '___ , but she clearly hasn't.'",
+      "options": ["She ought", "She does", "She would", "She did"],
+      "key": "She ought",
+      "explanation": "Ellipsis after a modal: the speaker confirms the proposition by repeating only the modal. 'She does/would/did' switch to a different auxiliary that doesn't echo 'ought to have apologised'."
+    },
+    {
+      "egp_target": "Nominalisation of complex idea",
+      "difficulty": 7.8,
+      "stem": "The committee was sharply criticised for ___ to act on the early warnings.",
+      "options": ["its failure", "it failed", "to be failing", "having fail"],
+      "key": "its failure",
+      "explanation": "Nominalisation: 'failed to act' converts to the noun phrase 'its failure to act' - required after the preposition 'for'. The other options either form full clauses or are ungrammatical."
+    },
+    {
+      "egp_target": "Future perfect continuous",
+      "difficulty": 8.4,
+      "stem": "By next March, the team ___ on this protocol for nearly three years.",
+      "options": ["will have been working", "will work", "will have worked", "is working"],
+      "key": "will have been working",
+      "explanation": "Future perfect continuous emphasises the duration of an action ongoing up to a future reference point. 'Will have worked' (future perfect simple) loses the duration emphasis; 'will work' is simple future."
+    },
+    {
+      "egp_target": "Negative-adverbial inversion: under no circumstances",
+      "difficulty": 8.9,
+      "stem": "Under no circumstances ___ to enter the laboratory without protective equipment.",
+      "options": ["are visitors permitted", "visitors are permitted", "visitors do permit", "visitors permit"],
+      "key": "are visitors permitted",
+      "explanation": "Negative-adverbial fronting ('under no circumstances') triggers subject-auxiliary inversion in the main clause: 'Negative adverbial + aux + S + past participle'. Non-inverted 'visitors are permitted' is the most tempting distractor for a B2 student but is ungrammatical when the negative adverbial is fronted. The two active-voice options ('do permit' / 'permit') reverse the construct - the stem requires the passive ('visitors are permitted to enter', not 'visitors permit').",
+      "confidence": 5
+    },
+    {
+      "egp_target": "Inverted hypothetical conditional: were it not for",
+      "difficulty": 9.1,
+      "stem": "___ the timely intervention of the auditor, the irregularities would never have come to light.",
+      "options": ["Were it not for", "If it were not", "Was it not for", "Had it not for"],
+      "key": "Were it not for",
+      "explanation": "Formal inverted hypothetical conditional with 'be' for a counterfactual absent cause: 'Were it not for + NP, main clause with would (have) + V-en'. 'If it were not' is the un-inverted equivalent but omits the obligatory 'for' that links to the noun phrase. 'Was it not for' substitutes indicative 'was' for the subjunctive-pattern 'were' - incorrect in the hypothetical register. 'Had it not for' confuses the inverted-third-conditional pattern (Had + S + V-en) with the 'be'-pattern.",
+      "confidence": 5
+    },
+    {
+      "egp_target": "Inverted conditional: should + S + bare V",
+      "difficulty": 9.0,
+      "stem": "___ wish to attend the inaugural dinner, please confirm your acceptance by Friday.",
+      "options": ["Should you", "If you would", "Did you", "Will you"],
+      "key": "Should you",
+      "explanation": "Formal inverted conditional with 'should' expressing a tentative future possibility (equivalent to the un-inverted 'If you should wish'). 'If you would' is incorrect - 'would' belongs in the result clause, not the condition. 'Did you' forms an interrogative or past-factual clause. 'Will you' is an interrogative future, not a conditional.",
+      "confidence": 4,
+      "review_note": "Boundary-difficulty inverted conditional. Distractor 'If you would' may attract candidates who associate 'would' with politeness/conditionality; pilot data should confirm whether the formal-register distinction (condition vs. result clause) holds at this calibration."
+    },
+    {
+      "egp_target": "Result-clause inversion: so + adj + be + S that",
+      "difficulty": 9.2,
+      "stem": "___ that even the most cautious investors agreed to commit substantial sums on the spot.",
+      "options": ["So compelling was the presentation", "The presentation was so compelling", "It was so compelling presentation", "Such compelling presentation was"],
+      "key": "So compelling was the presentation",
+      "explanation": "Formal result-clause inversion with fronted 'So + adjective': 'So + adj + be + subject + that-clause'. The non-inverted 'The presentation was so compelling' would not naturally head a fronted result clause beginning with 'that even...'. 'It was so compelling presentation' drops the indefinite article required (the correct un-fronted variant would be 'It was such a compelling presentation'). 'Such compelling presentation was' omits the article entirely and disrupts the 'such + NP + be + S' pattern.",
+      "confidence": 5
+    },
+    {
+      "egp_target": "Negative-adverbial inversion: not until + clause + main-clause inversion",
+      "difficulty": 8.6,
+      "stem": "Not until the patient had described the symptoms in detail ___ the connection to a recent foreign trip.",
+      "options": ["did the doctor notice", "the doctor noticed", "had the doctor noticed", "the doctor did notice"],
+      "key": "did the doctor notice",
+      "explanation": "'Not until + clause' fronts a negative time-adverbial, requiring subject-auxiliary inversion in the main clause: 'Not until X + did + S + bare V'. Past simple is needed because the noticing followed the describing (already in past perfect). 'The doctor noticed' (no inversion) is ungrammatical with the fronted negative adverbial. 'Had the doctor noticed' would form a question and mismatches the temporal sequence. 'The doctor did notice' uses emphatic 'did' without inversion - also ungrammatical with the fronted negative adverbial.",
+      "confidence": 5
+    }
+  ]
+}

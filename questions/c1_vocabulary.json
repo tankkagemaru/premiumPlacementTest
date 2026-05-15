@@ -1,0 +1,432 @@
+{
+  "skill": "vocabulary",
+  "cefr_level": "C1",
+  "created_by": "f6437a33-0282-476a-8dfa-7dc981319961",
+  "notes": "30 C1 vocabulary items targeting English Vocabulary Profile (EVP) C1 lexis. Format: mostly context cloze (testing collocation, register, and phrasal verbs in context) with a small share of definition-match items reserved for abstract/academic nouns. Difficulty 7.5–9.5 on the bank's global scale; distribution roughly 33/33/23/10 across entry/solid/high/boundary C1. Topic spread per spec §4.1 (~8 public, ~7 occupational, ~6 educational, ~5 social, ~3 personal, ~1 legal). §4.2 exclusions observed. No keys appear at B2 or below in EVP. Status: provisional per spec §6.6, awaiting peer review per §5.2. Each item carries a writer's self-rated 'confidence' (1–5); items at confidence ≤3 are flagged with 'review_note' for teacher prioritisation.",
+  "items": [
+    {
+      "evp_target": "corroborate (verb, C1)",
+      "difficulty": 7.7,
+      "stem": "The witness's account was largely consistent with the suspect's alibi, which seemed to ___ the defence's version of events.",
+      "options": [
+        "corroborate",
+        "fabricate",
+        "undermine",
+        "scrutinise"
+      ],
+      "key": "corroborate",
+      "explanation": "'Corroborate' = confirm or give support to (a claim or statement) with additional evidence. 'Fabricate' (invent falsely) reverses the sense. 'Undermine' (B2 lexis — a tempting distractor) is the direct opposite. 'Scrutinise' means to examine critically, not to support; an account doesn't perform examination of its own accord.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "scrutiny (abstract noun, C1)",
+      "difficulty": 7.9,
+      "stem": "After the financial scandal broke, the firm's auditing practices came under intense public ___.",
+      "options": [
+        "scrutiny",
+        "endorsement",
+        "reflection",
+        "discretion"
+      ],
+      "key": "scrutiny",
+      "explanation": "'Scrutiny' = critical observation or examination, the standard collocation with 'public/intense'. 'Endorsement' (public support) reverses the sense after a scandal. 'Reflection' (thoughtful consideration) does not collocate with 'intense public' in this critical-examination sense. 'Discretion' (judgement / privacy) is the opposite of what a scandal invites.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "exacerbate (verb, C1)",
+      "difficulty": 8.1,
+      "stem": "Far from solving the housing shortage, the new tax has actually ___ the problem by discouraging landlords from offering rentals.",
+      "options": [
+        "exacerbated",
+        "alleviated",
+        "perpetrated",
+        "circumvented"
+      ],
+      "key": "exacerbated",
+      "explanation": "'Exacerbate' = make (a problem, bad situation, or negative feeling) worse. 'Alleviate' (B2 lexis) is the direct opposite. 'Perpetrate' means to commit (a harmful act) — wrong sense. 'Circumvent' (find a way around) doesn't collocate with 'the problem' as an object made worse.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "tenuous (adjective, C1)",
+      "difficulty": 8.5,
+      "stem": "The connection she drew between the two studies struck me as somewhat ___; the methodologies were simply too different to allow direct comparison.",
+      "options": [
+        "tenuous",
+        "rigorous",
+        "tangible",
+        "decisive"
+      ],
+      "key": "tenuous",
+      "explanation": "'Tenuous' = very weak or slight (typically of connections, arguments, links). 'Rigorous' (B2) is the opposite — strict and thorough. 'Tangible' (clear, perceptible) also points the wrong way. 'Decisive' (settling the matter) is again the opposite of a weak connection. The structural cue 'too different to allow direct comparison' confirms the connection is weak.",
+      "confidence": 4
+    },
+    {
+      "evp_target": "gloss over (phrasal verb, C1)",
+      "difficulty": 8.3,
+      "stem": "I thought the documentary was selective — it ___ the project's most serious failings and dwelt on the minor successes.",
+      "options": [
+        "glossed over",
+        "set out clearly",
+        "took on board",
+        "made up for"
+      ],
+      "key": "glossed over",
+      "explanation": "'Gloss over' = mention only briefly or treat superficially so as to avoid difficulty. 'Set out clearly' is the opposite — to lay something out explicitly. 'Take on board' means to acknowledge and accept (feedback, criticism) — incompatible with a documentary that is described as selective and dwells on successes. 'Make up for' means to compensate for, which doesn't fit the meaning of downplaying failings.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "foregone (adjective, C1) — collocation 'a foregone conclusion'",
+      "difficulty": 8.2,
+      "stem": "Once the elders had spoken in favour, the council's decision was a ___ conclusion; the younger members saw no point in objecting.",
+      "options": [
+        "foregone",
+        "preceding",
+        "antecedent",
+        "anticipated"
+      ],
+      "key": "foregone",
+      "explanation": "'A foregone conclusion' is a fixed C1 collocation meaning an outcome that is certain in advance. 'Preceding' (coming before in time) describes order, not inevitability. 'Antecedent' (something prior) is too literal and is rarely used to modify 'conclusion'. 'Anticipated' is the closest semantic distractor but 'anticipated conclusion' is not idiomatic — the fixed phrase is 'foregone'.",
+      "confidence": 3,
+      "review_note": "Distractor 'anticipated' is the closest near-miss. A teacher panel may want to confirm that the collocation 'foregone' is unambiguously the only natural choice in this stem, or substitute a stronger distractor (e.g., 'predetermined') if learners challenge."
+    },
+    {
+      "evp_target": "prerequisite (noun, C1)",
+      "difficulty": 7.6,
+      "stem": "Statistics 101 is a ___ for the advanced econometrics module; students who haven't completed it cannot register.",
+      "options": [
+        "prerequisite",
+        "premise",
+        "precedent",
+        "predicament"
+      ],
+      "key": "prerequisite",
+      "explanation": "'Prerequisite' = something required as a prior condition. The three distractors are all C1-ish 'pre-' words but mean different things: 'premise' is a foundational assumption in an argument; 'precedent' is an earlier example used as a guide; 'predicament' is a difficult situation. None fit the 'required-before-registration' meaning.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "hone (verb, C1)",
+      "difficulty": 7.8,
+      "stem": "Over the past decade, he has ___ his interviewing technique to the point where even reluctant subjects open up within minutes.",
+      "options": [
+        "honed",
+        "honoured",
+        "harnessed",
+        "heralded"
+      ],
+      "key": "honed",
+      "explanation": "'Hone' = refine or perfect (a skill, technique) over time; the natural collocation with 'technique'. 'Honour' (respect) doesn't take a skill as object in this sense. 'Harness' (bring under control, make use of) is collocated with energy/power/potential, not 'technique'. 'Herald' (announce, signal the arrival of) is wrong sense.",
+      "confidence": 4
+    },
+    {
+      "evp_target": "succumb to (verb + preposition, C1)",
+      "difficulty": 8.6,
+      "stem": "Despite his repeated insistence that he was fine, he eventually ___ exhaustion after weeks of double shifts.",
+      "options": [
+        "succumbed to",
+        "subscribed to",
+        "deferred to",
+        "settled for"
+      ],
+      "key": "succumbed to",
+      "explanation": "'Succumb to' = yield to / be overcome by (a pressure, illness, temptation, or condition). 'Subscribe to' (agree with / sign up for) takes ideas or views, not states like exhaustion. 'Defer to' (yield to authority) takes a person or institution, not an inanimate force. 'Settle for' (accept as less than ideal) doesn't fit the meaning of being overcome.",
+      "confidence": 4
+    },
+    {
+      "evp_target": "untenable (adjective, C1/C2 boundary)",
+      "difficulty": 9.1,
+      "stem": "By the third week of the dispute between management and the union, the company's position had become ___, and a negotiated settlement was inevitable.",
+      "options": [
+        "untenable",
+        "irreversible",
+        "implausible",
+        "inconceivable"
+      ],
+      "key": "untenable",
+      "explanation": "'Untenable' = impossible to defend or maintain (especially of a position, argument, or stance). 'Irreversible' means cannot be undone — wrong direction; the position is changing, not fixed. 'Implausible' (not believable) describes credibility, not sustainability. 'Inconceivable' (unthinkable) is far stronger than the context supports — a settlement is being negotiated, so the position is sustainable-no-longer rather than literally unthinkable.",
+      "confidence": 4,
+      "review_note": "C1/C2 boundary item — calibration target 9.0–9.5. Worth checking with a teacher whether 'inconceivable' is too clearly excludable, in which case difficulty may calibrate lower than 9.1 in pilot data."
+    },
+    {
+      "evp_target": "mitigate (verb, C1)",
+      "difficulty": 7.5,
+      "stem": "Although the new emissions standards cannot fully reverse climate change, scientists agree they can ___ its most severe consequences.",
+      "options": [
+        "mitigate",
+        "magnify",
+        "isolate",
+        "demonstrate"
+      ],
+      "key": "mitigate",
+      "explanation": "'Mitigate' = make less severe, serious, or painful. 'Magnify' (B2) reverses sense. 'Isolate' (separate from a context) doesn't collocate with 'consequences' in the lessening sense. 'Demonstrate' (show) is a different sense entirely.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "propensity (noun, C1)",
+      "difficulty": 8.0,
+      "stem": "Despite a difficult childhood, she showed a remarkable ___ for forgiveness, even toward those who had wronged her most.",
+      "options": [
+        "propensity",
+        "compulsion",
+        "indulgence",
+        "vocation"
+      ],
+      "key": "propensity",
+      "explanation": "'Propensity' = a natural inclination or tendency. 'Compulsion' suggests irresistible psychological pressure — too strong; forgiveness is presented as a freely-chosen disposition. 'Indulgence' (treating oneself / leniency) is wrong sense. 'Vocation' (a calling, especially professional) doesn't fit a personal trait.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "innocuous (adjective, C1)",
+      "difficulty": 8.2,
+      "stem": "What seemed like an ___ remark over dinner turned out to be the comment that ended their friendship.",
+      "options": [
+        "innocuous",
+        "indignant",
+        "inadvertent",
+        "insipid"
+      ],
+      "key": "innocuous",
+      "explanation": "'Innocuous' = harmless / not likely to offend (a remark, comment, observation). 'Indignant' describes a speaker's anger, not a remark itself. 'Inadvertent' (unintentional) is close but describes how the remark was made, not its apparent quality; the irony in the stem is that it seemed harmless yet wasn't. 'Insipid' (bland, lacking flavour) is unrelated to harm.",
+      "confidence": 4
+    },
+    {
+      "evp_target": "capitulate (verb, C1)",
+      "difficulty": 8.7,
+      "stem": "After months of resisting the board's demands, the chief executive finally ___ and agreed to step down by year-end.",
+      "options": [
+        "capitulated",
+        "deliberated",
+        "vacillated",
+        "absconded"
+      ],
+      "key": "capitulated",
+      "explanation": "'Capitulate' = stop resisting and accept demands (formal register, often after prolonged opposition). 'Deliberate' (consider carefully) describes ongoing thought, not surrender. 'Vacillate' (waver between options) implies indecision, not yielding. 'Abscond' (leave secretly) doesn't fit a public negotiated stepping-down.",
+      "confidence": 4
+    },
+    {
+      "evp_target": "tacit (adjective, C1)",
+      "difficulty": 8.1,
+      "stem": "Although nothing was ever explicitly stated, there was a ___ understanding among the team that personal matters would not be discussed in meetings.",
+      "options": [
+        "tacit",
+        "tangible",
+        "tentative",
+        "tactful"
+      ],
+      "key": "tacit",
+      "explanation": "'Tacit' = understood or implied without being stated. 'Tangible' (perceptible, concrete) is the opposite of unspoken. 'Tentative' (uncertain, provisional) doesn't capture the unspoken element. 'Tactful' (diplomatic in handling sensitive matters) describes behaviour, not the understanding itself.",
+      "confidence": 4
+    },
+    {
+      "evp_target": "garner (verb, C1)",
+      "difficulty": 7.7,
+      "stem": "The campaign managed to ___ widespread support across age groups, even reaching demographics that had traditionally ignored such appeals.",
+      "options": [
+        "garner",
+        "scatter",
+        "exhaust",
+        "withhold"
+      ],
+      "key": "garner",
+      "explanation": "'Garner' = gather or accumulate (especially support, praise, attention) — formal register. 'Scatter' is the opposite — disperse. 'Exhaust' (use up) reverses the sense. 'Withhold' (deliberately not give) is wrong direction.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "eschew (verb, C1/C2 boundary)",
+      "difficulty": 9.0,
+      "stem": "In favour of fieldwork and direct observation, the new methodology ___ the laboratory experiments that had dominated the discipline for decades.",
+      "options": [
+        "eschews",
+        "embraces",
+        "supplements",
+        "regulates"
+      ],
+      "key": "eschews",
+      "explanation": "'Eschew' = deliberately avoid or abstain from (very formal). 'Embrace' is the direct opposite. 'Supplement' (add to) implies coexistence rather than rejection — but the stem says 'in favour of fieldwork', signalling replacement. 'Regulate' (control through rules) doesn't fit a methodology-vs-methodology contrast.",
+      "confidence": 4
+    },
+    {
+      "evp_target": "paradigm (noun, C1)",
+      "difficulty": 8.5,
+      "stem": "Kuhn's central claim was that scientific progress is not gradual but proceeds through fundamental shifts in the prevailing ___.",
+      "options": [
+        "paradigm",
+        "syllabus",
+        "specimen",
+        "stipulation"
+      ],
+      "key": "paradigm",
+      "explanation": "'Paradigm' = a typical pattern of thought or framework, famously used by Kuhn to describe periods of normal science between revolutionary shifts. 'Syllabus' (course outline) is a category error. 'Specimen' (an individual sample) is too literal. 'Stipulation' (condition, requirement) doesn't fit 'shifts in the prevailing X'.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "discrepancy (noun, C1)",
+      "difficulty": 7.9,
+      "stem": "The auditor flagged a small ___ between the bank statements and the company's internal records — a difference of just over £200.",
+      "options": [
+        "discrepancy",
+        "disclaimer",
+        "deficit",
+        "deviation"
+      ],
+      "key": "discrepancy",
+      "explanation": "'Discrepancy' = an unexpected difference between two things that should agree. 'Disclaimer' = a formal denial of responsibility (wrong domain). 'Deficit' (shortfall) suggests an amount missing in one direction, not a mismatch between records. 'Deviation' typically describes departure from a norm or expected path, not a difference between two records that should match.",
+      "confidence": 4,
+      "review_note": "'Deviation' is a near-miss; consider replacing with 'duplication' if learners find both 'discrepancy' and 'deviation' defensibly correct."
+    },
+    {
+      "evp_target": "perfunctory (adjective, C1)",
+      "difficulty": 8.8,
+      "stem": "His apology was so ___ that I doubt it was anything more than a formality demanded by HR.",
+      "options": [
+        "perfunctory",
+        "preliminary",
+        "presumptuous",
+        "punctilious"
+      ],
+      "key": "perfunctory",
+      "explanation": "'Perfunctory' = done quickly, without care or interest, as a routine duty. 'Preliminary' (introductory) is about position in a sequence, not quality. 'Presumptuous' (overstepping social bounds) is a different fault. 'Punctilious' (extremely attentive to detail) is the direct opposite — and a useful near-miss because the word looks superficially similar.",
+      "confidence": 4
+    },
+    {
+      "evp_target": "predicament (noun, C1)",
+      "difficulty": 7.6,
+      "stem": "She found herself in a difficult ___: accept the promotion and relocate, or stay and watch a junior colleague leapfrog her.",
+      "options": [
+        "predicament",
+        "premise",
+        "perception",
+        "preoccupation"
+      ],
+      "key": "predicament",
+      "explanation": "'Predicament' = a difficult, unpleasant, or embarrassing situation. 'Premise' (foundational assumption in an argument) is a category error. 'Perception' (way of viewing something) doesn't fit 'find oneself in a X'. 'Preoccupation' (mental absorption) describes a state of mind, not an external situation with options.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "ambivalent (adjective, C1)",
+      "difficulty": 8.0,
+      "stem": "She felt ___ about the offer: flattered that they had thought of her, yet uneasy at the prospect of working with her former rival.",
+      "options": [
+        "ambivalent",
+        "ambiguous",
+        "amenable",
+        "apprehensive"
+      ],
+      "key": "ambivalent",
+      "explanation": "'Ambivalent' = having mixed or contradictory feelings about something. 'Ambiguous' describes statements or situations as unclear, not a person's feelings. 'Amenable' = open or agreeable (one-directional, not mixed). 'Apprehensive' = anxious — captures only the unease, not the flattery.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "wear thin (phrasal verb, C1)",
+      "difficulty": 8.4,
+      "stem": "After hearing the same joke at every meeting for a year, even his closest colleagues found that his charm had begun to ___.",
+      "options": [
+        "wear thin",
+        "tail off",
+        "wind down",
+        "fall through"
+      ],
+      "key": "wear thin",
+      "explanation": "'Wear thin' = (of patience, charm, an excuse, a joke) become less tolerable or effective through overuse. 'Tail off' = gradually decrease (more about quantity than tolerance). 'Wind down' = relax or slow to a stop (about activity, not appeal). 'Fall through' = (of plans) fail to happen (different domain entirely).",
+      "confidence": 4
+    },
+    {
+      "evp_target": "salient (adjective, C1)",
+      "difficulty": 8.3,
+      "stem": "Rather than summarising the whole chapter, she focused on the three most ___ points and left the rest for discussion.",
+      "options": [
+        "salient",
+        "tangential",
+        "spurious",
+        "incidental"
+      ],
+      "key": "salient",
+      "explanation": "'Salient' = most noticeable or important; standing out. 'Tangential' (only slightly relevant) is the opposite. 'Spurious' (false, not what it appears to be) is unrelated. 'Incidental' (of minor importance) is also opposite.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "brush aside (phrasal verb, C1)",
+      "difficulty": 7.8,
+      "stem": "Whenever critics raised concerns about the project's environmental cost, the developer would ___ their objections as scaremongering.",
+      "options": [
+        "brush aside",
+        "draw out",
+        "look into",
+        "stand by"
+      ],
+      "key": "brush aside",
+      "explanation": "'Brush aside' = dismiss without serious consideration. 'Draw out' = elicit, or prolong in time. 'Look into' = investigate — the direct opposite of dismissing. 'Stand by' = remain loyal to, support — wrong direction.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "consensus (noun, C1)",
+      "difficulty": 7.5,
+      "stem": "After three hours of discussion, the committee had reached a fragile ___ on most points but remained divided on funding.",
+      "options": [
+        "consensus",
+        "consortium",
+        "conclusion",
+        "convention"
+      ],
+      "key": "consensus",
+      "explanation": "'Consensus' = general agreement within a group. 'Consortium' (an association of organisations working together) is a category error. 'Conclusion' (a final judgement on a single matter) doesn't collocate naturally with 'on most points'. 'Convention' (an established practice, or a large meeting) is wrong sense.",
+      "confidence": 5
+    },
+    {
+      "evp_target": "perpetuate (verb, C1)",
+      "difficulty": 8.5,
+      "stem": "Far from challenging the stereotype, the film's portrayal of immigrant families only ___ the very assumptions it claimed to question.",
+      "options": [
+        "perpetuated",
+        "perpetrated",
+        "preceded",
+        "permeated"
+      ],
+      "key": "perpetuated",
+      "explanation": "'Perpetuate' = cause to continue indefinitely, especially something harmful or unwanted. 'Perpetrate' (commit a crime or wrongful act) is a different verb often confused with it. 'Precede' (come before) is wrong sense. 'Permeate' (spread through) describes diffusion, not continuation.",
+      "confidence": 4
+    },
+    {
+      "evp_target": "equivocal (adjective, C1/C2 boundary)",
+      "difficulty": 9.2,
+      "stem": "The findings of the initial trial were ___; while suggestive, they were too inconsistent to support a definitive recommendation.",
+      "options": [
+        "equivocal",
+        "expedient",
+        "exhaustive",
+        "extraneous"
+      ],
+      "key": "equivocal",
+      "explanation": "'Equivocal' = open to more than one interpretation; ambiguous. 'Expedient' (convenient and practical) is not about ambiguity. 'Exhaustive' (thoroughly covering all aspects) is the opposite — exhaustive findings would not be 'too inconsistent'. 'Extraneous' (irrelevant or external) is a different sense.",
+      "confidence": 3,
+      "review_note": "C1/C2 boundary. 'Equivocal' is uncommon enough that B2 students may guess from morphology rather than meaning; pilot data should confirm difficulty calibration. If item proves too easy on pilot, replace one distractor with 'inconclusive' (a near-synonym) to raise difficulty."
+    },
+    {
+      "evp_target": "curtail (verb, C1)",
+      "difficulty": 8.1,
+      "stem": "Following the fuel-price spike, the airline was forced to ___ several long-haul routes that were no longer profitable.",
+      "options": [
+        "curtail",
+        "convene",
+        "consolidate",
+        "construe"
+      ],
+      "key": "curtail",
+      "explanation": "'Curtail' = reduce in extent, cut short, impose a restriction on. 'Convene' = call together (a meeting) — wrong domain. 'Consolidate' = strengthen by combining; a tempting distractor for someone who knows airlines 'consolidate routes', but the stem's logic (routes no longer profitable, fuel-price spike) points to reduction, not strategic merging. 'Construe' = interpret — wrong sense.",
+      "confidence": 4
+    },
+    {
+      "evp_target": "hammer out (phrasal verb, C1)",
+      "difficulty": 8.6,
+      "stem": "It took the negotiators eight gruelling sessions to ___ a settlement both sides could live with.",
+      "options": [
+        "hammer out",
+        "knock back",
+        "throw together",
+        "carry over"
+      ],
+      "key": "hammer out",
+      "explanation": "'Hammer out' = produce (a deal, agreement, plan) through long and difficult discussion. 'Knock back' = drink quickly / reject (wrong register and sense). 'Throw together' = assemble hastily (wrong — the stem stresses eight gruelling sessions). 'Carry over' = transfer to a later occasion (wrong sense).",
+      "confidence": 5
+    }
+  ]
+}

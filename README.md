@@ -256,25 +256,43 @@ After 30 questions:
 
 ### **Score Calculation**
 
-```javascript
-Final Score = (Number of Correct Answers / 30) × 100
+The `overall_score` field stored against each attempt is the raw percentage of
+correct answers (`correctCount / 30 × 100`). This is **displayed alongside the
+CEFR result for context, but is NOT what determines the CEFR level.**
 
-Examples:
-- 12 correct out of 30 = 40% = A2 level
-- 18 correct out of 30 = 60% = B1 level
-- 24 correct out of 30 = 80% = C1 level
+### **CEFR Level Mapping (ability-based)**
+
+The CEFR level is derived from the student's **ability estimate** — the
+average `difficulty_score` of the items they answered correctly. By default
+the estimate uses the last 10 correct answers (with fallback to all correct
+answers if fewer than 4 of the last 10 were correct). See
+`determineCEFRLevel` in `src/App.jsx`.
+
+```javascript
+if (correctCount < 8)        → A1 (floor; flagged for teacher review)
+if (abilityEstimate < 2.5)   → A1
+if (abilityEstimate < 4.0)   → A2
+if (abilityEstimate < 5.5)   → B1
+if (abilityEstimate < 7.5)   → B2
+otherwise                    → C1+ (soft ceiling; oral interview required)
 ```
 
-### **CEFR Level Mapping**
+The PLC-CPT applies a **soft ceiling at C1+** per the test specification
+(`docs/test-specifications.md` §6.5): it does not distinguish C1 from C2.
+Any C1+ result is flagged in the teacher dashboard with an "INTERVIEW" badge
+and the approval email instructs the student that the Academic Office will
+schedule a short oral interview before final placement.
 
-```javascript
-if (percentage >= 85) → C2 (Mastery)
-if (percentage >= 75) → C1 (Proficiency)
-if (percentage >= 65) → B2 (Upper Intermediate)
-if (percentage >= 55) → B1 (Intermediate)
-if (percentage >= 40) → A2 (Elementary)
-else                  → A1 (Beginner)
-```
+### **Adaptive selection details**
+
+- Symmetric ±1.5 difficulty band by default.
+- **Late-test ceiling probe**: from item 21 onward, if the running ability is
+  ≥ 6.5 and accuracy is ≥ 60%, the lower bound is raised to
+  `currentDifficulty + 0.3` so strong test-takers actually see C1-level items
+  within the 30-question budget.
+- Skill quotas (`grammar: 8, vocabulary: 7, reading: 8, listening: 7`) ensure
+  every section is represented; items that fill an under-target skill quota
+  may fall outside the difficulty band as a fallback.
 
 ### **Timing Metrics**
 
@@ -541,17 +559,26 @@ Data from incomplete test not saved (good for students)
 
 ### **Q: Results showing wrong CEFR level**
 
-**A:** Check score calculation:
-```
-1. Open test result review modal
-2. Count "✓" correct answers
-3. Calculate: correct / 30 * 100
-4. Match against CEFR ranges
+**A:** Remember the CEFR level is **ability-based**, not score-based — the
+raw percentage shown in the review modal is informational only.
 
-If still wrong, check determineCEFRLevel function:
-  if (score >= 85) return 'C2'  // Is this correct?
-  if (score >= 75) return 'C1'  // Adjust if needed
-  ...
+```
+1. Open the attempt review modal.
+2. Check ability_estimate (stored on test_results).
+3. Match against the bands documented in "CEFR Level Mapping" above.
+4. Inspect the items answered correctly: their avg difficulty_score IS the
+   ability estimate (modulo the last-10-correct sliding window).
+
+If the level still seems off, two common causes:
+- The question bank is light at the level the student belongs in. The
+  algorithm cannot place a student above the bank's available difficulty
+  ceiling (the avg of correct items can never exceed the bank's max
+  difficulty_score). Verify bank coverage at the disputed level.
+- A high performer ran out of test budget before reaching the ceiling. Check
+  whether the late-test ceiling probe activated; if not, accuracy or running
+  ability was below the trigger threshold.
+
+To re-tune cutoffs edit determineCEFRLevel in src/App.jsx.
 ```
 
 ---
