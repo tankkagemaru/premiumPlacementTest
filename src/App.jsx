@@ -1033,6 +1033,7 @@ function StudentTest({ user, onComplete }) {
   const [userResponses, setUserResponses] = useState([]);
   const [currentDifficulty, setCurrentDifficulty] = useState(5);
   const [testState, setTestState] = useState('intro');
+  const [submitErrorMessage, setSubmitErrorMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -1119,36 +1120,93 @@ function StudentTest({ user, onComplete }) {
     }
   };
 
+  // Persist a completed-test payload to localStorage BEFORE we touch the
+  // network. If the submit fails (network drop, Vercel timeout, server
+  // error) we still have the responses on the student's machine and can
+  // retry from a "Submit failed" UI or auto-offer recovery next visit.
+  const PENDING_KEY = `pending_attempt_${user.id}`;
+
+  const savePendingLocal = (payload) => {
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify(payload)); } catch (err) { console.error('savePendingLocal failed', err); }
+  };
+  const clearPendingLocal = () => {
+    try { localStorage.removeItem(PENDING_KEY); } catch {}
+  };
+  const readPendingLocal = () => {
+    try {
+      const raw = localStorage.getItem(PENDING_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  };
+
+  const persistPayload = async (payload, retries = 3) => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const studentId = await api.resolveStudentId(user.id);
+        await api.submitAttempt({
+          studentId,
+          overall_score: payload.overall_score,
+          determined_cefr_level: payload.determined_cefr_level,
+          ability_estimate: payload.ability_estimate,
+          student_responses: payload.student_responses
+        });
+        return { ok: true };
+      } catch (err) {
+        console.error(`submitAttempt try ${attempt}/${retries} failed:`, err);
+        if (attempt < retries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        } else {
+          return { ok: false, error: err };
+        }
+      }
+    }
+    return { ok: false, error: new Error('Submit failed after retries') };
+  };
+
   const completeTest = async (responses) => {
     const correctCount = responses.filter(r => r.is_correct).length;
     const score = (correctCount / responses.length) * 100;
     const { cefrLevel, abilityEstimate } = determineCEFRLevel(responses);
-    setTestState('pending');
 
-    const persistAttempt = async (retries = 3) => {
-      for (let attempt = 1; attempt <= retries; attempt++) {
-        try {
-          const studentId = await api.resolveStudentId(user.id);
-          await api.submitAttempt({
-            studentId,
-            overall_score: score,
-            determined_cefr_level: cefrLevel,
-            ability_estimate: abilityEstimate,
-            student_responses: responses
-          });
-
-          return true;
-        } catch (err) {
-          console.error(`Attempt ${attempt} failed:`, err);
-          if (attempt < retries) {
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
-          }
-        }
-      }
-      return false;
+    const payload = {
+      saved_at: new Date().toISOString(),
+      user_id: user.id,
+      overall_score: score,
+      determined_cefr_level: cefrLevel,
+      ability_estimate: abilityEstimate,
+      student_responses: responses
     };
 
-    await persistAttempt();
+    // Backup BEFORE the network call. If anything goes wrong from this point
+    // on the student's responses are not lost.
+    savePendingLocal(payload);
+
+    setTestState('submitting');
+    const result = await persistPayload(payload);
+    if (result.ok) {
+      clearPendingLocal();
+      setTestState('pending');
+    } else {
+      setSubmitErrorMessage(result.error?.message || 'Submission failed.');
+      setTestState('submit_failed');
+    }
+  };
+
+  const retryPendingSubmit = async () => {
+    const payload = readPendingLocal();
+    if (!payload) {
+      setTestState('pending');
+      return;
+    }
+    setTestState('submitting');
+    const result = await persistPayload(payload);
+    if (result.ok) {
+      clearPendingLocal();
+      setTestState('pending');
+    } else {
+      setSubmitErrorMessage(result.error?.message || 'Submission failed.');
+      setTestState('submit_failed');
+    }
   };
 
   const progressPercentage = (userResponses.length / 30) * 100;
@@ -1175,6 +1233,11 @@ function StudentTest({ user, onComplete }) {
       }
     })();
 
+    const pendingPayload = readPendingLocal();
+    const pendingAgeMin = pendingPayload?.saved_at
+      ? Math.floor((Date.now() - new Date(pendingPayload.saved_at).getTime()) / 60000)
+      : null;
+
     return (
       <div className="test-screen">
         <div className="dashboard-header" style={{ marginBottom: '20px' }}>
@@ -1184,6 +1247,23 @@ function StudentTest({ user, onComplete }) {
             <button className="logout-button" onClick={onComplete}>Sign Out</button>
           </div>
         </div>
+        {pendingPayload && (
+          <div className="error-message" style={{ marginBottom: 16 }}>
+            <strong>You have a previous test that did not save.</strong>{' '}
+            We found a completed test from this device ({pendingAgeMin !== null ? `${pendingAgeMin} min ago` : 'recently'}) that never reached the server.
+            <div style={{ marginTop: 10, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button className="primary-button" onClick={retryPendingSubmit} style={{ padding: '8px 14px', fontSize: 13 }}>
+                Submit it now
+              </button>
+              <button
+                onClick={() => { clearPendingLocal(); window.location.reload(); }}
+                style={{ padding: '8px 14px', border: '1px solid #ddd', borderRadius: 4, background: 'transparent', cursor: 'pointer', fontSize: 13 }}
+              >
+                Discard (start a fresh test)
+              </button>
+            </div>
+          </div>
+        )}
         <div className="test-intro">
           <h1>English Level Assessment</h1>
           {attemptsLoading ? (
@@ -1290,6 +1370,53 @@ function StudentTest({ user, onComplete }) {
             </div>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (testState === 'submitting') {
+    return (
+      <div className="test-screen">
+        <div className="results">
+          <h2>Submitting your answers…</h2>
+          <div className="pending-box">
+            <h3>⏳ Saving your test</h3>
+            <p>Please keep this tab open. Your answers are being sent to the server.</p>
+            <p style={{ marginTop: '20px', fontSize: '12px', color: '#999' }}>
+              If this takes more than 30 seconds, do not refresh — we will fall back to a retry screen automatically.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (testState === 'submit_failed') {
+    return (
+      <div className="test-screen">
+        <div className="results">
+          <h2>We could not save your test</h2>
+          <div className="error-message" style={{ marginBottom: 16 }}>
+            <strong>Your answers were NOT saved to the server.</strong> Your responses are still stored locally on this device. Please do not close this tab.
+            {submitErrorMessage && (
+              <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>Technical detail: {submitErrorMessage}</div>
+            )}
+          </div>
+          <p style={{ marginBottom: 16 }}>
+            Click <strong>Try again</strong> to retry the submission. If it fails repeatedly, please take a screenshot of this page and tell your teacher — they can recover your test from this device.
+          </p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+            <button className="primary-button" onClick={retryPendingSubmit}>
+              Try again
+            </button>
+            <button
+              onClick={() => onComplete()}
+              style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 4, background: 'transparent', cursor: 'pointer' }}
+            >
+              Sign out (keep responses on this device)
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
