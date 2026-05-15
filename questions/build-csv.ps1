@@ -150,8 +150,12 @@ foreach ($file in $files) {
             # so later runs have full context, but skip emitting to CSV.
         }
 
+        # NOTE: id, created_at, updated_at are intentionally OMITTED from the
+        # CSV (not included as empty strings). Supabase Table Editor rejects
+        # an empty string for the uuid `id` column with 22P02. Omitting them
+        # lets the table-level defaults (gen_random_uuid(), now()) fire on
+        # insert.
         $rows.Add([pscustomobject]@{
-            id                = ''
             created_by        = $data.created_by
             question_text     = $stem
             question_type     = 'multiple_choice'
@@ -163,8 +167,6 @@ foreach ($file in $files) {
             audio_url         = $audio_url
             passage           = $passage
             explanation       = $explanation
-            created_at        = ''
-            updated_at        = ''
             correct_answers   = (Convert-ToJsonArray -Items @($key))
         }) | Out-Null
     }
