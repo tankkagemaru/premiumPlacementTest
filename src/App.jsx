@@ -758,6 +758,7 @@ function LoginScreen({ onLogin }) {
   const [fullName, setFullName] = useState('');
   const [passportId, setPassportId] = useState('');
   const [country, setCountry] = useState('');
+  const [countryOther, setCountryOther] = useState('');
   const [registrationCode, setRegistrationCode] = useState('');
   const [isSignup, setIsSignup] = useState(false);
   const [error, setError] = useState('');
@@ -790,6 +791,11 @@ function LoginScreen({ onLogin }) {
           setLoading(false);
           return;
         }
+        if (country === 'Other' && !countryOther.trim()) {
+          setError('Please specify your country.');
+          setLoading(false);
+          return;
+        }
       }
 
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -815,8 +821,13 @@ function LoginScreen({ onLogin }) {
         await api.validateRegistration('student', trimmedCode);
       }
 
+      // If "Other" was selected, store the student's actual country in
+      // students.country instead of the literal string "Other" — keeps data
+      // analysable later.
+      const resolvedCountry = country === 'Other' ? countryOther.trim() : country;
+
       const result = isSignup
-        ? await api.signup(normalizedLoginEmail, password, 'student', fullName, passportId, country)
+        ? await api.signup(normalizedLoginEmail, password, 'student', fullName, passportId, resolvedCountry)
         : await api.login(normalizedLoginEmail, password);
 
       if (!result?.access_token) {
@@ -931,6 +942,15 @@ function LoginScreen({ onLogin }) {
                       <option value="">Select Country *</option>
                       {countries.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
+                    {country === 'Other' && (
+                      <input
+                        type="text"
+                        placeholder="Please specify your country *"
+                        value={countryOther}
+                        onChange={(e) => setCountryOther(e.target.value)}
+                        required={isSignup}
+                      />
+                    )}
                   </div>
                 </>
               )}
