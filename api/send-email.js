@@ -1,9 +1,25 @@
 // Vercel Serverless Function - /api/send-email.js
 //
-// Sends approval or rejection emails to a student via Resend.
-// If EMAIL_OVERRIDE_TO env is set, every outbound email is redirected to that
-// address (used during Resend domain verification / testing). The original
-// intended recipient is preserved in the subject for traceability.
+// Sends approval or rejection emails to a student via Brevo (formerly
+// Sendinblue) transactional API.
+//
+// Why Brevo and not Resend: until premium.edu.my is DNS-verified at Resend,
+// Resend can only deliver to a single verified test address. Brevo allows
+// single-sender verification (one confirmation-email click, no DNS) so we
+// can actually deliver to real student inboxes during the event window.
+// Revert to Resend once Resend domain verification is done (revert this
+// commit or re-introduce the Resend fetch behind a flag).
+//
+// Env vars:
+//   BREVO_API_KEY      required  (xkeysib-...)
+//   BREVO_FROM_EMAIL   optional, default 'test@premium.edu.my'. Must match
+//                      a sender verified in the Brevo dashboard, otherwise
+//                      Brevo rejects with HTTP 400 / sender_not_verified.
+//   BREVO_FROM_NAME    optional, default 'Premium Language Centre'.
+//   EMAIL_OVERRIDE_TO  optional. If set, every outbound email is redirected
+//                      to that address; the intended recipient is preserved
+//                      in the subject (`[TEST -> student@x] subject`).
+//                      Leave unset in production.
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -136,24 +152,38 @@ export default async function handler(req, res) {
       ? `[TEST → ${studentEmail}] ${subject}`
       : subject;
 
-    const response = await fetch('https://api.resend.com/emails', {
+    const brevoKey = process.env.BREVO_API_KEY;
+    if (!brevoKey) {
+      return res.status(500).json({ error: 'BREVO_API_KEY env var is not set on the server.' });
+    }
+    const fromEmail = process.env.BREVO_FROM_EMAIL || 'test@premium.edu.my';
+    const fromName  = process.env.BREVO_FROM_NAME  || 'Premium Language Centre';
+
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'api-key': brevoKey,
         'Content-Type': 'application/json',
+        'accept': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Premium CEFR <noreply@resend.dev>',
-        to: recipient,
+        sender: { email: fromEmail, name: fromName },
+        to: [{ email: recipient, name: greetingName }],
         subject: finalSubject,
-        html: emailBody,
+        htmlContent: emailBody,
       }),
     });
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      return res.status(response.status).json(data);
+      // Brevo returns { code, message } on error. Pass that through so the
+      // teacher dashboard can show something useful (e.g. sender_not_verified).
+      return res.status(response.status).json({
+        error: data?.message || 'Brevo send failed',
+        code: data?.code,
+        details: data
+      });
     }
 
     return res.status(200).json({
@@ -161,7 +191,7 @@ export default async function handler(req, res) {
       message: 'Email sent',
       sentTo: recipient,
       overrideActive: Boolean(override),
-      data
+      messageId: data?.messageId
     });
   } catch (error) {
     console.error('Email error:', error);
