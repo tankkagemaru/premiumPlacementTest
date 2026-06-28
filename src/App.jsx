@@ -8,12 +8,15 @@ const LOGO_URL = 'https://nitxboxvkktcgkkkbrec.supabase.co/storage/v1/object/pub
 
 const styles = `
   :root {
-    --bg-app: #f3f5f9;
-    --bg-card: #ffffff;
-    --text-primary: #1f2937;
-    --text-muted: #6b7280;
-    --border-soft: #e5e7eb;
-    --shadow-soft: 0 8px 30px rgba(15, 23, 42, 0.08);
+    /* Unified editorial palette — warm cream tones replace the previous
+       cool grey/white system. App bg is light cream; cards stay near-white
+       for content contrast; ink/border/muted tones are all warm. */
+    --bg-app:       #f5ede0;
+    --bg-card:      #ffffff;
+    --text-primary: #2d2218;
+    --text-muted:   #8a7a64;
+    --border-soft:  #e8dfd0;
+    --shadow-soft:  0 8px 24px rgba(75, 50, 22, 0.08);
     --brand-500: #CC0000;
     --brand-700: #990000;
     --radius-md: 10px;
@@ -22,9 +25,8 @@ const styles = `
     --space-4: 16px;
     --space-5: 20px;
     --space-6: 24px;
-    /* Editorial palette — warm cream / brown for the brand chrome (header,
-       login). Matches the PLC house style; sits alongside the more functional
-       grey app palette without replacing it. */
+    /* Editorial-specific tokens for headers, wordmarks, and decorative
+       chrome. --cream-50 is the lightest tone; --ink-* the dark ink. */
     --cream-50:  #faf5eb;
     --cream-100: #f5ede0;
     --cream-200: #ede1cc;
@@ -34,15 +36,20 @@ const styles = `
     --serif: 'Cambria', 'Times New Roman', 'Hoefler Text', Georgia, serif;
   }
   [data-theme='dark'] {
-    --bg-app: #0f172a;
-    --bg-card: #111827;
-    --text-primary: #e5e7eb;
-    --text-muted: #9ca3af;
-    --border-soft: #374151;
-    --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.5);
-    --cream-50:  #1a130a;
+    /* Dark editorial: espresso/cocoa tones, not the cold blue-grey slate
+       used previously. The whole UI now feels warm in both modes. */
+    --bg-app:       #1c1610;
+    --bg-card:      #261d12;
+    --text-primary: #f5ede0;
+    --text-muted:   #aa9a84;
+    --border-soft:  #3a2d1d;
+    --shadow-soft:  0 8px 30px rgba(0, 0, 0, 0.55);
+    /* In dark mode the header (cream-50) is LIGHTER than the page (bg-app)
+       so it still reads as raised, mirroring the light-mode hierarchy
+       where cream-50 sits above the page. */
+    --cream-50:  #2a2014;
     --cream-100: #221a0e;
-    --cream-200: #2e2415;
+    --cream-200: #3a2d1d;
     --ink-900:   #f5ede0;
     --ink-700:   #d4c7ad;
     --ink-500:   #aa9a84;
@@ -60,10 +67,10 @@ const styles = `
   }
   [data-theme='dark'] .auth-chip.active { background: #1f2937; color: #f3f4f6; }
   [data-theme='dark'] .auth-mode-switch { background: #0b1220; border-color: #374151; }
-  [data-theme='dark'] .results-table th { background: #1f2937; color: #e5e7eb; border-bottom-color: #374151; }
-  [data-theme='dark'] .results-table td { color: #e5e7eb; border-bottom-color: #374151; }
-  [data-theme='dark'] .results-table tbody tr:nth-child(even) { background: #0b1220; }
-  [data-theme='dark'] .results-table tr:hover { background: #1e293b; }
+  [data-theme='dark'] .results-table th { background: var(--cream-50); color: var(--ink-700); border-bottom-color: var(--border-soft); }
+  [data-theme='dark'] .results-table td { color: var(--text-primary); border-bottom-color: var(--border-soft); }
+  [data-theme='dark'] .results-table tbody tr:nth-child(even) { background: var(--cream-100); }
+  [data-theme='dark'] .results-table tr:hover { background: var(--cream-200); }
   [data-theme='dark'] .question-box h3,
   [data-theme='dark'] .progress-text,
   [data-theme='dark'] .progress-title { color: #e5e7eb; }
@@ -87,9 +94,12 @@ const styles = `
     border-bottom: 1px solid var(--cream-200);
     display: flex; align-items: center; gap: 16px;
     min-height: 78px;
+    position: relative;
   }
-  .header-logo { height: 44px; width: auto; object-fit: contain; flex-shrink: 0; }
-  .header-content { flex: 1; text-align: left; padding: 0; }
+  /* Logo and right-side meta are absolute so the wordmark can be perfectly
+     centered without them pulling the layout. */
+  .header-logo { height: 44px; width: auto; object-fit: contain; flex-shrink: 0; position: absolute; left: 32px; top: 50%; transform: translateY(-50%); }
+  .header-content { flex: 1; text-align: center; padding: 0; }
   .header h1 {
     font-family: var(--serif);
     font-size: 30px;
@@ -115,6 +125,10 @@ const styles = `
     color: var(--ink-700);
     letter-spacing: 0.18em;
     text-transform: uppercase;
+    position: absolute;
+    right: 110px;
+    top: 50%;
+    transform: translateY(-50%);
   }
   .header-meta .org-name { font-weight: 600; }
   .header-meta .org-sub { color: var(--ink-500); }
@@ -127,8 +141,15 @@ const styles = `
     font-size: 12px;
     cursor: pointer;
     font-family: inherit;
+    position: absolute;
+    right: 32px;
+    top: 50%;
+    transform: translateY(-50%);
   }
   .header .theme-toggle:hover { background: var(--cream-100); }
+  @media (max-width: 900px) {
+    .header-meta { display: none; }
+  }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
   .login-shell { width: 100%; max-width: 980px; display: grid; grid-template-columns: 0.95fr 1.05fr; background: var(--bg-card); border-radius: 18px; box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); overflow: hidden; }
   .login-brand-panel { background: var(--cream-50); border-right: 1px solid var(--cream-200); padding: 42px 36px; display: flex; flex-direction: column; justify-content: center; gap: 18px; color: var(--ink-900); }
@@ -178,7 +199,7 @@ const styles = `
   .disclaimer { color: #999; font-size: 12px; margin-top: 20px; }
   .question-box { background: var(--bg-card); padding: 30px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
   .question-box h3 { margin-bottom: 20px; color: #333; line-height: 1.6; }
-  .passage { background-color: #f9f9f9; padding: 15px; border-left: 4px solid #CC0000; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
+  .passage { background-color: var(--cream-50); padding: 15px; border-left: 4px solid #CC0000; margin-bottom: 20px; font-size: 14px; line-height: 1.6; color: var(--text-primary); }
   .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .option-button { padding: 12px; border: 2px solid #ddd; background: white; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
   .option-button:hover { border-color: #CC0000; background-color: #fff5f5; }
@@ -189,7 +210,36 @@ const styles = `
   .pending-box p { color: #666; margin-bottom: 10px; line-height: 1.6; }
   .dashboard { max-width: 1200px; margin: 0 auto; padding: 20px; }
   .dashboard-header { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 20px; border-radius: var(--radius-md); margin-bottom: 20px; box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
-  .dashboard-header h1 { color: var(--brand-500); margin: 0; }
+  .dashboard-header h1 {
+    font-family: var(--serif);
+    color: var(--text-primary);
+    margin: 0;
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: -0.005em;
+  }
+  /* Section titles inside a tab — small-caps editorial style matching the
+     attendance app's "ACTIVE SESSION QR" headings. */
+  .tab-content > h3,
+  .tab-content > div > h3 {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 12px 0;
+  }
+  /* Modal titles use the serif, matching the place·ment wordmark. */
+  .modal h2 {
+    font-family: var(--serif);
+    color: var(--text-primary);
+    font-weight: 400;
+    font-size: 24px;
+    letter-spacing: -0.005em;
+    margin-bottom: 20px;
+  }
+  [data-theme='dark'] .modal h2 { color: var(--text-primary); }
   .header-actions { display: flex; gap: 20px; align-items: center; }
   .logout-button { padding: 10px 20px; background-color: var(--brand-500); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: bold; }
   .logout-button:hover { background-color: var(--brand-700); }
@@ -221,22 +271,22 @@ const styles = `
   /* Sticky table headers — long student lists no longer lose column
      context as you scroll */
   .table-wrap { overflow-x: auto; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); max-height: 70vh; overflow-y: auto; }
-  .results-table thead th { position: sticky; top: 0; z-index: 1; background-color: #f5f5f5; }
-  [data-theme='dark'] .results-table thead th { background: #1f2937; }
+  .results-table thead th { position: sticky; top: 0; z-index: 1; background-color: var(--cream-50); }
 
   /* Dark-mode patches for elements that were still bleeding light styles */
   [data-theme='dark'] .textarea { background: #0b1220; color: #e5e7eb; border-color: #374151; }
   [data-theme='dark'] .modal h2 { color: #fca5a5; }
-  [data-theme='dark'] .question-item { background-color: #0b1220; }
+  /* question-item dark bg comes from --cream-50 via the base rule;
+     the original cold-blue override is removed. */
   [data-theme='dark'] .results-table td { border-bottom-color: #1e293b; }
   [data-theme='dark'] .results-table tbody tr:hover { background: #1e293b; }
   [data-theme='dark'] .modal-section h3 { color: #f3f4f6; }
   .tab-content { background: var(--bg-card); padding: 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
   .results-table { width: 100%; border-collapse: collapse; }
-  .results-table th { background-color: #f5f5f5; padding: 12px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd; }
-  .results-table td { padding: 12px; border-bottom: 1px solid #ddd; }
-  .results-table tbody tr:nth-child(even) { background-color: #fcfcfc; }
-  .results-table tr:hover { background-color: #f9f9f9; }
+  .results-table th { background-color: var(--cream-50); color: var(--ink-700); padding: 12px; text-align: left; font-weight: 600; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border-soft); }
+  .results-table td { padding: 12px; border-bottom: 1px solid var(--border-soft); color: var(--text-primary); }
+  .results-table tbody tr:nth-child(even) { background-color: var(--cream-50); }
+  .results-table tr:hover { background-color: var(--cream-100); }
   .dashboard-toolbar { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; }
   .dashboard-search { min-width: 260px; max-width: 380px; width: 100%; padding: 10px 12px; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); }
   .status-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
@@ -255,8 +305,7 @@ const styles = `
   [data-theme='dark'] .pending-box { background-color: #1a1a2e; border-color: #ff9800; }
   [data-theme='dark'] .pending-box h3 { color: #fbbf24; }
   [data-theme='dark'] .pending-box p { color: #d1d5db; }
-  [data-theme='dark'] .question-item { background-color: #1f2937; color: #e5e7eb; }
-  [data-theme='dark'] .question-item p { color: #e5e7eb; }
+  /* question-item dark uses --cream-50 (warm dark) + --text-primary via base rule. */
   [data-theme='dark'] .modal-section h3 { color: #f3f4f6; }
   [data-theme='dark'] .disclaimer { color: #94a3b8; }
   [data-theme='dark'] .test-info { background-color: #0b1220; border-color: #ef4444; }
@@ -292,7 +341,7 @@ const styles = `
   .modal-section h3 { color: #333; margin-bottom: 10px; font-size: 16px; }
   .modal-close { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); }
   .modal-close:hover { color: var(--text-primary); }
-  .question-item { background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; }
+  .question-item { background-color: var(--cream-50); padding: 15px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; color: var(--text-primary); }
   .question-correct { border-left: 4px solid #4caf50; }
   .question-wrong { border-left: 4px solid #f44336; }
   .correct-badge { color: #4caf50; font-weight: bold; }
