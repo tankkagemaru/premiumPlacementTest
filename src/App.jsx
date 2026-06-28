@@ -3323,7 +3323,7 @@ function TeacherDashboard({ user, onLogout }) {
         const submittedDate = selectedResult.submitted_at || selectedResult.reviewed_at;
         return (
         <div className="modal-overlay" onClick={() => setSelectedResult(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '960px', width: '95%' }}>
             <button className="modal-close" onClick={() => setSelectedResult(null)}>×</button>
             <h2>{isPending ? 'Review Student Result' : 'Attempt Details'}</h2>
 
@@ -3390,6 +3390,13 @@ function TeacherDashboard({ user, onLogout }) {
               const uncappedCefr = uncappedCefrFromAbility(ability);
               const cappedFired = uncappedCefr && cefr && CEFR_LEVEL_RANK[cefr] < CEFR_LEVEL_RANK[uncappedCefr];
               const perSkill = computePerSkillReport(responses, questions);
+
+              // Detect old-algorithm scoring: re-run current scoring against the
+              // stored responses and compare to the stored CEFR. If they differ,
+              // the attempt was scored under a previous algorithm version.
+              const rescored = scoreSubset(responses);
+              const wouldBeUnderNew = rescored?.cefr;
+              const wouldDiffer = wouldBeUnderNew && cefr && wouldBeUnderNew !== cefr;
               const diagnostic = generateDiagnostic(perSkill, cefr);
               const canDo = CEFR_CAN_DO[cefr] || CEFR_CAN_DO[uncappedCefr];
               const skillColors = {
@@ -3409,6 +3416,11 @@ function TeacherDashboard({ user, onLogout }) {
                   {/* Score breakdown */}
                   <div className="modal-section">
                     <h3>Score Breakdown</h3>
+                    {wouldDiffer && (
+                      <div className="note-warning" style={{ marginBottom: 12, fontSize: 13 }}>
+                        <strong>ℹ Scored under previous algorithm.</strong> This attempt was assigned <strong>{cefr}</strong> when the student submitted, using earlier scoring rules. Under the current rules (with the accuracy penalty and accuracy caps), the same answers would now be classified as <strong>{wouldBeUnderNew}</strong>. The stored result is left unchanged so historical placement decisions aren't silently rewritten — see the Per-Skill table below for the current scoring view of each skill.
+                      </div>
+                    )}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 12 }}>
                       <div style={{ padding: 12, border: '1px solid var(--border-soft)', borderRadius: 6 }}>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Correct</div>
@@ -3425,6 +3437,9 @@ function TeacherDashboard({ user, onLogout }) {
                         <div style={{ fontSize: 22, fontWeight: 700, marginTop: 2, color: cefrSwatch(cefr) }}>{cefr || '—'}</div>
                         {cappedFired && (
                           <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 2, fontWeight: 600 }}>capped from {uncappedCefr} (accuracy)</div>
+                        )}
+                        {wouldDiffer && !cappedFired && (
+                          <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 2, fontWeight: 600 }}>would be {wouldBeUnderNew} under current rules</div>
                         )}
                       </div>
                     </div>
