@@ -482,7 +482,7 @@ const api = {
       return userId;
     }
   },
-  ATTEMPT_FIELDS: 'id,student_id,attempt_no,status,overall_score,determined_cefr_level,ability_estimate,submitted_at,reviewed_at,reviewed_by,teacher_comment,official_for_placement,retake_granted,retake_granted_at,student_responses',
+  ATTEMPT_FIELDS: 'id,student_id,attempt_no,status,overall_score,determined_cefr_level,ability_estimate,submitted_at,reviewed_at,reviewed_by,teacher_comment,official_for_placement,retake_granted,retake_granted_at,archived,student_responses',
   async getStudentAttempts(userId) {
     const studentId = await this.resolveStudentId(userId);
     const select = this.ATTEMPT_FIELDS;
@@ -637,6 +637,17 @@ const api = {
     const data = await this.parseResponse(response);
     if (!response.ok) throw new Error(data?.error || 'Unable to create students.');
     return data.results || [];
+  },
+  async adminSetArchive(attemptId, archived) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-archive-attempt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ attemptId, archived })
+    });
+    const data = await this.parseResponse(response);
+    if (!response.ok) throw new Error(data?.error || 'Unable to update archive state.');
+    return data;
   },
   async adminDeleteAttempt(attemptId) {
     const token = localStorage.getItem('sb-token');
@@ -1716,6 +1727,8 @@ function TeacherDashboard({ user, onLogout }) {
   const [pendingSearch, setPendingSearch] = useState('');
   const [reviewedSearch, setReviewedSearch] = useState('');
   const [reviewedFilter, setReviewedFilter] = useState('all'); // 'all' | 'approved' | 'rejected'
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivingId, setArchivingId] = useState(null);
   const [makeOfficialOnApprove, setMakeOfficialOnApprove] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [actionError, setActionError] = useState('');
@@ -1972,11 +1985,13 @@ function TeacherDashboard({ user, onLogout }) {
     return haystack.includes(pendingSearch.toLowerCase());
   });
   const filteredReviewedResults = reviewedResults
+    .filter(r => showArchived ? r.archived === true : r.archived !== true)
     .filter(r => reviewedFilter === 'all' ? true : statusOf(r) === reviewedFilter)
     .filter((r) => {
       const haystack = `${r.students?.full_name || ''} ${r.students?.passport_id || ''} ${r.determined_cefr_level || ''}`.toLowerCase();
       return haystack.includes(reviewedSearch.toLowerCase());
     });
+  const archivedCount = reviewedResults.filter(r => r.archived === true).length;
   
   // Filter and sort questions
   const filteredQuestions = questions
@@ -2137,6 +2152,22 @@ function TeacherDashboard({ user, onLogout }) {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <button
+                onClick={() => setShowArchived(v => !v)}
+                title={showArchived ? 'Hide archived (default view)' : 'Show only archived attempts'}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '999px',
+                  border: `1px solid ${showArchived ? '#b91c1c' : 'var(--border-soft)'}`,
+                  background: showArchived ? '#b91c1c' : 'transparent',
+                  color: showArchived ? '#fff' : 'var(--text-primary)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                {showArchived ? '📦 Archived' : '📦 Show archived'} ({archivedCount})
+              </button>
               <input className="dashboard-search" placeholder="Search by student, passport, or CEFR..." value={reviewedSearch} onChange={(e) => setReviewedSearch(e.target.value)} />
               <button className="approve-button" onClick={loadData} style={{ padding: '8px 14px', fontSize: '13px' }}>Refresh</button>
             </div>
@@ -2215,6 +2246,24 @@ function TeacherDashboard({ user, onLogout }) {
                               <span aria-hidden="true">✉</span> Resend
                             </button>
                           )}
+                          <button
+                            className="row-action"
+                            disabled={archivingId === r.id}
+                            onClick={async () => {
+                              setArchivingId(r.id);
+                              try {
+                                await api.adminSetArchive(r.id, !r.archived);
+                                await loadData();
+                              } catch (err) {
+                                alert(err.message || 'Failed to update archive state.');
+                              } finally {
+                                setArchivingId(null);
+                              }
+                            }}
+                            title={r.archived ? 'Restore this attempt to the active list' : 'Archive: hide this attempt from the default Reviewed view'}
+                          >
+                            <span aria-hidden="true">📦</span> {r.archived ? 'Unarchive' : 'Archive'}
+                          </button>
                           <button
                             className="row-action"
                             onClick={() => { setPendingDeleteAttempt(r); setDeleteConfirmInput(''); }}
