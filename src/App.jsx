@@ -644,9 +644,13 @@ function selectNextQuestion(questionsBank, currentDifficulty, userResponses) {
   // ABOVE their running ability instead of within the symmetric ±1.5 band.
   // Without this, the 30-item budget can run out before a true C1 candidate
   // ever sees difficulty 8+ content, leaving them mis-placed at B2.
+  //
+  // Trigger thresholds tightened (was >=6.5 / >=60%) to avoid pulling mediocre
+  // B1 students into the high-difficulty band, where lucky guesses on harder
+  // items would inflate their final ability estimate.
   const correctSoFar = userResponses.filter(r => r.is_correct).length;
   const accuracy = userResponses.length > 0 ? correctSoFar / userResponses.length : 0;
-  const forceCeilingProbe = userResponses.length >= 20 && currentDifficulty >= 6.5 && accuracy >= 0.6;
+  const forceCeilingProbe = userResponses.length >= 20 && currentDifficulty >= 7.0 && accuracy >= 0.7;
 
   const minDiff = forceCeilingProbe
     ? Math.max(1, currentDifficulty + 0.3)
@@ -691,17 +695,23 @@ function selectNextQuestion(questionsBank, currentDifficulty, userResponses) {
   return remaining[Math.floor(Math.random() * remaining.length)];
 }
 
+// Symmetric drift (was +0.8 / -0.6 — the asymmetry meant a 50%-accuracy
+// student drifted +0.1 per item, +3 over a 30-item test, pushing them into
+// difficulty bands they couldn't actually handle. Net result: random clickers
+// could ride drift into B2 territory.).
 function calculateDifficulty(responses) {
   if (responses.length === 0) return 5;
   let difficulty = 5;
-  for (const r of responses) difficulty += r.is_correct ? 0.8 : -0.6;
+  for (const r of responses) difficulty += r.is_correct ? 0.6 : -0.6;
   return Math.max(1, Math.min(10, difficulty));
 }
 
 function determineCEFRLevel(responses) {
-  const totalCorrect = responses.filter(r => r.is_correct).length;
   const fallback = { cefrLevel: 'A1', abilityEstimate: 1, needsTeacherReview: true };
   if (!responses?.length) return fallback;
+
+  const totalCorrect = responses.filter(r => r.is_correct).length;
+  const accuracy = totalCorrect / responses.length;
 
   const avgDifficulty = (items) => {
     if (!items.length) return 1;
@@ -709,22 +719,58 @@ function determineCEFRLevel(responses) {
     return total / items.length;
   };
 
+  // Base estimate: avg difficulty of correct items. Prefer the last 10 if
+  // we have enough recent correct answers, otherwise fall back to all.
   const lastTen = responses.slice(-10);
   const lastTenCorrect = lastTen.filter(r => r.is_correct);
   const allCorrect = responses.filter(r => r.is_correct);
-  const abilityEstimate = lastTenCorrect.length >= 4 ? avgDifficulty(lastTenCorrect) : avgDifficulty(allCorrect);
+  const baseEstimate = lastTenCorrect.length >= 4 ? avgDifficulty(lastTenCorrect) : avgDifficulty(allCorrect);
 
+  // Accuracy penalty: incorrect answers must count as evidence too, otherwise
+  // a student who got 4 lucky guesses at difficulty 8 (out of 10 random
+  // clicks) would be scored at 8 → C1+. The penalty grows linearly below
+  // 70% accuracy and is zero above it.
+  //   100%  →  -0.0
+  //    70%  →  -0.0
+  //    50%  →  -0.8
+  //    30%  →  -1.6
+  //    25%  →  -1.8  (4-option MCQ chance baseline)
+  const accuracyPenalty = accuracy >= 0.7 ? 0 : (0.7 - accuracy) * 4;
+  const abilityEstimate = Math.max(1, baseEstimate - accuracyPenalty);
+
+  // Random-click floor — must clear meaningfully more than 4-option chance
+  // (25% × 30 = 7.5) to escape A1.
   if (totalCorrect < 8) {
     return { cefrLevel: 'A1', abilityEstimate, needsTeacherReview: true };
   }
 
-  if (abilityEstimate < 2.5) return { cefrLevel: 'A1', abilityEstimate, needsTeacherReview: false };
-  if (abilityEstimate < 4.0) return { cefrLevel: 'A2', abilityEstimate, needsTeacherReview: false };
-  if (abilityEstimate < 5.5) return { cefrLevel: 'B1', abilityEstimate, needsTeacherReview: false };
-  if (abilityEstimate < 7.5) return { cefrLevel: 'B2', abilityEstimate, needsTeacherReview: false };
+  let cefrLevel;
+  if (abilityEstimate < 2.5) cefrLevel = 'A1';
+  else if (abilityEstimate < 4.0) cefrLevel = 'A2';
+  else if (abilityEstimate < 5.5) cefrLevel = 'B1';
+  else if (abilityEstimate < 7.5) cefrLevel = 'B2';
+  else cefrLevel = 'C1+';
+
+  // Accuracy cap: even a high ability estimate is suspect when the student
+  // got most items wrong. Caps prevent the "high difficulty + low accuracy"
+  // failure mode where someone rides drift + lucky guesses into a higher
+  // band than they can defend.
+  const levelRank = { A1: 1, A2: 2, B1: 3, B2: 4, 'C1+': 5 };
+  if (accuracy < 0.5 && levelRank[cefrLevel] > levelRank.A2) {
+    cefrLevel = 'A2';
+  } else if (accuracy < 0.6 && levelRank[cefrLevel] > levelRank.B1) {
+    cefrLevel = 'B1';
+  } else if (accuracy < 0.7 && levelRank[cefrLevel] > levelRank.B2) {
+    cefrLevel = 'B2';
+  }
+
   // Soft ceiling at C1+ per spec §6.5: PLC-CPT does not distinguish C1 from C2.
   // Any result at or above C1 is referred for oral interview confirmation.
-  return { cefrLevel: 'C1+', abilityEstimate, needsTeacherReview: true };
+  return {
+    cefrLevel,
+    abilityEstimate,
+    needsTeacherReview: cefrLevel === 'C1+'
+  };
 }
 
 // True for any result requiring oral-interview confirmation per spec §6.5.
@@ -3200,6 +3246,33 @@ function TeacherDashboard({ user, onLogout }) {
                   <strong>Oral interview required.</strong> Per PLC placement policy, any C1+ result must be confirmed by an oral interview with the Academic Office before final placement. The test reports a soft ceiling at C1+ and does not distinguish C1 from C2.
                 </div>
               )}
+              {/* Suspicious response patterns: average time per question.
+                  Genuine reading + thinking on an MCQ rarely beats ~8 seconds.
+                  Below 5s average suggests click-through; flag for the teacher
+                  but don't block — they make the call. */}
+              {(() => {
+                const responses = parseResponses(selectedResult.student_responses);
+                const timed = responses.filter(r => Number.isFinite(Number(r.time_spent_seconds)));
+                if (timed.length === 0) return null;
+                const avgTime = timed.reduce((s, r) => s + Number(r.time_spent_seconds), 0) / timed.length;
+                const veryFast = avgTime < 5;
+                const fast = avgTime < 8;
+                return (
+                  <p style={{ margin: '6px 0', fontSize: 13 }}>
+                    <strong>Avg time / question:</strong> {avgTime.toFixed(1)}s
+                    {veryFast && (
+                      <span style={{ marginLeft: 8, display: 'inline-block', padding: '1px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5' }} title="Average under 5 seconds suggests the student may not have read the questions. Confirm before approving.">
+                        ⚠ FAST CLICKS
+                      </span>
+                    )}
+                    {!veryFast && fast && (
+                      <span style={{ marginLeft: 8, display: 'inline-block', padding: '1px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: '#fff9e6', color: '#5a4604', border: '1px solid #ffc107' }} title="Average is below 8 seconds. Worth checking the student understood each question before approving.">
+                        ⚠ QUICK
+                      </span>
+                    )}
+                  </p>
+                );
+              })()}
               <p><strong>Submitted:</strong> {submittedDate ? new Date(submittedDate).toLocaleString() : '—'}</p>
               {!isPending && (
                 <p><strong>Status:</strong> <span className={`status-chip ${statusOf(selectedResult) === 'approved' ? 'approved' : 'rejected'}`} style={{ textTransform: 'capitalize' }}>{selectedResult.status}</span>{selectedResult.official_for_placement ? ' ⭐ Official' : ''}</p>

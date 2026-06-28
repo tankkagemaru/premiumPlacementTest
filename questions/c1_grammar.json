@@ -40,9 +40,9 @@
       "egp_target": "Mixed conditional (past condition, present result)",
       "difficulty": 8.4,
       "stem": "If she ___ the warning email last week, she wouldn't be in this mess now.",
-      "options": ["had read", "read", "would have read", "would read"],
+      "options": ["had read", "would read", "has read", "did read"],
       "key": "had read",
-      "explanation": "Mixed conditional: a past condition ('had read', third conditional form) with a present consequence ('wouldn't be', second conditional form). Standard third conditional 'wouldn't have been' would refer to a past consequence, which doesn't fit 'now'."
+      "explanation": "Mixed conditional: past condition ('had read', third conditional form) with present consequence ('wouldn't be', second conditional form). 'Would read' lacks the perfect needed for a past condition; 'has read' is wrong tense; 'did read' is emphatic past, not hypothetical."
     },
     {
       "egp_target": "Mixed conditional (present condition, past result)",
@@ -64,9 +64,9 @@
       "egp_target": "Pseudo-cleft (what-cleft)",
       "difficulty": 8.0,
       "stem": "What I find most frustrating ___ that nobody warned us in advance.",
-      "options": ["is", "are", "was being", "has"],
+      "options": ["is", "are", "was", "has"],
       "key": "is",
-      "explanation": "In a pseudo-cleft, the verb in the main clause agrees with the singular 'what'-clause subject. The complement here is a single proposition ('that nobody warned us'), so 'is' is correct."
+      "explanation": "In a pseudo-cleft, the verb in the main clause agrees with the singular 'what'-clause subject (a single proposition: 'that nobody warned us'). 'Are' takes plural agreement; 'was' shifts the speaker's complaint into the past; 'has' is the wrong auxiliary entirely."
     },
     {
       "egp_target": "Reduced relative clause with past participle",
