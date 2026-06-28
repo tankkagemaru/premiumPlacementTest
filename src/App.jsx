@@ -90,30 +90,38 @@ const styles = `
   .header {
     background: var(--cream-50);
     color: var(--ink-900);
-    padding: 18px 32px;
+    padding: 24px 32px;
     border-bottom: 1px solid var(--cream-200);
-    display: flex; align-items: center; gap: 16px;
-    min-height: 78px;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 112px;
     position: relative;
   }
-  /* Logo and right-side meta are absolute so the wordmark can be perfectly
-     centered without them pulling the layout. */
-  .header-logo { height: 44px; width: auto; object-fit: contain; flex-shrink: 0; position: absolute; left: 32px; top: 50%; transform: translateY(-50%); }
-  .header-content { flex: 1; text-align: center; padding: 0; }
+  /* Logo + wordmark form one centered brand group. Right-side meta and
+     theme toggle are absolute so they don't tug the centered group. */
+  .header-content {
+    display: flex; align-items: center; gap: 20px;
+    text-align: left;
+  }
+  .header-logo {
+    height: 72px;
+    width: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
   .header h1 {
     font-family: var(--serif);
-    font-size: 30px;
+    font-size: 38px;
     line-height: 1;
     margin: 0;
     font-weight: 400;
-    letter-spacing: -0.005em;
+    letter-spacing: -0.01em;
     color: var(--ink-900);
   }
   .header h1 .wordmark-dot { color: var(--brand-500); margin: 0 1px; }
   .subtitle {
     font-family: var(--serif);
-    font-size: 10px;
-    margin: 4px 0 0 0;
+    font-size: 11px;
+    margin: 5px 0 0 0;
     letter-spacing: 0.22em; text-transform: uppercase;
     color: var(--ink-500);
     font-weight: 500;
@@ -244,14 +252,24 @@ const styles = `
   .logout-button { padding: 10px 20px; background-color: var(--brand-500); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: bold; }
   .logout-button:hover { background-color: var(--brand-700); }
   .theme-toggle { padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.12); color: white; cursor: pointer; }
-  /* Tabs — single pill bar instead of separate buttons; inactive tabs are
-     muted text on the bar background. Solves the dark-mode invisibility
-     of inactive tabs that the old "each tab is a card" layout had. */
-  .tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: 10px; padding: 4px; box-shadow: var(--shadow-soft); }
-  .tab { padding: 8px 16px; background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; color: var(--text-muted); transition: background-color 0.15s, color 0.15s; }
-  .tab:hover:not(.active) { background: var(--bg-app); color: var(--text-primary); }
-  .tab.active { background-color: var(--brand-500); color: white; }
-  [data-theme='dark'] .tab:hover:not(.active) { background: #1e293b; color: #f3f4f6; }
+  /* Tabs — pill bar with editorial serif labels, larger touch targets.
+     Inactive tabs are muted ink; active is solid brand red. */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: 12px; padding: 6px; box-shadow: var(--shadow-soft); }
+  .tab {
+    padding: 11px 22px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 16px;
+    letter-spacing: -0.005em;
+    color: var(--text-muted);
+    transition: background-color 0.15s, color 0.15s;
+  }
+  .tab:hover:not(.active) { background: var(--cream-50); color: var(--text-primary); }
+  .tab.active { background-color: var(--brand-500); color: white; font-weight: 500; }
 
   /* Empty state — replaces bare "No pending approvals." paragraphs */
   .empty-state { padding: 60px 20px; text-align: center; color: var(--text-muted); }
@@ -278,9 +296,8 @@ const styles = `
   [data-theme='dark'] .modal h2 { color: #fca5a5; }
   /* question-item dark bg comes from --cream-50 via the base rule;
      the original cold-blue override is removed. */
-  [data-theme='dark'] .results-table td { border-bottom-color: #1e293b; }
-  [data-theme='dark'] .results-table tbody tr:hover { background: #1e293b; }
-  [data-theme='dark'] .modal-section h3 { color: #f3f4f6; }
+  /* Old cold-blue dark overrides for table td/hover/modal-section h3
+     removed — the var-driven rules now drive both themes. */
   .tab-content { background: var(--bg-card); padding: 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
   .results-table { width: 100%; border-collapse: collapse; }
   .results-table th { background-color: var(--cream-50); color: var(--ink-700); padding: 12px; text-align: left; font-weight: 600; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid var(--border-soft); }
@@ -306,7 +323,7 @@ const styles = `
   [data-theme='dark'] .pending-box h3 { color: #fbbf24; }
   [data-theme='dark'] .pending-box p { color: #d1d5db; }
   /* question-item dark uses --cream-50 (warm dark) + --text-primary via base rule. */
-  [data-theme='dark'] .modal-section h3 { color: #f3f4f6; }
+  /* modal-section h3 dark colour comes from --text-muted via the base rule. */
   [data-theme='dark'] .disclaimer { color: #94a3b8; }
   [data-theme='dark'] .test-info { background-color: #0b1220; border-color: #ef4444; }
   [data-theme='dark'] .test-info h3 { color: #fca5a5; }
@@ -338,7 +355,17 @@ const styles = `
   .student-stat { background: var(--bg-app); border: 1px solid var(--border-soft); border-radius: 8px; padding: 12px; text-align: left; }
   .student-stat .label { font-size: 12px; color: var(--text-muted); }
   .student-stat .value { font-size: 20px; font-weight: 700; margin-top: 4px; }
-  .modal-section h3 { color: #333; margin-bottom: 10px; font-size: 16px; }
+  /* Modal section headers use the same editorial small-caps treatment as
+     tab section headers — keeps the typographic system unified. */
+  .modal-section h3 {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 14px 0;
+  }
   .modal-close { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); }
   .modal-close:hover { color: var(--text-primary); }
   .question-item { background-color: var(--cream-50); padding: 15px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; color: var(--text-primary); }
@@ -3915,18 +3942,20 @@ export default function App() {
   return (
     <div className="app">
       <div className="header">
-        <img
-          src={LOGO_URL}
-          alt="PLC Logo"
-          className="header-logo"
-          onError={(e) => {
-            e.target.style.display = 'none';
-            console.log('Logo failed to load from:', LOGO_URL);
-          }}
-        />
         <div className="header-content">
-          <h1>place<span className="wordmark-dot">·</span>ment</h1>
-          <p className="subtitle">PLC · English Placement Test</p>
+          <img
+            src={LOGO_URL}
+            alt="PLC Logo"
+            className="header-logo"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              console.log('Logo failed to load from:', LOGO_URL);
+            }}
+          />
+          <div className="header-wordmark">
+            <h1>place<span className="wordmark-dot">·</span>ment</h1>
+            <p className="subtitle">PLC · English Placement Test</p>
+          </div>
         </div>
         <div className="header-meta">
           <span className="org-name">{COMPANY_NAME}</span>
