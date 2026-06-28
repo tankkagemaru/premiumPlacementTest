@@ -129,9 +129,43 @@ const styles = `
   .logout-button { padding: 10px 20px; background-color: var(--brand-500); color: white; border: none; border-radius: var(--radius-sm); cursor: pointer; font-weight: bold; }
   .logout-button:hover { background-color: var(--brand-700); }
   .theme-toggle { padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.12); color: white; cursor: pointer; }
-  .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-  .tab { padding: 10px 20px; background: var(--bg-card); border: 2px solid var(--border-soft); border-radius: var(--radius-sm); cursor: pointer; font-weight: bold; transition: all 0.3s; }
-  .tab.active { background-color: var(--brand-500); color: white; border-color: var(--brand-500); }
+  /* Tabs — single pill bar instead of separate buttons; inactive tabs are
+     muted text on the bar background. Solves the dark-mode invisibility
+     of inactive tabs that the old "each tab is a card" layout had. */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; flex-wrap: wrap; background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: 10px; padding: 4px; box-shadow: var(--shadow-soft); }
+  .tab { padding: 8px 16px; background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; color: var(--text-muted); transition: background-color 0.15s, color 0.15s; }
+  .tab:hover:not(.active) { background: var(--bg-app); color: var(--text-primary); }
+  .tab.active { background-color: var(--brand-500); color: white; }
+  [data-theme='dark'] .tab:hover:not(.active) { background: #1e293b; color: #f3f4f6; }
+
+  /* Empty state — replaces bare "No pending approvals." paragraphs */
+  .empty-state { padding: 60px 20px; text-align: center; color: var(--text-muted); }
+  .empty-state .icon { font-size: 56px; opacity: 0.35; margin-bottom: 16px; display: block; line-height: 1; }
+  .empty-state .title { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+  .empty-state .subtitle { font-size: 13px; max-width: 380px; margin: 0 auto; line-height: 1.5; }
+
+  /* Keyboard focus visibility — needed for accessibility, was absent */
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--brand-500); outline-offset: 2px;
+  }
+
+  /* Compact action button — icon-only with title tooltip; used in dense
+     tables where labels would wrap each row to 3 lines */
+  .row-action.compact { padding: 6px 9px; min-width: 32px; justify-content: center; font-size: 14px; }
+
+  /* Sticky table headers — long student lists no longer lose column
+     context as you scroll */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); max-height: 70vh; overflow-y: auto; }
+  .results-table thead th { position: sticky; top: 0; z-index: 1; background-color: #f5f5f5; }
+  [data-theme='dark'] .results-table thead th { background: #1f2937; }
+
+  /* Dark-mode patches for elements that were still bleeding light styles */
+  [data-theme='dark'] .textarea { background: #0b1220; color: #e5e7eb; border-color: #374151; }
+  [data-theme='dark'] .modal h2 { color: #fca5a5; }
+  [data-theme='dark'] .question-item { background-color: #0b1220; }
+  [data-theme='dark'] .results-table td { border-bottom-color: #1e293b; }
+  [data-theme='dark'] .results-table tbody tr:hover { background: #1e293b; }
+  [data-theme='dark'] .modal-section h3 { color: #f3f4f6; }
   .tab-content { background: var(--bg-card); padding: 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
   .results-table { width: 100%; border-collapse: collapse; }
   .results-table th { background-color: #f5f5f5; padding: 12px; text-align: left; font-weight: bold; border-bottom: 2px solid #ddd; }
@@ -1999,7 +2033,11 @@ function TeacherDashboard({ user, onLogout }) {
             </div>
           </div>
           {filteredPendingResults.length === 0 ? (
-            <p>No pending approvals.</p>
+            <div className="empty-state">
+              <span className="icon">✅</span>
+              <div className="title">Nothing pending</div>
+              <div className="subtitle">All submitted attempts have been reviewed. New submissions will appear here automatically.</div>
+            </div>
           ) : (
             <div className="table-wrap"><table className="results-table">
               <thead>
@@ -2074,7 +2112,11 @@ function TeacherDashboard({ user, onLogout }) {
             </div>
           </div>
           {filteredReviewedResults.length === 0 ? (
-            <p>No reviewed attempts match this filter.</p>
+            <div className="empty-state">
+              <span className="icon">📭</span>
+              <div className="title">No reviewed attempts</div>
+              <div className="subtitle">Once you approve or reject attempts from the Pending tab, they will appear here.</div>
+            </div>
           ) : (
             <div className="table-wrap"><table className="results-table">
               <thead>
@@ -2702,15 +2744,23 @@ function TeacherDashboard({ user, onLogout }) {
               <tbody>
                 {managedUsers.length === 0 && (
                   <tr>
-                    <td colSpan="9" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px' }}>
-                      No users loaded. Check that <code>SUPABASE_SERVICE_ROLE_KEY</code> is configured.
+                    <td colSpan="9">
+                      <div className="empty-state">
+                        <span className="icon">⚙️</span>
+                        <div className="title">No users loaded</div>
+                        <div className="subtitle">Confirm <code style={{ background: 'var(--bg-app)', padding: '0 4px', borderRadius: 3 }}>SUPABASE_SERVICE_ROLE_KEY</code> is set in Vercel project settings, then refresh.</div>
+                      </div>
                     </td>
                   </tr>
                 )}
                 {managedUsers.length > 0 && pageRows.length === 0 && (
                   <tr>
-                    <td colSpan="9" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px' }}>
-                      No users match the current search / filter.
+                    <td colSpan="9">
+                      <div className="empty-state">
+                        <span className="icon">🔍</span>
+                        <div className="title">No matches</div>
+                        <div className="subtitle">Nothing matches the current search and filter. Try clearing the search box or switching to a different role filter.</div>
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -2740,17 +2790,18 @@ function TeacherDashboard({ user, onLogout }) {
                       <td style={{ textAlign: 'center', fontWeight: 600 }}>{u.attempt_count ?? 0}</td>
                       <td>{u.country || '—'}</td>
                       <td>
-                        <div className="row-action-group" style={{ justifyContent: 'flex-end' }}>
+                        <div className="row-action-group" style={{ justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
                           <button
-                            className="row-action"
+                            className="row-action compact"
                             disabled={userMgmtLoading || isSuper}
                             onClick={() => setEditUserModal({ ...u })}
-                            title={isSuper ? 'Superadmin cannot be edited' : 'Edit this user'}
+                            title={isSuper ? 'Superadmin cannot be edited' : 'Edit user'}
+                            aria-label="Edit user"
                           >
-                            ✎ Edit
+                            ✎
                           </button>
                           <button
-                            className="row-action"
+                            className="row-action compact"
                             disabled={resetLinkBusy}
                             onClick={async () => {
                               setResetLinkBusy(true);
@@ -2767,18 +2818,20 @@ function TeacherDashboard({ user, onLogout }) {
                                 setResetLinkBusy(false);
                               }
                             }}
-                            title="Generate a password reset link for this user"
+                            title="Generate password reset link"
+                            aria-label="Generate password reset link"
                           >
-                            🔑 Reset
+                            🔑
                           </button>
                           <button
-                            className="row-action"
+                            className="row-action compact"
                             disabled={userMgmtLoading || isSuper}
                             onClick={() => { setDeleteUserTarget(u); setDeleteUserConfirm(''); }}
-                            title={isSuper ? 'Superadmin cannot be deleted' : 'Delete this user'}
+                            title={isSuper ? 'Superadmin cannot be deleted' : 'Delete user'}
+                            aria-label="Delete user"
                             style={{ color: '#b91c1c' }}
                           >
-                            🗑 Delete
+                            🗑
                           </button>
                         </div>
                       </td>
