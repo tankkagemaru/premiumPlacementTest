@@ -61,11 +61,41 @@ const styles = `
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: var(--bg-app); color: var(--text-primary); }
   .app { min-height: 100vh; background-color: var(--bg-app); }
   .card-surface { background: var(--bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
-  .header { background: linear-gradient(135deg, #CC0000 0%, #990000 100%); color: white; padding: 10px 20px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 70px; }
-  .header-logo { height: 40px; width: auto; object-fit: contain; flex-shrink: 0; margin-top: 0; }
-  .header-content { flex: 1; text-align: center; padding: 0; }
-  .header h1 { font-size: 26px; margin: 0; margin-bottom: 2px; }
-  .subtitle { font-size: 12px; opacity: 0.95; margin: 0; }
+  /* Header: layered gradient + soft radial highlight + brand bottom border.
+     Designed to feel polished without going off-brand. */
+  .header {
+    position: relative;
+    color: white;
+    padding: 14px 28px;
+    background:
+      radial-gradient(ellipse 600px 200px at 50% -40%, rgba(255, 255, 255, 0.22), transparent 60%),
+      linear-gradient(135deg, #d11a1a 0%, #b00404 45%, #8a0000 100%);
+    box-shadow: 0 4px 14px rgba(120, 0, 0, 0.35), inset 0 -1px 0 rgba(255, 215, 0, 0.45);
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    min-height: 76px;
+    overflow: hidden;
+  }
+  /* Soft texture overlay — subtle diagonal noise, brand-neutral */
+  .header::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 40%);
+    mix-blend-mode: overlay;
+  }
+  .header-logo { height: 48px; width: auto; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); position: relative; z-index: 1; }
+  .header-content { flex: 1; text-align: center; padding: 0; position: relative; z-index: 1; }
+  .header h1 {
+    font-size: 28px;
+    margin: 0 0 2px 0;
+    letter-spacing: 0.04em;
+    font-weight: 800;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.25);
+  }
+  .subtitle {
+    font-size: 11px; opacity: 0.92; margin: 0;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    font-weight: 500;
+  }
+  .header .theme-toggle { position: relative; z-index: 1; }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
   .login-shell { width: 100%; max-width: 980px; display: grid; grid-template-columns: 0.95fr 1.05fr; background: var(--bg-card); border-radius: 18px; box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); overflow: hidden; }
   .login-brand-panel { background: linear-gradient(160deg, #fff5f5 0%, #fff 100%); border-right: 1px solid var(--border-soft); padding: 34px; display: flex; flex-direction: column; justify-content: center; gap: 18px; }
@@ -2479,11 +2509,11 @@ function TeacherDashboard({ user, onLogout }) {
             <p><strong>Total Questions: {questions.length}</strong></p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
               {['A1', 'A2', 'B1', 'B2', 'C1', 'C2'].map(level => (
-                <div key={level} style={{ backgroundColor: '#f5f5f5', padding: '15px', borderRadius: '4px', textAlign: 'center', fontWeight: 'bold' }}>
-                  <div style={{ fontSize: '20px', color: '#CC0000', marginBottom: '5px' }}>
+                <div key={level} style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-soft)', padding: '15px', borderRadius: 8, textAlign: 'center', fontWeight: 'bold' }}>
+                  <div style={{ fontSize: '24px', color: 'var(--brand-500)', marginBottom: '4px' }}>
                     {questions.filter(q => q.cefr_level === level).length}
                   </div>
-                  <div>{level} Level</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 12, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{level} Level</div>
                 </div>
               ))}
             </div>
@@ -2543,9 +2573,9 @@ function TeacherDashboard({ user, onLogout }) {
           </div>
 
           <h3>Questions ({filteredQuestions.length})</h3>
-          <div style={{ maxHeight: '600px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
+          <div style={{ maxHeight: '600px', overflowY: 'auto', border: '1px solid var(--border-soft)', borderRadius: 6 }}>
             <table className="results-table">
-              <thead style={{ position: 'sticky', top: 0, backgroundColor: '#f5f5f5' }}>
+              <thead>
                 <tr>
                   <th>Question Text</th>
                   <th>Type</th>
@@ -3324,7 +3354,7 @@ function TeacherDashboard({ user, onLogout }) {
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
                 <button 
                   onClick={() => setSelectedQuestion(null)}
-                  style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer', backgroundColor: '#f5f5f5' }}
+                  style={{ padding: '10px 20px', border: '1px solid var(--border-soft)', borderRadius: '4px', cursor: 'pointer', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}
                 >
                   Cancel
                 </button>
