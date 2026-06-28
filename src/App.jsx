@@ -22,6 +22,16 @@ const styles = `
     --space-4: 16px;
     --space-5: 20px;
     --space-6: 24px;
+    /* Editorial palette — warm cream / brown for the brand chrome (header,
+       login). Matches the PLC house style; sits alongside the more functional
+       grey app palette without replacing it. */
+    --cream-50:  #faf5eb;
+    --cream-100: #f5ede0;
+    --cream-200: #ede1cc;
+    --ink-900:   #2d2218;
+    --ink-700:   #5b4a37;
+    --ink-500:   #8a7a64;
+    --serif: 'Cambria', 'Times New Roman', 'Hoefler Text', Georgia, serif;
   }
   [data-theme='dark'] {
     --bg-app: #0f172a;
@@ -30,13 +40,18 @@ const styles = `
     --text-muted: #9ca3af;
     --border-soft: #374151;
     --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.5);
+    --cream-50:  #1a130a;
+    --cream-100: #221a0e;
+    --cream-200: #2e2415;
+    --ink-900:   #f5ede0;
+    --ink-700:   #d4c7ad;
+    --ink-500:   #aa9a84;
   }
-  [data-theme='dark'] .login-brand-panel {
-    background: #111827;
-    border-right-color: #374151;
-  }
-  [data-theme='dark'] .brand-title { color: #f3f4f6; }
-  [data-theme='dark'] .brand-pill { background: #0b1220; color: #e5e7eb; border-color: #374151; }
+  /* .login-brand-panel inherits its dark colours from --cream-50 /
+     --cream-200 / --ink-900 via the [data-theme='dark'] variable block. */
+  /* brand-title and the old .brand-pill dark overrides removed — the new
+     editorial palette drives both via --ink-900 / --cream variables that
+     already flip per theme. */
   [data-theme='dark'] .login-box input,
   [data-theme='dark'] .login-box select {
     background: #111827;
@@ -61,49 +76,69 @@ const styles = `
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; background-color: var(--bg-app); color: var(--text-primary); }
   .app { min-height: 100vh; background-color: var(--bg-app); }
   .card-surface { background: var(--bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
-  /* Header: layered gradient + soft radial highlight + brand bottom border.
-     Designed to feel polished without going off-brand. */
+  /* Header — editorial / Premium Language Centre house style.
+     Cream background, refined serif wordmark on the left, small-caps org
+     label on the right, single thin rule at the bottom. Inspired by the
+     PLC Attendance sister app. */
   .header {
-    position: relative;
-    color: white;
-    padding: 14px 28px;
-    background:
-      radial-gradient(ellipse 600px 200px at 50% -40%, rgba(255, 255, 255, 0.22), transparent 60%),
-      linear-gradient(135deg, #d11a1a 0%, #b00404 45%, #8a0000 100%);
-    box-shadow: 0 4px 14px rgba(120, 0, 0, 0.35), inset 0 -1px 0 rgba(255, 215, 0, 0.45);
-    display: flex; align-items: center; justify-content: space-between; gap: 16px;
-    min-height: 76px;
-    overflow: hidden;
+    background: var(--cream-50);
+    color: var(--ink-900);
+    padding: 18px 32px;
+    border-bottom: 1px solid var(--cream-200);
+    display: flex; align-items: center; gap: 16px;
+    min-height: 78px;
   }
-  /* Soft texture overlay — subtle diagonal noise, brand-neutral */
-  .header::before {
-    content: ''; position: absolute; inset: 0; pointer-events: none;
-    background-image: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 40%);
-    mix-blend-mode: overlay;
-  }
-  .header-logo { height: 48px; width: auto; object-fit: contain; flex-shrink: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); position: relative; z-index: 1; }
-  .header-content { flex: 1; text-align: center; padding: 0; position: relative; z-index: 1; }
+  .header-logo { height: 44px; width: auto; object-fit: contain; flex-shrink: 0; }
+  .header-content { flex: 1; text-align: left; padding: 0; }
   .header h1 {
-    font-size: 28px;
-    margin: 0 0 2px 0;
-    letter-spacing: 0.04em;
-    font-weight: 800;
-    text-shadow: 0 1px 1px rgba(0,0,0,0.25);
+    font-family: var(--serif);
+    font-size: 30px;
+    line-height: 1;
+    margin: 0;
+    font-weight: 400;
+    letter-spacing: -0.005em;
+    color: var(--ink-900);
   }
+  .header h1 .wordmark-dot { color: var(--brand-500); margin: 0 1px; }
   .subtitle {
-    font-size: 11px; opacity: 0.92; margin: 0;
+    font-family: var(--serif);
+    font-size: 10px;
+    margin: 4px 0 0 0;
     letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-500);
     font-weight: 500;
   }
-  .header .theme-toggle { position: relative; z-index: 1; }
+  .header-meta {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+    font-family: var(--serif);
+    font-size: 11px;
+    color: var(--ink-700);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .header-meta .org-name { font-weight: 600; }
+  .header-meta .org-sub { color: var(--ink-500); }
+  .header .theme-toggle {
+    background: transparent;
+    border: 1px solid var(--cream-200);
+    color: var(--ink-700);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .header .theme-toggle:hover { background: var(--cream-100); }
   .login-container { display: flex; justify-content: center; align-items: center; min-height: calc(100vh - 120px); padding: 20px; }
   .login-shell { width: 100%; max-width: 980px; display: grid; grid-template-columns: 0.95fr 1.05fr; background: var(--bg-card); border-radius: 18px; box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); overflow: hidden; }
-  .login-brand-panel { background: linear-gradient(160deg, #fff5f5 0%, #fff 100%); border-right: 1px solid var(--border-soft); padding: 34px; display: flex; flex-direction: column; justify-content: center; gap: 18px; }
-  .brand-kicker { font-size: 12px; letter-spacing: 0.08em; color: #b91c1c; font-weight: 700; text-transform: uppercase; }
-  .brand-title { font-size: 34px; line-height: 1.15; color: #b91c1c; font-weight: 800; }
-  .brand-copy { font-size: 14px; line-height: 1.6; color: var(--text-muted); }
-  .brand-list { display: grid; gap: 10px; margin-top: 6px; }
-  .brand-pill { border: 1px solid #fecaca; color: #991b1b; background: #fff; border-radius: 999px; padding: 8px 12px; font-size: 12px; width: fit-content; }
+  .login-brand-panel { background: var(--cream-50); border-right: 1px solid var(--cream-200); padding: 42px 36px; display: flex; flex-direction: column; justify-content: center; gap: 18px; color: var(--ink-900); }
+  .brand-kicker { font-family: var(--serif); font-size: 10px; letter-spacing: 0.24em; color: var(--ink-500); font-weight: 600; text-transform: uppercase; }
+  .brand-title { font-family: var(--serif); font-size: 44px; line-height: 1; font-weight: 400; color: var(--ink-900); letter-spacing: -0.01em; margin: 0; }
+  .brand-title .wordmark-dot { color: var(--brand-500); margin: 0 2px; }
+  .brand-copy { font-size: 14px; line-height: 1.6; color: var(--ink-700); max-width: 360px; }
+  .brand-meta { font-family: var(--serif); font-size: 11px; letter-spacing: 0.18em; color: var(--ink-500); text-transform: uppercase; }
+  .brand-help { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--brand-500); text-decoration: none; border-bottom: 1px solid currentColor; padding-bottom: 1px; width: fit-content; }
+  .brand-help:hover { color: var(--brand-700); }
   .login-box { background: var(--bg-card); padding: 36px; width: 100%; max-height: 80vh; overflow-y: auto; }
   .login-box h1 { color: var(--brand-500); font-size: 24px; margin-bottom: 10px; }
   .auth-subtitle { font-size: 14px; color: var(--text-muted); margin: 0 0 20px 0; }
@@ -1153,17 +1188,17 @@ function LoginScreen({ onLogin }) {
             <img
               src={LOGO_URL}
               alt="Premium Language Centre"
-              style={{ width: '220px', maxWidth: '100%', height: 'auto', objectFit: 'contain', display: 'block', margin: '0 auto' }}
+              style={{ width: '160px', maxWidth: '100%', height: 'auto', objectFit: 'contain', display: 'block', marginBottom: 8 }}
             />
-            <div className="brand-title">CEFR Placement Test</div>
+            <div className="brand-kicker">{COMPANY_NAME} · Academic Office</div>
+            <h1 className="brand-title">place<span className="wordmark-dot">·</span>ment</h1>
             <div className="brand-copy">
-              Modern English placement with teacher-reviewed outcomes and a secure testing workflow.
+              A computer-adaptive English placement assessment used internally at Premium Language Centre to recommend an appropriate course level for incoming students. The test runs for about 20–30 minutes and covers grammar, vocabulary, reading, and listening. Your result is reviewed by a teacher before final placement is confirmed.
             </div>
-            <div className="brand-list">
-              <div className="brand-pill">Adaptive multi-skill assessment</div>
-              <div className="brand-pill">Approved history & retake controls</div>
-              <div className="brand-pill">Admin-managed enrollment</div>
-            </div>
+            <div className="brand-meta">≈ 30 questions · ≈ 25 minutes · CEFR A1 → C1+</div>
+            <a className="brand-help" href="mailto:test@premium.edu.my?subject=Placement%20Test%20%E2%80%94%20Help%20Request">
+              ✉ Need help? Email test@premium.edu.my
+            </a>
           </div>
 
           <div className="login-box">
@@ -1229,7 +1264,7 @@ function LoginScreen({ onLogin }) {
             <strong>© 2024 Premium Language Centre. All rights reserved.</strong>
           </p>
           <p style={{ margin: '10px 0', lineHeight: '1.6' }}>
-            This CEFR Placement Test is designed to assess English language proficiency and determine appropriate course levels. Results are confidential and used solely for educational placement purposes. By using this platform, you agree to maintain the integrity of the assessment and not share test content with others.
+            The place·ment platform is designed to assess English language proficiency and determine appropriate course levels at Premium Language Centre. Results are confidential and used solely for educational placement purposes. By using this platform, you agree to maintain the integrity of the assessment and not share test content with others.
           </p>
           <p style={{ margin: '10px 0', fontSize: '11px', color: '#999' }}>
             For questions or technical support, please contact: <strong>support@premium.edu.my</strong>
@@ -2154,19 +2189,21 @@ function TeacherDashboard({ user, onLogout }) {
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <button
                 onClick={() => setShowArchived(v => !v)}
-                title={showArchived ? 'Hide archived (default view)' : 'Show only archived attempts'}
+                title={showArchived ? 'Switch back to the active reviewed list' : 'Show only archived attempts'}
                 style={{
-                  padding: '6px 12px',
+                  padding: '3px 10px',
                   borderRadius: '999px',
                   border: `1px solid ${showArchived ? '#b91c1c' : 'var(--border-soft)'}`,
                   background: showArchived ? '#b91c1c' : 'transparent',
-                  color: showArchived ? '#fff' : 'var(--text-primary)',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
+                  color: showArchived ? '#fff' : 'var(--text-muted)',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  lineHeight: 1.6
                 }}
               >
-                {showArchived ? '📦 Archived' : '📦 Show archived'} ({archivedCount})
+                {showArchived ? 'Showing archived' : `Archived (${archivedCount})`}
               </button>
               <input className="dashboard-search" placeholder="Search by student, passport, or CEFR..." value={reviewedSearch} onChange={(e) => setReviewedSearch(e.target.value)} />
               <button className="approve-button" onClick={loadData} style={{ padding: '8px 14px', fontSize: '13px' }}>Refresh</button>
@@ -3829,18 +3866,22 @@ export default function App() {
   return (
     <div className="app">
       <div className="header">
-        <img 
-          src={LOGO_URL} 
-          alt="PLC Logo" 
-          className="header-logo" 
+        <img
+          src={LOGO_URL}
+          alt="PLC Logo"
+          className="header-logo"
           onError={(e) => {
             e.target.style.display = 'none';
             console.log('Logo failed to load from:', LOGO_URL);
-          }} 
+          }}
         />
         <div className="header-content">
-          <h1>CEFR Placement</h1>
-          <p className="subtitle">{COMPANY_NAME}</p>
+          <h1>place<span className="wordmark-dot">·</span>ment</h1>
+          <p className="subtitle">PLC · English Placement Test</p>
+        </div>
+        <div className="header-meta">
+          <span className="org-name">{COMPANY_NAME}</span>
+          <span className="org-sub">Academic Office</span>
         </div>
         <button className="theme-toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
           {theme === 'light' ? '🌙 Night' : '☀️ Day'}
