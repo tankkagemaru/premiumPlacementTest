@@ -779,6 +779,101 @@ function isC1Plus(level) {
   return level === 'C1+' || level === 'C1' || level === 'C2';
 }
 
+// === Teacher Report helpers (spec §10.2) ===========================
+// Used by the dashboard's review modal to render per-skill CEFR, diagnostic
+// recommendations, and CEFR can-do statements alongside the headline result.
+
+const CEFR_LEVEL_RANK = { A1: 1, A2: 2, B1: 3, B2: 4, 'C1+': 5, C1: 5, C2: 5 };
+
+// Same scoring algorithm as determineCEFRLevel, applied to a subset of
+// responses. Lets us compute a per-skill CEFR using the same rules.
+function scoreSubset(subset) {
+  const total = subset.length;
+  if (total === 0) return null;
+  const correctItems = subset.filter(r => r.is_correct);
+  const correct = correctItems.length;
+  const accuracy = correct / total;
+  const avgDifficulty = correctItems.length > 0
+    ? correctItems.reduce((s, r) => s + (Number(r.difficulty_at_time) || 1), 0) / correctItems.length
+    : 1;
+  const accuracyPenalty = accuracy >= 0.7 ? 0 : (0.7 - accuracy) * 4;
+  const abilityEstimate = Math.max(1, avgDifficulty - accuracyPenalty);
+
+  let cefr;
+  if (abilityEstimate < 2.5) cefr = 'A1';
+  else if (abilityEstimate < 4.0) cefr = 'A2';
+  else if (abilityEstimate < 5.5) cefr = 'B1';
+  else if (abilityEstimate < 7.5) cefr = 'B2';
+  else cefr = 'C1+';
+
+  // Accuracy caps (mirror determineCEFRLevel)
+  if (accuracy < 0.5 && CEFR_LEVEL_RANK[cefr] > 2) cefr = 'A2';
+  else if (accuracy < 0.6 && CEFR_LEVEL_RANK[cefr] > 3) cefr = 'B1';
+  else if (accuracy < 0.7 && CEFR_LEVEL_RANK[cefr] > 4) cefr = 'B2';
+
+  return { total, correct, accuracy, avgDifficulty, abilityEstimate, cefr };
+}
+
+function computePerSkillReport(responses, questionsBank) {
+  const skills = ['grammar', 'vocabulary', 'reading', 'listening'];
+  const out = {};
+  for (const skill of skills) {
+    const subset = responses.filter(r => {
+      const q = questionsBank.find(qb => qb.id === r.question_id);
+      return q?.skill === skill;
+    });
+    out[skill] = subset.length >= 3 ? scoreSubset(subset) : { total: subset.length, correct: subset.filter(r => r.is_correct).length, accuracy: 0, abilityEstimate: null, cefr: 'insufficient' };
+  }
+  return out;
+}
+
+// Recompute the un-capped CEFR purely from ability_estimate so we can tell
+// the teacher when an accuracy cap fired and changed the headline result.
+function uncappedCefrFromAbility(abilityEstimate) {
+  const a = Number(abilityEstimate);
+  if (!Number.isFinite(a)) return null;
+  if (a < 2.5) return 'A1';
+  if (a < 4.0) return 'A2';
+  if (a < 5.5) return 'B1';
+  if (a < 7.5) return 'B2';
+  return 'C1+';
+}
+
+function generateDiagnostic(perSkillReport, overallCefr) {
+  const scored = Object.entries(perSkillReport).filter(([_, d]) => d && d.cefr !== 'insufficient' && d.total >= 4);
+  if (scored.length === 0) {
+    return 'Per-skill diagnostic unavailable — not enough items per skill in this attempt.';
+  }
+  const sorted = [...scored].sort((a, b) => b[1].accuracy - a[1].accuracy);
+  const [strongName, strongData] = sorted[0];
+  const [weakName, weakData] = sorted[sorted.length - 1];
+  const gap = strongData.accuracy - weakData.accuracy;
+  const pct = (x) => Math.round(x * 100);
+
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  if (gap < 0.20) {
+    return `Student performs consistently across all four skills at the ${overallCefr} level. No single area stands out as a weakness; classroom placement should match the overall level without special focus.`;
+  }
+
+  // Special-case listening weakness — audio issues are a common cause and
+  // worth flagging to the teacher before they assume the result.
+  if (weakName === 'listening' && gap >= 0.30) {
+    return `${cap(strongName)} is the student's strongest area (${pct(strongData.accuracy)}%) and listening is markedly weaker (${pct(weakData.accuracy)}%). Recommend listening-strengthening focus in early weeks. Also verify the student's audio worked correctly — a large listening gap can mask a tech issue rather than a true ability gap.`;
+  }
+  return `${cap(strongName)} is the student's strongest area (${pct(strongData.accuracy)}%) and ${weakName} is the weakest (${pct(weakData.accuracy)}%). Recommend ${weakName}-focused practice in early weeks.`;
+}
+
+// Can-do statements per CEFR level — short paraphrase of the CEFR Companion
+// Volume (Council of Europe 2020) for student-facing narrative. Single
+// paragraph per level so the teacher can paste straight into a report.
+const CEFR_CAN_DO = {
+  A1:    'Can understand familiar everyday expressions and very basic phrases. Can introduce themselves and others, and ask and answer questions about personal details such as where they live, people they know, and things they have. Can interact in a simple way provided the other person speaks slowly and clearly.',
+  A2:    'Can understand sentences and frequently used expressions related to areas of most immediate relevance (basic personal and family information, shopping, local geography, employment). Can communicate in simple and routine tasks requiring a direct exchange of information on familiar topics.',
+  B1:    'Can understand the main points of clear standard input on familiar matters regularly encountered in work, school, leisure, etc. Can deal with most situations likely to arise while travelling. Can produce simple connected text on topics which are familiar or of personal interest.',
+  B2:    'Can understand the main ideas of complex text on both concrete and abstract topics, including technical discussions in their field of specialisation. Can interact with a degree of fluency and spontaneity that makes regular interaction with native speakers quite possible without strain for either party.',
+  'C1+': 'Can understand a wide range of demanding, longer texts, and recognise implicit meaning. Can express ideas fluently and spontaneously without much obvious searching for expressions. Can use language flexibly and effectively for social, academic, and professional purposes. Final placement at this level is confirmed by a short oral interview with the Academic Office.'
+};
+
 function formatTime(seconds) {
   const hrs = Math.floor(seconds / 3600);
   const mins = Math.floor((seconds % 3600) / 60);
@@ -3284,24 +3379,152 @@ function TeacherDashboard({ user, onLogout }) {
               )}
             </div>
 
-            {selectedResult.student_responses && (
-              <div className="modal-section">
-                <h3>Question Breakdown</h3>
-                {parseResponses(selectedResult.student_responses).map((response, idx) => {
-                  const question = questions.find(q => q.id === response.question_id);
-                  return (
-                    <div key={idx} className={`question-item ${response.is_correct ? 'question-correct' : 'question-wrong'}`}>
-                      <p><strong>Q{idx + 1}:</strong> {question?.question_text?.substring(0, 100)}...</p>
-                      <p><span className={response.is_correct ? 'correct-badge' : 'wrong-badge'}>
-                        {response.is_correct ? '✓ Correct' : '✗ Wrong'}
-                      </span></p>
-                      <p><strong>Student:</strong> {response.student_answer}</p>
-                      <p><strong>Correct:</strong> {question?.correct_answers?.[0]}</p>
+            {/* === Teacher Report (spec §10.2) =========================== */}
+            {selectedResult.student_responses && (() => {
+              const responses = parseResponses(selectedResult.student_responses);
+              const totalQ = responses.length;
+              const correctQ = responses.filter(r => r.is_correct).length;
+              const accuracy = totalQ > 0 ? correctQ / totalQ : 0;
+              const ability = Number(selectedResult.ability_estimate);
+              const cefr = selectedResult.determined_cefr_level;
+              const uncappedCefr = uncappedCefrFromAbility(ability);
+              const cappedFired = uncappedCefr && cefr && CEFR_LEVEL_RANK[cefr] < CEFR_LEVEL_RANK[uncappedCefr];
+              const perSkill = computePerSkillReport(responses, questions);
+              const diagnostic = generateDiagnostic(perSkill, cefr);
+              const canDo = CEFR_CAN_DO[cefr] || CEFR_CAN_DO[uncappedCefr];
+              const skillColors = {
+                grammar:    '#3b82f6',
+                vocabulary: '#8b5cf6',
+                reading:    '#f59e0b',
+                listening:  '#10b981'
+              };
+              const cefrSwatch = (c) => {
+                const map = { A1: '#94a3b8', A2: '#64748b', B1: '#3b82f6', B2: '#0ea5e9', 'C1+': '#b91c1c', insufficient: '#9ca3af' };
+                return map[c] || '#9ca3af';
+              };
+              const skillLabels = { grammar: 'Grammar', vocabulary: 'Vocabulary', reading: 'Reading', listening: 'Listening' };
+
+              return (
+                <>
+                  {/* Score breakdown */}
+                  <div className="modal-section">
+                    <h3>Score Breakdown</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 12 }}>
+                      <div style={{ padding: 12, border: '1px solid var(--border-soft)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Correct</div>
+                        <div style={{ fontSize: 22, fontWeight: 700, marginTop: 2 }}>{correctQ} / {totalQ}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{Math.round(accuracy * 100)}% accuracy</div>
+                      </div>
+                      <div style={{ padding: 12, border: '1px solid var(--border-soft)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Ability estimate</div>
+                        <div style={{ fontSize: 22, fontWeight: 700, marginTop: 2 }}>{Number.isFinite(ability) ? ability.toFixed(2) : '—'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>on a 1–10 scale</div>
+                      </div>
+                      <div style={{ padding: 12, border: '1px solid var(--border-soft)', borderRadius: 6 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>CEFR</div>
+                        <div style={{ fontSize: 22, fontWeight: 700, marginTop: 2, color: cefrSwatch(cefr) }}>{cefr || '—'}</div>
+                        {cappedFired && (
+                          <div style={{ fontSize: 11, color: '#b91c1c', marginTop: 2, fontWeight: 600 }}>capped from {uncappedCefr} (accuracy)</div>
+                        )}
+                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  </div>
+
+                  {/* Per-skill breakdown */}
+                  <div className="modal-section">
+                    <h3>Per-Skill Breakdown</h3>
+                    <div className="table-wrap">
+                      <table className="results-table" style={{ fontSize: 13 }}>
+                        <thead>
+                          <tr>
+                            <th>Skill</th>
+                            <th>Correct / Total</th>
+                            <th>Accuracy</th>
+                            <th>Avg difficulty<br/>(correct items)</th>
+                            <th>Est. CEFR</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(perSkill).map(([skill, data]) => {
+                            const isInsufficient = data?.cefr === 'insufficient';
+                            return (
+                              <tr key={skill}>
+                                <td>
+                                  <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 4, background: skillColors[skill], marginRight: 8, verticalAlign: 'middle' }} />
+                                  {skillLabels[skill]}
+                                </td>
+                                <td>{data?.correct ?? 0} / {data?.total ?? 0}</td>
+                                <td>{data && data.total > 0 ? `${Math.round((data.accuracy || 0) * 100)}%` : '—'}</td>
+                                <td>{Number.isFinite(data?.avgDifficulty) && data.avgDifficulty > 1 ? data.avgDifficulty.toFixed(1) : '—'}</td>
+                                <td>
+                                  {isInsufficient ? (
+                                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>insufficient</span>
+                                  ) : (
+                                    <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontWeight: 700, color: 'white', background: cefrSwatch(data?.cefr) }}>
+                                      {data?.cefr || '—'}
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Diagnostic recommendation + can-do statements */}
+                  <div className="modal-section">
+                    <h3>Diagnostic Recommendation</h3>
+                    <div className="note-info" style={{ marginBottom: 12 }}>
+                      {diagnostic}
+                    </div>
+                    {canDo && (
+                      <>
+                        <h4 style={{ fontSize: 13, margin: '12px 0 6px 0', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>What {cefr || uncappedCefr} students can typically do</h4>
+                        <p style={{ fontSize: 13, lineHeight: 1.5, margin: 0, padding: 12, background: 'var(--bg-app)', borderRadius: 6 }}>
+                          {canDo}
+                        </p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Question Breakdown (existing — extended with skill column) */}
+                  <div className="modal-section">
+                    <h3>Question Breakdown</h3>
+                    {responses.map((response, idx) => {
+                      const question = questions.find(q => q.id === response.question_id);
+                      const skillColor = skillColors[question?.skill] || '#9ca3af';
+                      return (
+                        <div key={idx} className={`question-item ${response.is_correct ? 'question-correct' : 'question-wrong'}`}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span className={response.is_correct ? 'correct-badge' : 'wrong-badge'}>
+                              {response.is_correct ? '✓' : '✗'} Q{idx + 1}
+                            </span>
+                            {question?.skill && (
+                              <span style={{ fontSize: 11, padding: '1px 8px', borderRadius: 4, background: skillColor, color: 'white', fontWeight: 600, textTransform: 'capitalize' }}>
+                                {question.skill}
+                              </span>
+                            )}
+                            {Number.isFinite(Number(response.difficulty_at_time)) && (
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>difficulty {Number(response.difficulty_at_time).toFixed(1)}</span>
+                            )}
+                            {Number.isFinite(Number(response.time_spent_seconds)) && (
+                              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>· {response.time_spent_seconds}s</span>
+                            )}
+                          </div>
+                          <p style={{ margin: '4px 0' }}><strong>Q:</strong> {question?.question_text || '(question not in current bank)'}</p>
+                          <p style={{ margin: '4px 0' }}><strong>Student:</strong> {response.student_answer}</p>
+                          {!response.is_correct && (
+                            <p style={{ margin: '4px 0' }}><strong>Correct:</strong> {question?.correct_answers?.[0]}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
 
             {isPending && (
               <>
