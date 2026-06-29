@@ -385,17 +385,29 @@ const styles = `
   }
 
   /* ====== PDF EXPORT (browser print-to-PDF) ====== */
-  /* A4 with comfortable margins; keeps the report on the page predictably. */
-  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+  /* A4 portrait, tight margins so the one-pager actually fits on one page. */
+  @page { size: A4 portrait; margin: 14mm 14mm 12mm 14mm; }
 
-  /* The PDF print header (logo + wordmark + date) lives in the JSX always
-     but is hidden in screen view. The @media print rule below shows it. */
+  /* PDF print header (logo + wordmark + date) is in the JSX permanently but
+     hidden in screen view. @media print shows it. */
   .pdf-only { display: none; }
 
   @media print {
-    /* Reset the modal overlay so it doesn't try to be a fixed dark sheet
-       on the printed page — instead the modal content flows like a doc. */
-    .modal-overlay {
+    /* === Strip the entire surrounding app === */
+    /* Hide every dashboard surface and any non-target modal. */
+    html, body, .app {
+      margin: 0 !important; padding: 0 !important;
+      height: auto !important; min-height: 0 !important;
+      background: white !important; overflow: visible !important;
+    }
+    .dashboard { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+    .header, .dashboard-header, .tabs, .tab-content,
+    .modal-overlay:not(.print-target) {
+      display: none !important;
+    }
+
+    /* === Show only the .print-target modal as a flowing document === */
+    .modal-overlay.print-target {
       position: static !important;
       background: white !important;
       display: block !important;
@@ -403,8 +415,9 @@ const styles = `
       align-items: initial !important;
       justify-content: initial !important;
       z-index: auto !important;
+      min-height: 0 !important;
     }
-    .modal {
+    .modal-overlay.print-target .modal {
       position: static !important;
       max-width: 100% !important;
       max-height: none !important;
@@ -415,60 +428,78 @@ const styles = `
       width: 100% !important;
       background: white !important;
     }
-    /* Hide everything not in the printed report */
-    body * { visibility: hidden; }
-    .modal, .modal * { visibility: visible; }
-    .no-print, .no-print * { display: none !important; visibility: hidden !important; }
-    .pdf-only { display: block !important; visibility: visible !important; }
 
-    /* Force colour fidelity in print (badges, chips, status colours) */
+    /* In-modal chrome — close button, action buttons, etc. */
+    .no-print, .no-print * { display: none !important; }
+    /* Show the print-only header */
+    .pdf-only { display: block !important; }
+
+    /* Colour fidelity for chips / badges / accent dots */
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 
-    /* Keep logical units together across pages */
-    .modal-section { page-break-inside: avoid; }
-    .question-item { page-break-inside: avoid; page-break-after: auto; }
+    /* Compact spacing for one-page fit */
+    .modal h2 {
+      font-family: 'Cambria', 'Times New Roman', Georgia, serif;
+      color: #2d2218 !important;
+      font-size: 16px !important;
+      margin: 0 0 8px 0 !important;
+      font-weight: 400;
+    }
+    .modal-section { margin-bottom: 10px !important; }
+    .modal-section h3 {
+      font-size: 10px !important;
+      letter-spacing: 0.16em !important;
+      margin: 0 0 6px 0 !important;
+    }
+    .modal p { margin: 1px 0 !important; font-size: 11px !important; }
 
-    /* Editorial PDF header — shown only when printing */
+    /* PDF header — editorial brand bar at the top of the page */
     .pdf-header {
       display: flex !important;
       align-items: center;
-      gap: 14px;
-      padding-bottom: 14px;
-      margin-bottom: 20px;
-      border-bottom: 2px solid #2d2218;
+      gap: 12px;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      border-bottom: 1.5px solid #2d2218;
     }
-    .pdf-header img { height: 52px; width: auto; }
-    .pdf-header .pdf-wordmark { display: flex; flex-direction: column; gap: 4px; }
+    .pdf-header img { height: 38px; width: auto; }
+    .pdf-header .pdf-wordmark { display: flex; flex-direction: column; gap: 2px; }
     .pdf-header .pdf-title {
       font-family: 'Cambria', 'Times New Roman', Georgia, serif;
-      font-size: 28px; font-weight: 400; margin: 0; color: #2d2218;
-      letter-spacing: -0.01em;
+      font-size: 22px; font-weight: 400; margin: 0; color: #2d2218;
+      letter-spacing: -0.01em; line-height: 1;
     }
     .pdf-header .pdf-title .wordmark-dot { color: #CC0000; }
     .pdf-header .pdf-sub {
       font-family: 'Cambria', 'Times New Roman', Georgia, serif;
-      font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
+      font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase;
       color: #8a7a64; margin: 0;
     }
     .pdf-header .pdf-meta {
       margin-left: auto; text-align: right;
       font-family: 'Cambria', 'Times New Roman', Georgia, serif;
-      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
-      color: #5b4a37; line-height: 1.6;
+      font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: #5b4a37; line-height: 1.5;
     }
 
-    /* Modal h2 should still be visible and well-styled in print */
-    .modal h2 {
-      font-family: 'Cambria', 'Times New Roman', Georgia, serif;
-      color: #2d2218 !important;
-      font-size: 20px;
-      margin: 0 0 16px 0;
+    /* Tighter results table */
+    .results-table { font-size: 10px; }
+    .results-table th, .results-table td { padding: 4px 7px; }
+    .results-table th { font-size: 9px !important; letter-spacing: 0.1em !important; }
+
+    /* Tighter score-breakdown stat cards */
+    .modal-section [style*='gridTemplateColumns'] > div {
+      padding: 8px !important;
+    }
+    .modal-section [style*='gridTemplateColumns'] div[style*='fontSize: 22px'],
+    .modal-section [style*='gridTemplateColumns'] div[style*='fontSize:22px'] {
+      font-size: 18px !important;
     }
 
-    /* Slight tightening of the report body for print density */
-    .modal-section { margin-bottom: 16px; }
-    .results-table { font-size: 11px; }
-    .results-table th, .results-table td { padding: 6px 8px; }
+    /* Inline note boxes (capped-from message, diagnostic, can-do) compact */
+    .note-warning, .note-info {
+      padding: 6px 10px !important; font-size: 11px !important; margin: 0 0 8px 0 !important;
+    }
   }
   @media (max-width: 900px) {
     .login-shell { grid-template-columns: 1fr; }
@@ -3654,7 +3685,7 @@ function TeacherDashboard({ user, onLogout }) {
         const isPending = statusOf(selectedResult) === 'pending';
         const submittedDate = selectedResult.submitted_at || selectedResult.reviewed_at;
         return (
-        <div className="modal-overlay" onClick={() => setSelectedResult(null)}>
+        <div className="modal-overlay print-target" onClick={() => setSelectedResult(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '960px', width: '95%' }}>
             {/* PDF print header — hidden on screen, shown only in @media print */}
             <div className="pdf-header pdf-only">
@@ -3862,8 +3893,9 @@ function TeacherDashboard({ user, onLogout }) {
                     )}
                   </div>
 
-                  {/* Question Breakdown (existing — extended with skill column) */}
-                  <div className="modal-section">
+                  {/* Question Breakdown — on-screen only, excluded from the
+                      A4 PDF report to keep it strictly one-page. */}
+                  <div className="modal-section no-print">
                     <h3>Question Breakdown</h3>
                     {responses.map((response, idx) => {
                       const question = questions.find(q => q.id === response.question_id);
