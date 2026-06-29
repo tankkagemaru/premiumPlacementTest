@@ -377,11 +377,98 @@ const styles = `
   .approve-button { padding: 10px 20px; background-color: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px; }
   .approve-button:hover { background-color: #45a049; }
   .textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; font-family: inherit; min-height: 80px; }
-  @media (max-width: 600px) { 
+  @media (max-width: 600px) {
     .options { grid-template-columns: 1fr; }
     .info-grid { grid-template-columns: 1fr; }
     .test-header { flex-direction: column; gap: 15px; }
     .dashboard-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+  }
+
+  /* ====== PDF EXPORT (browser print-to-PDF) ====== */
+  /* A4 with comfortable margins; keeps the report on the page predictably. */
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+
+  /* The PDF print header (logo + wordmark + date) lives in the JSX always
+     but is hidden in screen view. The @media print rule below shows it. */
+  .pdf-only { display: none; }
+
+  @media print {
+    /* Reset the modal overlay so it doesn't try to be a fixed dark sheet
+       on the printed page — instead the modal content flows like a doc. */
+    .modal-overlay {
+      position: static !important;
+      background: white !important;
+      display: block !important;
+      padding: 0 !important;
+      align-items: initial !important;
+      justify-content: initial !important;
+      z-index: auto !important;
+    }
+    .modal {
+      position: static !important;
+      max-width: 100% !important;
+      max-height: none !important;
+      overflow: visible !important;
+      box-shadow: none !important;
+      border: none !important;
+      padding: 0 !important;
+      width: 100% !important;
+      background: white !important;
+    }
+    /* Hide everything not in the printed report */
+    body * { visibility: hidden; }
+    .modal, .modal * { visibility: visible; }
+    .no-print, .no-print * { display: none !important; visibility: hidden !important; }
+    .pdf-only { display: block !important; visibility: visible !important; }
+
+    /* Force colour fidelity in print (badges, chips, status colours) */
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+    /* Keep logical units together across pages */
+    .modal-section { page-break-inside: avoid; }
+    .question-item { page-break-inside: avoid; page-break-after: auto; }
+
+    /* Editorial PDF header — shown only when printing */
+    .pdf-header {
+      display: flex !important;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 14px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #2d2218;
+    }
+    .pdf-header img { height: 52px; width: auto; }
+    .pdf-header .pdf-wordmark { display: flex; flex-direction: column; gap: 4px; }
+    .pdf-header .pdf-title {
+      font-family: 'Cambria', 'Times New Roman', Georgia, serif;
+      font-size: 28px; font-weight: 400; margin: 0; color: #2d2218;
+      letter-spacing: -0.01em;
+    }
+    .pdf-header .pdf-title .wordmark-dot { color: #CC0000; }
+    .pdf-header .pdf-sub {
+      font-family: 'Cambria', 'Times New Roman', Georgia, serif;
+      font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase;
+      color: #8a7a64; margin: 0;
+    }
+    .pdf-header .pdf-meta {
+      margin-left: auto; text-align: right;
+      font-family: 'Cambria', 'Times New Roman', Georgia, serif;
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: #5b4a37; line-height: 1.6;
+    }
+
+    /* Modal h2 should still be visible and well-styled in print */
+    .modal h2 {
+      font-family: 'Cambria', 'Times New Roman', Georgia, serif;
+      color: #2d2218 !important;
+      font-size: 20px;
+      margin: 0 0 16px 0;
+    }
+
+    /* Slight tightening of the report body for print density */
+    .modal-section { margin-bottom: 16px; }
+    .results-table { font-size: 11px; }
+    .results-table th, .results-table td { padding: 6px 8px; }
   }
   @media (max-width: 900px) {
     .login-shell { grid-template-columns: 1fr; }
@@ -3569,7 +3656,33 @@ function TeacherDashboard({ user, onLogout }) {
         return (
         <div className="modal-overlay" onClick={() => setSelectedResult(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '960px', width: '95%' }}>
-            <button className="modal-close" onClick={() => setSelectedResult(null)}>×</button>
+            {/* PDF print header — hidden on screen, shown only in @media print */}
+            <div className="pdf-header pdf-only">
+              <img src={LOGO_URL} alt="PLC Logo" />
+              <div className="pdf-wordmark">
+                <h1 className="pdf-title">place<span className="wordmark-dot">·</span>ment</h1>
+                <p className="pdf-sub">Premium Language Centre · Placement Report</p>
+              </div>
+              <div className="pdf-meta">
+                <div>Generated</div>
+                <div>{new Date().toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+              </div>
+            </div>
+            <button className="modal-close no-print" onClick={() => setSelectedResult(null)}>×</button>
+            <button
+              className="no-print"
+              onClick={() => window.print()}
+              title="Open the browser print dialog — choose 'Save as PDF' as the destination to download an A4 report"
+              style={{
+                position: 'absolute', top: 20, right: 60,
+                padding: '6px 12px', borderRadius: 6,
+                border: '1px solid var(--border-soft)',
+                background: 'var(--bg-app)', color: 'var(--text-primary)',
+                cursor: 'pointer', fontSize: 12, fontWeight: 500
+              }}
+            >
+              📄 Export to PDF
+            </button>
             <h2>{isPending ? 'Review Student Result' : 'Attempt Details'}</h2>
 
             <div className="modal-section">
@@ -3787,7 +3900,7 @@ function TeacherDashboard({ user, onLogout }) {
             })()}
 
             {isPending && (
-              <>
+              <div className="no-print">
                 <div className="modal-section">
                   <h3>Teacher Comment</h3>
                   <textarea
@@ -3825,7 +3938,7 @@ function TeacherDashboard({ user, onLogout }) {
                     {rejecting ? 'Rejecting...' : 'Reject & Email Student'}
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         </div>
