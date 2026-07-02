@@ -1537,7 +1537,18 @@ function StudentTest({ user, onComplete }) {
 
   const handleAnswer = async (selectedAnswer) => {
     if (!currentQuestion || !questionStartTime) return;
-    
+
+    // Defensive: stop any playing audio (listening items) before advancing.
+    // The audio element is also keyed by question id so it will remount
+    // and reset on question change, but stopping explicitly here prevents
+    // any brief overlap during React's commit phase.
+    try {
+      document.querySelectorAll('audio').forEach(el => {
+        el.pause();
+        el.currentTime = 0;
+      });
+    } catch { /* ignore */ }
+
     const isCorrect = currentQuestion.correct_answers?.includes(selectedAnswer);
     const now = Date.now();
     const timeSpentMs = now - questionStartTime;
@@ -1909,9 +1920,18 @@ function StudentTest({ user, onComplete }) {
       <div className="question-box notranslate" translate="no" onCopy={(e) => { e.preventDefault(); return false; }} onCut={(e) => { e.preventDefault(); return false; }} style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none' }}>
         <h3 style={{ pointerEvents: 'none' }} className="notranslate" translate="no">{currentQuestion.question_text}</h3>
         {currentQuestion.audio_url && (
-          <audio controls style={{ width: '100%', marginBottom: '20px' }}>
-            <source src={currentQuestion.audio_url} type="audio/wav" />
-          </audio>
+          /* key by question id: forces React to fully unmount + remount the
+             audio element on every question change. Without this, React
+             reuses the same <audio> DOM node across questions and (a) the
+             previous clip keeps playing over the new question, (b) picking
+             an answer doesn't stop the audio. */
+          <audio
+            key={currentQuestion.id}
+            controls
+            src={currentQuestion.audio_url}
+            preload="auto"
+            style={{ width: '100%', marginBottom: '20px' }}
+          />
         )}
         {currentQuestion.passage && currentQuestion.skill !== 'listening' && !currentQuestion.audio_url && <div className="passage notranslate" translate="no" style={{ userSelect: 'none', WebkitUserSelect: 'none', MozUserSelect: 'none', msUserSelect: 'none', pointerEvents: 'none' }}><p>{currentQuestion.passage}</p></div>}
         <div className="options">
