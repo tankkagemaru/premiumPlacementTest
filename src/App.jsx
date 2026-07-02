@@ -187,16 +187,72 @@ const styles = `
   .auth-chip { border: none; background: transparent; padding: 8px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; color: #6b7280; cursor: pointer; }
   .auth-chip.active { background: #fff; color: #b91c1c; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
   .link-button { background: none; border: none; color: #CC0000; cursor: pointer; text-decoration: underline; margin-left: 5px; }
-  .test-screen { max-width: 900px; margin: 0 auto; padding: 20px; }
-  .test-header { background: var(--bg-card); padding: 15px; border-radius: var(--radius-md); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
-  .progress-tracker { flex: 1; }
-  .progress-title { font-size: 12px; color: #666; font-weight: bold; margin-bottom: 8px; }
-  .progress-bar { background-color: #e0e0e0; border-radius: 10px; height: 30px; overflow: hidden; margin-bottom: 5px; }
-  .progress-fill { background: linear-gradient(90deg, #4caf50 0%, #45a049 100%); height: 100%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold; }
-  .progress-text { font-size: 13px; color: #333; font-weight: bold; }
-  .timer-box { background-color: #fff9e6; border: 2px solid #ffc107; padding: 12px 20px; border-radius: 6px; text-align: center; }
-  .timer-label { font-size: 11px; color: #ff9800; font-weight: bold; margin-bottom: 3px; }
-  .timer-display { font-size: 24px; font-weight: bold; color: #cc6600; font-family: 'Courier New', monospace; }
+  .test-screen { max-width: 920px; margin: 0 auto; padding: 24px 20px 60px; }
+
+  /* Test header — editorial band with progress on the left, timer on the right */
+  .test-header {
+    background: var(--bg-card);
+    padding: 20px 24px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 32px;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--border-soft);
+  }
+  .progress-tracker { flex: 1; min-width: 0; }
+  .progress-title {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  .progress-bar {
+    background: var(--cream-100);
+    border-radius: 999px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .progress-fill {
+    background: linear-gradient(90deg, var(--brand-500), var(--brand-700));
+    height: 100%;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    color: transparent; /* number rendered in progress-text below instead */
+  }
+  .progress-text {
+    font-family: var(--serif);
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 400;
+  }
+  .timer-box {
+    background: transparent;
+    border: 1px solid var(--border-soft);
+    padding: 10px 18px;
+    border-radius: 8px;
+    text-align: right;
+    min-width: 130px;
+  }
+  .timer-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .timer-display {
+    font-size: 24px;
+    color: var(--text-primary);
+    font-family: var(--serif);
+    font-weight: 400;
+    letter-spacing: 0;
+  }
   .test-intro { background: var(--bg-card); padding: 40px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); text-align: center; }
   .test-intro h1 { color: var(--brand-500); margin-bottom: 20px; }
   .description { color: var(--text-muted); margin-bottom: 30px; line-height: 1.6; }
@@ -205,17 +261,121 @@ const styles = `
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
   .info-grid div { padding: 8px; font-size: 14px; }
   .disclaimer { color: #999; font-size: 12px; margin-top: 20px; }
-  .question-box { background: var(--bg-card); padding: 30px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
-  .question-box h3 { margin-bottom: 20px; color: #333; line-height: 1.6; }
-  .passage { background-color: var(--cream-50); padding: 15px; border-left: 4px solid #CC0000; margin-bottom: 20px; font-size: 14px; line-height: 1.6; color: var(--text-primary); }
-  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .option-button { padding: 12px; border: 2px solid #ddd; background: white; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.3s; }
-  .option-button:hover { border-color: #CC0000; background-color: #fff5f5; }
-  .results { background: var(--bg-card); padding: 40px; border-radius: var(--radius-md); box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); text-align: center; }
-  .results h2 { margin-bottom: 30px; color: var(--text-primary); }
-  .pending-box { background-color: #fff9e6; border: 2px solid #ffc107; padding: 30px; border-radius: 4px; margin-bottom: 30px; }
-  .pending-box h3 { color: #ff9800; margin-bottom: 15px; font-size: 20px; }
-  .pending-box p { color: #666; margin-bottom: 10px; line-height: 1.6; }
+  .question-box {
+    background: var(--bg-card);
+    padding: 36px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--border-soft);
+  }
+  .question-box h3 {
+    font-family: var(--serif);
+    margin-bottom: 24px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: -0.005em;
+  }
+  .passage {
+    background: var(--cream-50);
+    padding: 20px 22px;
+    border-left: 3px solid var(--brand-500);
+    border-radius: 4px;
+    margin-bottom: 24px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-primary);
+  }
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .option-button {
+    padding: 16px 20px;
+    border: 1px solid var(--border-soft);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+    font-family: inherit;
+    text-align: left;
+    line-height: 1.4;
+    transition: border-color 0.15s, background-color 0.15s, transform 0.05s;
+  }
+  .option-button:hover {
+    border-color: var(--brand-500);
+    background: var(--cream-50);
+  }
+  .option-button:active { transform: scale(0.99); }
+  .results {
+    background: var(--bg-card);
+    padding: 48px 40px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--border-soft);
+    text-align: center;
+    max-width: 620px;
+    margin: 0 auto;
+  }
+  .results-kicker {
+    font-family: var(--serif);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .results h2 {
+    font-family: var(--serif);
+    font-size: 30px;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+    font-weight: 400;
+    margin-bottom: 12px;
+  }
+  .results-lede {
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.65;
+    max-width: 460px;
+    margin: 0 auto;
+  }
+  /* Ghost button — secondary action next to primary-button. Neutral,
+     borderless-ish, so the primary CTA stays visually dominant. */
+  .ghost-button {
+    padding: 11px 22px;
+    border: 1px solid var(--border-soft);
+    background: transparent;
+    color: var(--text-primary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 500;
+    transition: background-color 0.15s, border-color 0.15s;
+  }
+  .ghost-button:hover { background: var(--cream-50); border-color: var(--text-muted); }
+  /* Spinner used on the "submitting" screen */
+  @keyframes plc-spin { to { transform: rotate(360deg); } }
+  /* Legacy .pending-box kept for other screens that still use it. */
+  .pending-box {
+    background: var(--cream-50);
+    border: 1px solid var(--cream-200);
+    border-left: 3px solid #f59e0b;
+    padding: 24px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    text-align: left;
+  }
+  .pending-box h3 {
+    color: #92400e;
+    margin-bottom: 12px;
+    font-family: var(--serif);
+    font-weight: 400;
+    font-size: 20px;
+  }
+  .pending-box p { color: var(--text-muted); margin-bottom: 10px; line-height: 1.6; }
   .dashboard { max-width: 1200px; margin: 0 auto; padding: 20px; }
   .dashboard-header { display: flex; justify-content: space-between; align-items: center; background: var(--bg-card); padding: 20px; border-radius: var(--radius-md); margin-bottom: 20px; box-shadow: var(--shadow-soft); border: 1px solid var(--border-soft); }
   .dashboard-header h1 {
@@ -1665,6 +1825,22 @@ function StudentTest({ user, onComplete }) {
     }
   };
 
+  // Return to the student portal (intro screen) without signing out.
+  // Reload attempt history first so the new pending attempt shows up.
+  const returnToPortal = async () => {
+    try {
+      const data = await api.getStudentAttempts(user.id);
+      setAttempts(data || []);
+    } catch { /* ignore */ }
+    setTestStarted(false);
+    setTestState('intro');
+    setUserResponses([]);
+    setCurrentQuestion(null);
+    setQuestionsBank([]);
+    setElapsedTime(0);
+    setError('');
+  };
+
   const progressPercentage = (userResponses.length / 30) * 100;
 
   if (!testStarted) {
@@ -1834,14 +2010,13 @@ function StudentTest({ user, onComplete }) {
     return (
       <div className="test-screen">
         <div className="results">
-          <h2>Submitting your answers…</h2>
-          <div className="pending-box">
-            <h3>⏳ Saving your test</h3>
-            <p>Please keep this tab open. Your answers are being sent to the server.</p>
-            <p style={{ marginTop: '20px', fontSize: '12px', color: '#999' }}>
-              If this takes more than 30 seconds, do not refresh — we will fall back to a retry screen automatically.
-            </p>
-          </div>
+          <div className="results-kicker">place·ment · submitting</div>
+          <h2>Saving your test…</h2>
+          <p className="results-lede">Please keep this tab open while we send your answers to the server. This usually takes a few seconds.</p>
+          <div style={{ margin: '32px auto 0', width: 40, height: 40, borderRadius: '50%', border: '3px solid var(--cream-200)', borderTopColor: 'var(--brand-500)', animation: 'plc-spin 0.9s linear infinite' }} />
+          <p style={{ marginTop: 24, fontSize: 12, color: 'var(--text-muted)' }}>
+            If this takes more than 30 seconds, do not refresh — we will fall back to a retry screen automatically.
+          </p>
         </div>
       </div>
     );
@@ -1851,24 +2026,22 @@ function StudentTest({ user, onComplete }) {
     return (
       <div className="test-screen">
         <div className="results">
+          <div className="results-kicker" style={{ color: '#b91c1c' }}>place·ment · submission failed</div>
           <h2>We could not save your test</h2>
-          <div className="error-message" style={{ marginBottom: 16 }}>
-            <strong>Your answers were NOT saved to the server.</strong> Your responses are still stored locally on this device. Please do not close this tab.
+          <div className="note-warning" style={{ textAlign: 'left', marginTop: 24 }}>
+            <strong>Your answers were NOT saved to the server</strong> — but they are still stored locally on this device. Please do not close this tab until the retry succeeds.
             {submitErrorMessage && (
               <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>Technical detail: {submitErrorMessage}</div>
             )}
           </div>
-          <p style={{ marginBottom: 16 }}>
-            Click <strong>Try again</strong> to retry the submission. If it fails repeatedly, please take a screenshot of this page and tell your teacher — they can recover your test from this device.
+          <p className="results-lede" style={{ marginTop: 20 }}>
+            Click <strong>Try again</strong> to retry the submission. If it keeps failing, please take a screenshot of this page and show your teacher — they can recover your test from this device.
           </p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <button className="primary-button" onClick={retryPendingSubmit}>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 28, flexWrap: 'wrap' }}>
+            <button className="primary-button" onClick={retryPendingSubmit} style={{ width: 'auto', padding: '12px 28px' }}>
               Try again
             </button>
-            <button
-              onClick={() => onComplete()}
-              style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 4, background: 'transparent', cursor: 'pointer' }}
-            >
+            <button className="ghost-button" onClick={() => onComplete()}>
               Sign out (keep responses on this device)
             </button>
           </div>
@@ -1881,15 +2054,20 @@ function StudentTest({ user, onComplete }) {
     return (
       <div className="test-screen">
         <div className="results">
-          <h2>Assessment Complete</h2>
-          <div className="pending-box">
-            <h3>⏳ Pending Teacher Approval</h3>
-            <p>Your test has been submitted and is awaiting review from your instructor.</p>
-            <p style={{ marginTop: '20px', fontSize: '12px', color: '#999' }}>
-              Your instructor will review your answers and send you detailed results via email once approved.
-            </p>
+          <div className="results-kicker" style={{ color: '#166534' }}>place·ment · complete</div>
+          <h2>Assessment submitted</h2>
+          <p className="results-lede">Your responses have been saved and your teacher has been notified. You'll receive an email once the result is approved.</p>
+          <div className="note-info" style={{ textAlign: 'left', marginTop: 24 }}>
+            <strong>Next step:</strong> a teacher at Premium Language Centre will review your attempt and confirm your CEFR level. Approved results are emailed automatically, and you can also check your Attempts history in your portal at any time.
           </div>
-          <button className="primary-button" onClick={() => onComplete()}>Sign Out</button>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 28, flexWrap: 'wrap' }}>
+            <button className="primary-button" onClick={returnToPortal} style={{ width: 'auto', padding: '12px 28px' }}>
+              Back to my portal
+            </button>
+            <button className="ghost-button" onClick={() => onComplete()}>
+              Sign out
+            </button>
+          </div>
         </div>
       </div>
     );
