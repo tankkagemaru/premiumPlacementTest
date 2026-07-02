@@ -89,9 +89,18 @@ app.use(express.static(buildDir, {
   }
 }));
 
-// Any non-/api path that didn't match a file falls through to index.html
-// so client-side routing works.
-app.get(/^\/(?!api\/).*/, (req, res) => {
+// SPA fallback — any GET request that didn't match an API route or a static
+// file falls through to index.html so client-side React Router works.
+// Uses an explicit string prefix check instead of a regex so there's no
+// chance of accidentally catching /api/* requests.
+app.use((req, res, next) => {
+  if (req.method !== 'GET') return next();
+  if (req.path.startsWith('/api/')) {
+    // If we got here it means no API route matched — return a proper 404
+    // instead of the React index.html so the client can distinguish a
+    // missing endpoint from a rendering issue.
+    return res.status(404).json({ error: `No API route registered for ${req.path}` });
+  }
   res.sendFile(path.join(buildDir, 'index.html'));
 });
 
