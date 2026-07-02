@@ -1,0 +1,6 @@
+{
+  "$schema": "https://schema.zeabur.app/zbpack.json",
+  "build_command": "npm install && npm run build",
+  "start_command": "node server.mjs",
+  "framework": "node"
+}
