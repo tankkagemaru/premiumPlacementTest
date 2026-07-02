@@ -73,6 +73,7 @@ mount('/api/admin-users',                   import('./api/admin-users.js'));
 mount('/api/admin-create-student',         import('./api/admin-create-student.js'));
 mount('/api/admin-delete-attempt',         import('./api/admin-delete-attempt.js'));
 mount('/api/admin-archive-attempt',        import('./api/admin-archive-attempt.js'));
+mount('/api/admin-student-preview',        import('./api/admin-student-preview.js'));
 mount('/api/runtime-config',                import('./api/runtime-config.js'));
 
 // ---- Static React build + SPA fallback --------------------------------

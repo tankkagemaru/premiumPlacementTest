@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
 const SUPABASE_URL = process.env.REACT_APP_SUPABASE_URL || process.env.SUPABASE_URL || 'https://nitxboxvkktcgkkkbrec.supabase.co';
 const SUPABASE_KEY = process.env.REACT_APP_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
@@ -1027,6 +1027,17 @@ const api = {
     if (!response.ok) throw new Error(data?.error || 'Unable to create students.');
     return data.results || [];
   },
+  async adminStudentPreview(studentUserId) {
+    const token = localStorage.getItem('sb-token');
+    const response = await fetch('/api/admin-student-preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ studentUserId })
+    });
+    const data = await this.parseResponse(response);
+    if (!response.ok) throw new Error(data?.error || 'Unable to load student preview.');
+    return data;
+  },
   async adminSetArchive(attemptId, archived) {
     const token = localStorage.getItem('sb-token');
     const response = await fetch('/api/admin-archive-attempt', {
@@ -1695,13 +1706,28 @@ function StudentTest({ user, onComplete }) {
     if (testStarted && questionsBank.length === 0) loadQuestions();
   }, [testStarted, questionsBank.length, loadQuestions]);
 
+  // Ref-based lock — React state updates are async and batched, so between
+  // rapid clicks the `currentQuestion` React state can still point at the
+  // last question. Without a synchronous lock the student can submit the
+  // same question 2-3 times before React commits the next one, showing the
+  // same audio/question repeatedly and messing up the response record.
+  const advancingRef = useRef(false);
+  // Release the lock the moment React commits the next question. If for any
+  // reason the lock is stuck (submit path etc.), a safety timeout below
+  // clears it after 1.5s so the student is never permanently blocked.
+  useEffect(() => { advancingRef.current = false; }, [currentQuestion?.id]);
+  useEffect(() => {
+    if (!advancingRef.current) return;
+    const t = setTimeout(() => { advancingRef.current = false; }, 1500);
+    return () => clearTimeout(t);
+  });
+
   const handleAnswer = async (selectedAnswer) => {
+    if (advancingRef.current) return;         // second click while we're advancing → drop
     if (!currentQuestion || !questionStartTime) return;
+    advancingRef.current = true;
 
     // Defensive: stop any playing audio (listening items) before advancing.
-    // The audio element is also keyed by question id so it will remount
-    // and reset on question change, but stopping explicitly here prevents
-    // any brief overlap during React's commit phase.
     try {
       document.querySelectorAll('audio').forEach(el => {
         el.pause();
@@ -1932,22 +1958,35 @@ function StudentTest({ user, onComplete }) {
                         : status === 'rejected' ? 'status-chip rejected'
                         : 'status-chip pending';
                       const date = a.reviewed_at || a.submitted_at;
+                      // Students only see score / CEFR / breakdown once the
+                      // teacher has approved the attempt. Pending and rejected
+                      // attempts show "—" to avoid setting expectations before
+                      // the teacher confirms the result.
+                      const resultVisible = status === 'approved';
                       return (
                         <tr key={a.id}>
                           <td>{a.attempt_no}</td>
                           <td>{date ? new Date(date).toLocaleDateString() : '—'}</td>
-                          <td>{a.overall_score?.toFixed?.(1) || a.overall_score}%</td>
+                          <td>{resultVisible ? `${a.overall_score?.toFixed?.(1) || a.overall_score}%` : '—'}</td>
                           <td>
-                            {a.determined_cefr_level}
-                            {isC1Plus(a.determined_cefr_level) && (
-                              <span style={{ display: 'inline-block', marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#fff9e6', color: '#5a4604', border: '1px solid #ffc107' }} title="Oral interview required per placement policy">
-                                INTERVIEW
-                              </span>
-                            )}
+                            {resultVisible ? (
+                              <>
+                                {a.determined_cefr_level}
+                                {isC1Plus(a.determined_cefr_level) && (
+                                  <span style={{ display: 'inline-block', marginLeft: 6, padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 700, background: '#fff9e6', color: '#5a4604', border: '1px solid #ffc107' }} title="Oral interview required per placement policy">
+                                    INTERVIEW
+                                  </span>
+                                )}
+                              </>
+                            ) : '—'}
                           </td>
                           <td><span className={chipClass} style={{ textTransform: 'capitalize' }}>{a.status}</span></td>
                           <td style={{ textAlign: 'center' }}>{a.official_for_placement ? '⭐' : ''}</td>
-                          <td><button className="link-button" onClick={() => setSelectedAttemptReview(a)}>View</button></td>
+                          <td>
+                            {resultVisible
+                              ? <button className="link-button" onClick={() => setSelectedAttemptReview(a)}>View</button>
+                              : <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>—</span>}
+                          </td>
                         </tr>
                       );
                     })}
@@ -2206,6 +2245,8 @@ function TeacherDashboard({ user, onLogout }) {
   const [resetLinkModal, setResetLinkModal] = useState(null); // { email, link } when open
   const [resetLinkBusy, setResetLinkBusy] = useState(false);
   const [adminToast, setAdminToast] = useState(null); // { tone, text }
+  const [previewStudent, setPreviewStudent] = useState(null); // { user, student, attempts } | null | 'loading'
+  const [previewBusy, setPreviewBusy] = useState(false);
 
   // Auto-dismiss toast after 4 seconds; user can click to dismiss earlier.
   useEffect(() => {
@@ -3331,6 +3372,29 @@ function TeacherDashboard({ user, onLogout }) {
                           >
                             🔑
                           </button>
+                          {String(u.role || 'student').toLowerCase() === 'student' && (
+                            <button
+                              className="row-action compact"
+                              disabled={previewBusy}
+                              onClick={async () => {
+                                setPreviewBusy(true);
+                                setPreviewStudent('loading');
+                                try {
+                                  const data = await api.adminStudentPreview(u.id);
+                                  setPreviewStudent(data);
+                                } catch (err) {
+                                  setPreviewStudent(null);
+                                  setAdminToast({ tone: 'rejected', text: err.message || 'Preview failed.' });
+                                } finally {
+                                  setPreviewBusy(false);
+                                }
+                              }}
+                              title="Preview this student's portal (read-only)"
+                              aria-label="Preview student portal"
+                            >
+                              👁
+                            </button>
+                          )}
                           <button
                             className="row-action compact"
                             disabled={userMgmtLoading || isSuper}
@@ -3630,6 +3694,98 @@ function TeacherDashboard({ user, onLogout }) {
                 >
                   {bulkDeleteBusy ? 'Deleting…' : `Delete ${bulkDeleteTargets.length} permanently`}
                 </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Student portal preview — read-only view of what a specific student
+          sees in their portal (attempts, lock state, etc.). No test-taking. */}
+      {previewStudent && (() => {
+        const isLoading = previewStudent === 'loading';
+        const data = isLoading ? null : previewStudent;
+        const attempts = data?.attempts || [];
+        const student = data?.student || null;
+        const userRow = data?.user || null;
+        const lockState = computeStudentLockState(attempts);
+        const officialCefr = lockState.official?.determined_cefr_level;
+        const bannerCopy = (() => {
+          switch (lockState.reason) {
+            case 'first_attempt':            return { tone: 'info', text: 'Welcome — this student has no attempts yet and can start their first.' };
+            case 'pending_review':           return { tone: 'pending', text: 'Latest attempt is awaiting teacher review. New attempts are locked.' };
+            case 'approved_awaiting_retake': return { tone: 'approved', text: `Placement: ${officialCefr || '—'}. Awaiting teacher-granted retake.` };
+            case 'retake_granted':           return { tone: 'approved', text: `Placement: ${officialCefr || '—'}. Retake granted — can start a new attempt.` };
+            case 'rejected_retake_auto':     return { tone: 'rejected', text: 'Last attempt was not approved. Can start a new attempt.' };
+            default: return { tone: 'info', text: '' };
+          }
+        })();
+        return (
+          <div className="modal-overlay" onClick={() => setPreviewStudent(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 780, width: '95%' }}>
+              <button className="modal-close" onClick={() => setPreviewStudent(null)}>×</button>
+              <h2>Student Portal preview</h2>
+              {isLoading ? (
+                <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-muted)' }}>Loading…</div>
+              ) : (
+                <>
+                  <div className="modal-section">
+                    <h3>Student information</h3>
+                    <p><strong>Name:</strong> {student?.full_name || userRow?.full_name || 'N/A'}</p>
+                    <p><strong>Email:</strong> {userRow?.email || student?.email || '—'}</p>
+                    <p><strong>Passport / ID:</strong> {student?.passport_id || '—'}</p>
+                    <p><strong>Country:</strong> {student?.country || '—'}</p>
+                  </div>
+
+                  <div className="modal-section">
+                    <h3>Portal state</h3>
+                    <div className={`banner ${bannerCopy.tone}`}>{bannerCopy.text || 'No status.'}</div>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+                      Total attempts: {attempts.length} · Approved: {attempts.filter(a => (a.status || '').toLowerCase() === 'approved').length} · Pending: {attempts.filter(a => (a.status || '').toLowerCase() === 'pending').length} · Rejected: {attempts.filter(a => (a.status || '').toLowerCase() === 'rejected').length}
+                    </p>
+                  </div>
+
+                  <div className="modal-section">
+                    <h3>Attempt history (as student sees)</h3>
+                    {attempts.length === 0 ? (
+                      <div className="empty-state" style={{ padding: '24px 0' }}>
+                        <span className="icon">📋</span>
+                        <div className="title">No attempts</div>
+                        <div className="subtitle">This student has not started a placement test yet.</div>
+                      </div>
+                    ) : (
+                      <div className="table-wrap"><table className="results-table">
+                        <thead><tr><th>#</th><th>Date</th><th>Score</th><th>CEFR</th><th>Status</th><th>Official</th></tr></thead>
+                        <tbody>
+                          {attempts.map(a => {
+                            const status = (a.status || '').toLowerCase();
+                            const chipClass = status === 'approved' ? 'status-chip approved'
+                              : status === 'rejected' ? 'status-chip rejected'
+                              : 'status-chip pending';
+                            const date = a.reviewed_at || a.submitted_at;
+                            const resultVisible = status === 'approved';
+                            return (
+                              <tr key={a.id}>
+                                <td>{a.attempt_no}</td>
+                                <td>{date ? new Date(date).toLocaleDateString() : '—'}</td>
+                                <td>{resultVisible ? `${a.overall_score?.toFixed?.(1) || a.overall_score}%` : '—'}</td>
+                                <td>{resultVisible ? a.determined_cefr_level : '—'}</td>
+                                <td><span className={chipClass} style={{ textTransform: 'capitalize' }}>{a.status}</span></td>
+                                <td style={{ textAlign: 'center' }}>{a.official_for_placement ? '⭐' : ''}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table></div>
+                    )}
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 10 }}>
+                      Note: score and CEFR are only revealed to the student after a teacher approves the attempt. Pending / rejected rows show <code>—</code>.
+                    </p>
+                  </div>
+                </>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+                <button onClick={() => setPreviewStudent(null)} className="approve-button">Close</button>
               </div>
             </div>
           </div>
